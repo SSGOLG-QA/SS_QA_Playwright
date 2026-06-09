@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Auth / secrets (로그인 세션·쿠키 — 절대 커밋 금지)
+auth/.auth/
+auth/**/*.json
+*.env
+.env*
+
+# Playwright 산출물
+playwright-report/
+test-results/
+reports/
+blob-report/
+playwright/.cache/
+
+# 분석 원시 덤프 (기계가독, 일회성)
+analysis/
+
+# OS / 에디터
+.DS_Store
+Thumbs.db
+*.log
+
+# 빈/임시 파일
+new.html
+
+# Claude Code 로컬 설정
+.claude/
+
+# 테스트 결과 출력 json
+Playwright_New/Playwright_New/
+**/e2e-results.json

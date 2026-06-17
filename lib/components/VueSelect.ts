@@ -8,20 +8,21 @@ import { Locator, Page } from '@playwright/test';
 //      count()/selected()/options() 등 읽기 메서드만 사용할 것.
 // ────────────────────────────────────────────────────────────────
 export class VueSelect {
-  constructor(private scope: Locator) {}
-  private page(): Page { return this.scope.page(); }
-  private toggle(): Locator { return this.scope.locator('.vs__dropdown-toggle').first(); }
+  constructor(private scope: Locator | Page) {}
+  private root(sel: string): Locator { return (this.scope as Page).locator ? (this.scope as Page).locator(sel) : (this.scope as Locator).locator(sel); }
+  private page(): Page { const s = this.scope as any; return s.page ? s.page() : s; }
+  private toggle(): Locator { return this.root('.vs__dropdown-toggle').first(); }
 
-  /** scope 내 vue-select 개수 */
+  /** scope 내 vue-select 개수 (vue-select당 .vs__dropdown-toggle 1개 기준) */
   async count(): Promise<number> {
-    return this.scope.locator('.v-select, .vs__dropdown-toggle').count().catch(() => 0);
+    return this.root('.vs__dropdown-toggle').count().catch(() => 0);
   }
   async isVisible(): Promise<boolean> {
     return this.toggle().isVisible().catch(() => false);
   }
   /** 현재 선택값(.vs__selected) */
   async selected(): Promise<string> {
-    return (await this.scope.locator('.vs__selected').first().innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+    return (await this.root('.vs__selected').first().innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
   }
   async open(): Promise<void> {
     await this.toggle().click().catch(() => {});

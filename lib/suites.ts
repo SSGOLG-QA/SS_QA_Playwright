@@ -3,6 +3,7 @@ import { check, checkText, skip, gotoMenu, noTC, recordIA, diff, checkRawCode, c
 import { runCommonActions } from './commonActions';
 import { DataGrid } from './components/DataGrid';
 import { VueSelect } from './components/VueSelect';
+import { SummaryCards } from './components/SummaryCards';
 import { verifyInvariants, lockOrSkipFormula } from './domain/calcChecks';
 import { parseVisitRow, visitInvariants, SS_RATIO_CANDIDATES, PRINT_RATE_CANDIDATES, VisitRow } from './domain/visitStatus';
 
@@ -127,7 +128,7 @@ export async function runRoundMgmt(admin: Page) {
     await check(admin, { path: '라운드관리 > 내장 통계 > 테이블', tcRef: '라운드 관리_018', tcId: 'No.18-⑤', desc: '일별 내장 통계 테이블 영역', expected: 'table', failMsg: '테이블 미노출' }, async () => { await expect(admin.locator('.table-overflow-item table')).toBeVisible(); });
     await checkText(admin, { path: '라운드관리 > 내장 통계 > 설명 영역', tcRef: '라운드 관리_020', tcId: 'No.20', desc: '안내 문구 TC 원문 일치', expected: NOTICE.stats, failMsg: 'UI 불일치(안내 문구/띄어쓰기)' }, admin.locator('.info-box-text'));
     for (const [i, l] of ['총 스스회원 내장객', '일평균 스스 회원수', '남성/여성 비중'].entries())
-      await check(admin, { path: '라운드관리 > 내장 통계 > 카드 요약', tcRef: '라운드 관리_029', tcId: `No.29-${i + 1}`, desc: `카드 '${l}' 노출`, expected: l, failMsg: '카드 미노출' }, async () => { await expect(admin.locator('.summary-card').filter({ hasText: l })).toBeVisible(); });
+      await check(admin, { path: '라운드관리 > 내장 통계 > 카드 요약', tcRef: '라운드 관리_029', tcId: `No.29-${i + 1}`, desc: `카드 '${l}' 노출`, expected: l, failMsg: '카드 미노출' }, async () => { await expect(new SummaryCards(admin).card(l)).toBeVisible(); });
     for (const [i, b] of ['전체보기', '성별만 보기', '연령만 보기'].entries())
       await check(admin, { path: '라운드관리 > 내장 통계 > 필터 버튼', tcRef: '라운드 관리_035', tcId: `No.35-${i + 1}`, desc: `필터 [${b}] 노출`, expected: `[${b}]`, failMsg: '필터 버튼 미노출' }, async () => { await expect(btn(admin, b)).toBeVisible(); });
     // No.33/45/50 은 데이터 의존(조회기간 내 SS회원 내장) → 0건이면 빈 상태("내역이 없습니다") → SKIP, 데이터 있으면 검증
@@ -489,7 +490,7 @@ export async function runCartTrace(admin: Page) {
 
   // ── CARTTRACE-02 캐디/조건 vue-select(≥1) ───────────────────
   await check(admin, { path: `${P} > 필터`, tcRef: `${R}_2`, tcId: 'CARTTRACE-02', desc: '캐디/조건 vue-select 드롭다운 노출(≥1)', expected: 'vs-dropdown ≥1', failMsg: 'vue-select 미노출' },
-    async () => { expect(await admin.locator('.vs__dropdown-toggle').count()).toBeGreaterThanOrEqual(1); });
+    async () => { expect(await new VueSelect(admin).count()).toBeGreaterThanOrEqual(1); });
 
   // ── CARTTRACE-03 지도 컨테이너 ──────────────────────────────
   await check(admin, { path: `${P} > 지도`, tcRef: `${R}_3`, tcId: 'CARTTRACE-03', desc: '지도 컨테이너(.map-box) 노출', expected: 'map-box', failMsg: '지도 영역 미노출' },
@@ -626,7 +627,7 @@ export async function runTabletHoleEvent(admin: Page) {
   // ⚠ 리뉴얼 띄어쓰기 변경(2026-06-05): '홀이벤트' → '홀 이벤트'(메뉴/섹션/컬럼/버튼). 공백 변동 대비 정규식 매칭
   const secEvent = admin.locator('.contents-box').filter({ hasText: /홀\s*이벤트/ });
   await check(admin, { path: `${P} > 홀 이벤트`, tcRef: `${R}_2`, tcId: 'THEV-02', desc: '홀 이벤트 섹션 + 필터(코스/홀 vue-select) + [홀 이벤트 추가](비파괴)', expected: '섹션+필터+추가', failMsg: '요소 미노출' },
-    async () => { await expect(secEvent.first()).toBeVisible(); expect(await admin.locator('.vs__dropdown-toggle').count()).toBeGreaterThanOrEqual(1); await expect(admin.getByRole('button', { name: /홀\s*이벤트\s*추가/ })).toBeVisible(); });
+    async () => { await expect(secEvent.first()).toBeVisible(); expect(await new VueSelect(admin).count()).toBeGreaterThanOrEqual(1); await expect(admin.getByRole('button', { name: /홀\s*이벤트\s*추가/ })).toBeVisible(); });
   for (const [i, c] of [/코스/, /홀\s*번호/, /홀\s*이벤트/, /이미지/, /이벤트\s*노출시간/, /관리/].entries())
     await check(admin, { path: `${P} > 홀 이벤트 > 테이블`, tcRef: `${R}_3`, tcId: `THEV-03-${i + 1}`, desc: `컬럼 '${c.source}' 노출`, expected: `컬럼 '${c.source}'`, failMsg: '컬럼 미노출' },
       async () => { await expect(admin.getByRole('columnheader', { name: c }).first()).toBeVisible(); });
@@ -821,7 +822,7 @@ export async function runTimeSearch(admin: Page) {
   await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'TSCH-01', desc: '안내 문구 노출(부분)', expected: '진행시간', failMsg: '안내 미노출' },
     async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('진행시간'); });
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'TSCH-02', desc: '조회기간 datepicker(≥2) + 조건 vue-select(≥1)', expected: 'datepicker≥2', failMsg: '검색 영역 미노출' },
-    async () => { expect(await admin.locator('.datepicker-input').count()).toBeGreaterThanOrEqual(2); expect(await admin.locator('.vs__dropdown-toggle').count()).toBeGreaterThanOrEqual(1); });
+    async () => { expect(await admin.locator('.datepicker-input').count()).toBeGreaterThanOrEqual(2); expect(await new VueSelect(admin).count()).toBeGreaterThanOrEqual(1); });
   for (const [i, b] of ['검색', '초기화', '내보내기', '홀별시각보기'].entries())
     await check(admin, { path: `${P} > 버튼`, tcRef: `${R}_3`, tcId: `TSCH-03-${i + 1}`, desc: `[${b}] 버튼 노출(비파괴)`, expected: `[${b}]`, failMsg: '버튼 미노출' },
       async () => { await expect(admin.getByRole('button', { name: b, exact: true }).first()).toBeVisible(); });
@@ -865,7 +866,7 @@ export async function runCaddieList(admin: Page) {
   await check(admin, { path: `${P} > 통계카드`, tcRef: `${R}_3`, tcId: 'CADL-03', desc: '통계 카드(총 등록 캐디/활동 캐디/운영 비율 등) 노출(≥1)', expected: 'stat-card ≥1', failMsg: '통계카드 미노출' },
     async () => { expect(await admin.locator('.stat-card').count()).toBeGreaterThanOrEqual(1); });
   await check(admin, { path: `${P} > 필터`, tcRef: `${R}_4`, tcId: 'CADL-04', desc: '활동 상태 vue-select + 캐디명 입력 + [적용]/[초기화]', expected: '필터', failMsg: '필터 미노출' },
-    async () => { expect(await admin.locator('.vs__dropdown-toggle').count()).toBeGreaterThanOrEqual(1); await expect(admin.getByPlaceholder('캐디명을 입력하세요.')).toBeVisible(); await expect(admin.getByRole('button', { name: '적용', exact: true })).toBeVisible(); });
+    async () => { expect(await new VueSelect(admin).count()).toBeGreaterThanOrEqual(1); await expect(admin.getByPlaceholder('캐디명을 입력하세요.')).toBeVisible(); await expect(admin.getByRole('button', { name: '적용', exact: true })).toBeVisible(); });
   for (const [i, c] of ['No', '성명', '성별', '휴대폰', '카트번호', '태블릿 No.', '배터리', '라운드기록', '회원추천', '그늘집주문'].entries())
     await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_5`, tcId: `CADL-05-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
       async () => { await expect(admin.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
@@ -999,7 +1000,7 @@ export async function runHolemapZone(admin: Page) {
   await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'HMZ-01', desc: '안내 문구 노출(부분)', expected: '홀맵 구역', failMsg: '안내 미노출' },
     async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('홀맵 구역'); });
   await check(admin, { path: `${P} > 필터`, tcRef: `${R}_2`, tcId: 'HMZ-02', desc: '필터(코스/홀 vue-select) + [초기화]/[적용]/[구역관리](비파괴)', expected: '필터+버튼', failMsg: '필터/버튼 미노출' },
-    async () => { expect(await admin.locator('.vs__dropdown-toggle').count()).toBeGreaterThanOrEqual(1); await expect(admin.getByRole('button', { name: '적용', exact: true }).first()).toBeVisible(); await expect(admin.getByRole('button', { name: '구역 관리' }).first()).toBeVisible(); });
+    async () => { expect(await new VueSelect(admin).count()).toBeGreaterThanOrEqual(1); await expect(admin.getByRole('button', { name: '적용', exact: true }).first()).toBeVisible(); await expect(admin.getByRole('button', { name: '구역 관리' }).first()).toBeVisible(); });
   for (const [i, c] of ['No', '코스', '홀', 'PAR', '야디지', '위험구역', 'OB구역', '패널티구역', '관리'].entries())
     await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_3`, tcId: `HMZ-03-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
       async () => { await expect(admin.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
@@ -1051,7 +1052,7 @@ export async function runHolemapPreview(admin: Page) {
   await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'HMP-01', desc: '안내 문구 노출(부분)', expected: '태블릿에 실제로', failMsg: '안내 미노출' },
     async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('태블릿에 실제로'); });
   await check(admin, { path: `${P} > 미리보기 조건`, tcRef: `${R}_2`, tcId: 'HMP-02', desc: '미리보기 조건(코스/홀 vue-select ≥2)', expected: 'vs ≥2', failMsg: '조건 미노출' },
-    async () => { expect(await admin.locator('.vs__dropdown-toggle').count()).toBeGreaterThanOrEqual(2); });
+    async () => { expect(await new VueSelect(admin).count()).toBeGreaterThanOrEqual(2); });
   await check(admin, { path: `${P} > 미리보기`, tcRef: `${R}_3`, tcId: 'HMP-03', desc: '미리보기 영역(svg) + 투명도 슬라이더 + 요약(노출만)', expected: 'svg+slider+summary', failMsg: '미리보기 미노출' },
     async () => { expect(await admin.locator('svg').count()).toBeGreaterThanOrEqual(1); await expect(admin.locator('.opacity-slider').first()).toBeVisible(); await expect(admin.locator('.preview-summary').first()).toBeVisible(); });
   await runCommonActions(admin, P, R);
@@ -1113,7 +1114,7 @@ export async function runCourseAnalysis(admin: Page) {
   await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'CRS-01', desc: '안내 문구 노출(부분)', expected: '분석 자료', failMsg: '안내 미노출' },
     async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('분석'); });
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'CRS-02', desc: '조건 vue-select(≥1) + [조회](비파괴)', expected: 'vs≥1+조회', failMsg: '검색 미노출' },
-    async () => { expect(await admin.locator('.vs__dropdown-toggle').count()).toBeGreaterThanOrEqual(1); await expect(admin.getByRole('button', { name: '조회' })).toBeVisible(); });
+    async () => { expect(await new VueSelect(admin).count()).toBeGreaterThanOrEqual(1); await expect(admin.getByRole('button', { name: '조회' })).toBeVisible(); });
   for (const [i, c] of ['홀', '스코어', '퍼트수', '페어웨이안착률', '그린적중률'].entries())
     await check(admin, { path: `${P} > 분석표`, tcRef: `${R}_3`, tcId: `CRS-03-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
       async () => { await expect(admin.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
@@ -1392,14 +1393,14 @@ export async function runFnbOrderHistory(admin: Page) {
     async () => { for (const b of ['일별', '주별', '월별']) await expect(admin.getByRole('button', { name: b, exact: true }).first()).toBeVisible(); });
 
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_5`, tcId: 'FNBORD-05', desc: '식당/캐디 필터(vue-select ≥2) 노출', expected: 'v-select ≥2', failMsg: '필터 미노출' },
-    async () => { expect(await admin.locator('.v-select, .vs__dropdown-toggle').count()).toBeGreaterThanOrEqual(2); });
+    async () => { expect(await new VueSelect(admin).count()).toBeGreaterThanOrEqual(2); });
 
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_6`, tcId: 'FNBORD-06', desc: '[적용]/[초기화] 버튼 노출', expected: '적용/초기화', failMsg: '버튼 미노출' },
     async () => { await expect(admin.getByRole('button', { name: '적용', exact: true }).first()).toBeVisible(); await expect(admin.getByRole('button', { name: '초기화', exact: true }).first()).toBeVisible(); });
   diff(`${P} > 검색`, '검색 버튼 라벨 [검색]', '[적용] (리뉴얼 라벨 통일)', `${R}_6`, '기능 정상 — 현 구현(AS-IS) 유지');
 
   await check(admin, { path: `${P} > 요약`, tcRef: `${R}_7`, tcId: 'FNBORD-07', desc: '요약 카드(총 주문금액/총 주문건수/평균 주문금액/주문TOP캐디) 노출(값 데이터 의존)', expected: '요약 카드 4종', failMsg: '요약 카드 미노출' },
-    async () => { for (const t of ['총 주문금액', '총 주문건수', '평균 주문금액', '주문TOP캐디']) await expect(admin.getByText(t).first()).toBeVisible(); });
+    async () => { const sc = new SummaryCards(admin); for (const t of ['총 주문금액', '총 주문건수', '평균 주문금액', '주문TOP캐디']) await expect(sc.card(t)).toBeVisible(); });
 
   await check(admin, { path: `${P} > 주문 랭킹`, tcRef: `${R}_8`, tcId: 'FNBORD-08', desc: '주문 랭킹 테이블 헤더(순위/캐디명/식당/주문금액/평균주문금액) 노출', expected: '순위·캐디명·식당·주문금액 등', failMsg: '주문 랭킹 헤더 미노출' },
     async () => { for (const h of ['순위', '캐디명', '주문금액']) await expect(admin.getByRole('columnheader', { name: h, exact: false }).first()).toBeVisible(); });

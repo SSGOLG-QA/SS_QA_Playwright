@@ -2,6 +2,7 @@ import { expect, Page } from '@playwright/test';
 import { check, checkText, skip, gotoMenu, noTC, recordIA, diff, checkRawCode, checkRowCountVsTotal } from './reporter';
 import { runCommonActions } from './commonActions';
 import { DataGrid } from './components/DataGrid';
+import { VueSelect } from './components/VueSelect';
 import { verifyInvariants, lockOrSkipFormula } from './domain/calcChecks';
 import { parseVisitRow, visitInvariants, SS_RATIO_CANDIDATES, PRINT_RATE_CANDIDATES, VisitRow } from './domain/visitStatus';
 
@@ -1305,7 +1306,7 @@ export async function runFnbVersion(admin: Page) {
 
   // ── FNBVER-09 코스 행 + 기본식당 vue-select(변경 금지) ──────
   await check(admin, { path: `${P} > 코스별 기본 식당`, tcRef: `${R}_9`, tcId: 'FNBVER-09', desc: '코스 행(≥1) + 기본식당 선택(vue-select)·현재 선택값 노출(비파괴·변경 미수행)', expected: 'v-select ≥1 + 선택값', failMsg: '코스 기본식당 설정 미노출' },
-    async () => { expect(await courseBox.locator('.v-select, .vs__dropdown-toggle').count()).toBeGreaterThanOrEqual(1); await expect(courseBox.locator('.vs__selected').first()).toBeVisible(); });
+    async () => { const vs = new VueSelect(courseBox); expect(await vs.count()).toBeGreaterThanOrEqual(1); await expect(courseBox.locator('.vs__selected').first()).toBeVisible(); });
 
   // ── 기획-구현 차이: SNB 라벨 드리프트 ───────────────────────
   diff(P, 'SNB 1depth 명칭 = 버전 업데이트(IA 변경표)', "실제 SNB 라벨 = '버전 및 설정'", `${R}_1`, '명칭 드리프트 — 기능 정상, IA/문서 정정 권장(QA 확인 요망)');

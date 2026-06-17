@@ -1,5 +1,6 @@
 import { Page, expect } from '@playwright/test';
 import { check } from './reporter';
+import { DatePicker } from './components/DatePicker';
 
 // ──────────────────────────────────────────────────────────────
 //  전체메뉴 공통 버튼 동작 자동화 (비파괴) — 화면에 해당 버튼이 있을 때만 검증.
@@ -54,15 +55,8 @@ export async function checkDateSearch(admin: Page, P: string, R: string, tcId = 
 
   await check(admin, { path: `${P} > 조회일`, tcRef: `${R}_조회일`, tcId, desc: '달력 날짜 선택 → [조회]/[적용] 동작(비파괴: 읽기)', expected: '조회 후 결과/빈상태 정상 유지', failMsg: '날짜 선택→조회 동작 실패/화면 오류' },
     async () => {
-      // 1) 달력 열기 → 현재 월의 유효 날짜 1개 선택 (DOM el.click → 뷰포트 무관)
-      await box.locator('.datepicker-input').first().click().catch(() => {});
-      const layer = admin.locator('.datepicker-layer').first();
-      if (await layer.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const cell = layer.locator('.text-num:not(.disabled)').filter({ hasText: /^\d{1,2}$/ }).first();
-        await cell.evaluate((el: HTMLElement) => el.click()).catch(() => {});
-        await admin.waitForTimeout(120);
-        await admin.keyboard.press('Escape').catch(() => {});
-      }
+      // 1) 달력 열기 → 현재 월의 유효 날짜 1개 선택 (L2 DatePicker — DOM el.click, 뷰포트 무관)
+      await new DatePicker(box).pickAnyValidDay();
       // 2) 조회 실행 → 화면 정상 유지(비파괴 스모크)
       await queryBtn.click().catch(() => {});
       await admin.waitForTimeout(1000);

@@ -1,6 +1,30 @@
 import { expect, Page } from '@playwright/test';
 import { check, checkText, skip, gotoMenu, noTC, recordIA, diff, checkRawCode, checkRowCountVsTotal } from './reporter';
 import { runCommonActions } from './commonActions';
+import { DataGrid } from './components/DataGrid';
+import { verifyInvariants, lockOrSkipFormula } from './domain/calcChecks';
+import { parseVisitRow, visitInvariants, SS_RATIO_CANDIDATES, PRINT_RATE_CANDIDATES, VisitRow } from './domain/visitStatus';
+
+// 헤더 키를 공백무시 정규식으로 찾는 소형 getter(컬럼 드리프트 견고)
+const cell = (rec: Record<string, string>, re: RegExp) => {
+  const k = Object.keys(rec).find(k => re.test(k.replace(/\s+/g, '')));
+  return k ? rec[k] : '';
+};
+
+// ════════════════ 계산 정합성: 내장 현황(round-visit) ════════════════
+//   행 원시값에서 파생값(총=남+여·SS비율·출력률)을 재계산해 정합 검증(구조 불변식 + 공식 자동확정).
+//   runRoundMgmt(내장 현황) + visit-status-calc.spec.ts 양쪽에서 호출(DRY).
+export async function runVisitStatusCalc(admin: Page) {
+  const P = '라운드관리 > 내장 현황 > 정합성';
+  const R = '라운드 관리_CALC';
+  const grid = new DataGrid(admin.locator('.table-overflow-item table'));
+  await admin.locator('.table-overflow-item table tbody tr').first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
+  if (await grid.isEmpty()) { skip({ path: P, tcRef: R, tcId: 'VS-CALC', desc: '내장 현황 계산 정합성' }, '데이터 없음(행 0건)'); return; }
+  const rows: VisitRow[] = (await grid.records()).map(parseVisitRow);
+  await verifyInvariants(admin, P, R, 'VS-CALC', rows, visitInvariants);
+  await lockOrSkipFormula(admin, P, R, 'VS-RATIO-SS', 'SS회원 비율', rows, r => r.ssRatio, SS_RATIO_CANDIDATES);
+  await lockOrSkipFormula(admin, P, R, 'VS-RATIO-PRINT', '출력률', rows, r => r.printRate, PRINT_RATE_CANDIDATES);
+}
 
 // ──────────────────────────────────────────────────────────────
 //  검증 스위트 (공용) — 홈 / 라운드관리 / IA 구현여부
@@ -89,6 +113,8 @@ export async function runRoundMgmt(admin: Page) {
     for (const [i, c] of ['날짜', '총 내장객', '내장객 남/여', '유효 내장객', '기존 SS회원', '신규 SS회원', '일일 SS회원', 'SS회원 비율', '출력 횟수', '출력률'].entries())
       await check(admin, { path: '라운드관리 > 내장 현황 > 테이블', tcRef: '라운드 관리_005', tcId: `No.5-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `컬럼 '${c}'`, failMsg: '컬럼 미노출' }, async () => { await expect(t.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
     await check(admin, { path: '라운드관리 > 내장 현황 > 테이블 > 내보내기', tcRef: '라운드 관리_017', tcId: 'No.17', desc: '[내보내기] 클릭 시 다운로드 발생', expected: 'download', failMsg: '다운로드 미발생' }, async () => { const d = dl(); await btn(admin, '내보내기').click(); expect(await d).not.toBeNull(); });
+    // ✨계산 정합성(2026-06-17): 행 원시값↔파생값(총=남+여·SS비율·출력률) 재계산 검증
+    await runVisitStatusCalc(admin);
   }
 
   // 2. 내장 통계
@@ -1379,6 +1405,28 @@ export async function runFnbOrderHistory(admin: Page) {
 
   await check(admin, { path: `${P} > 주문 상세 내역`, tcRef: `${R}_9`, tcId: 'FNBORD-09', desc: '주문 상세 내역 테이블 헤더(No/캐디명/식당/주문내역/주문일시) 노출', expected: 'No·캐디명·식당·주문내역·주문일시', failMsg: '주문 상세 헤더 미노출' },
     async () => { for (const h of ['주문내역', '주문일시']) await expect(admin.getByRole('columnheader', { name: h, exact: false }).first()).toBeVisible(); });
+
+  // ✨계산 정합성(2026-06-17): 캐디주문실적 랭킹표 행내 불변식(구조 — 명세 불요)
+  //   주문금액 = 공급가 + 부가세(공급대가), 평균주문금액 = round(주문금액 / 주문건수)
+  const rank = new DataGrid(admin.locator('table').filter({ has: admin.getByRole('columnheader', { name: '공급가', exact: false }) }).first());
+  if (!(await rank.isEmpty().catch(() => true))) {
+    const rrows = (await rank.records()).map(rec => ({
+      name: cell(rec, /캐디명|순위/),
+      supply: DataGrid.num(cell(rec, /공급가/)),
+      vat: DataGrid.num(cell(rec, /부가세/)),
+      amount: DataGrid.num(cell(rec, /^주문금액$|주문금액/)),
+      cnt: DataGrid.num(cell(rec, /주문건수/)),
+      avg: DataGrid.num(cell(rec, /평균주문금액/)),
+    }));
+    await verifyInvariants(admin, P, R, 'FNBORD-CALC', rrows, r => {
+      const inv: { name: string; ok: boolean; detail: string }[] = [];
+      if ([r.supply, r.vat, r.amount].every(Number.isFinite))
+        inv.push({ name: '주문금액 = 공급가 + 부가세', ok: r.supply + r.vat === r.amount, detail: `${r.name}: ${r.supply}+${r.vat}=${r.supply + r.vat} vs ${r.amount}` });
+      if ([r.amount, r.cnt, r.avg].every(Number.isFinite) && r.cnt > 0)
+        inv.push({ name: '평균주문금액 = 주문금액 / 주문건수', ok: Math.round(r.amount / r.cnt) === r.avg, detail: `${r.name}: round(${r.amount}/${r.cnt})=${Math.round(r.amount / r.cnt)} vs ${r.avg}` });
+      return inv;
+    });
+  }
 
   await runCommonActions(admin, P, R);
 }

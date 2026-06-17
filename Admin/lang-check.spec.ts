@@ -1,5 +1,4 @@
-import { test } from '@playwright/test';
-import { openAdmin } from '../lib/adminHelpers';
+import { test } from '../lib/fixtures';
 import { writeReport, resetResults, resetNoTC, resetDiff, gotoMenu } from '../lib/reporter';
 import { scanScreenAllLangs } from '../lib/langCheck';
 
@@ -11,10 +10,9 @@ import { scanScreenAllLangs } from '../lib/langCheck';
 //   결과: '언어검증' 검출 → 요약/이슈 시트 + 기획-구현 차이 시트(검출 목록)
 // 실행: npx playwright test --project=admin-chromium Admin/lang-check.spec.ts --no-deps
 // ──────────────────────────────────────────────────────────────
-test('언어 검증 PoC (홈 + 라이브채팅 공지 조회) — 한글 노출 검출', async ({ page, context }) => {
+test('언어 검증 PoC (홈 + 라이브채팅 공지 조회) — 한글 노출 검출', async ({ admin }) => {
   test.setTimeout(180_000);
   resetResults(); resetNoTC(); resetDiff();
-  const admin = await openAdmin(page, context);
 
   // ① 홈(랜딩) — 네비게이션 없이 바로 스캔
   await scanScreenAllLangs(admin, '홈', '언어검증_홈');

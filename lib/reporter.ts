@@ -81,7 +81,45 @@ export async function capture(page: Page, meta: CheckMeta): Promise<string> {
   if (!fs.existsSync(SHOT_DIR)) fs.mkdirSync(SHOT_DIR, { recursive: true });
   const slug = `${meta.tcId}_${meta.path}`.replace(/[^\w가-힣]+/g, '_').slice(0, 90);
   const shot = path.join(SHOT_DIR, `${slug}.png`);
-  await page.screenshot({ path: shot, fullPage: true }).catch(() => {});
+  // ⚠ 일부 화면만 캡처되는 근본 원인:
+  //   ① playwright.config viewport:null(최대화 실제 창) → page.screenshot({fullPage:true})가 보이는 영역만 캡처(Playwright 제약)
+  //   ② SPA 앱 셸이 고정높이(100vh) flex 레이아웃 + 내부 스크롤 컨테이너(.contents 등)로 콘텐츠를 클리핑
+  //      → document 높이가 뷰포트에 고정 → fullPage/CDP 전체캡처로도 내부 스크롤 영역 하단이 안 잡힘.
+  //   해결: CDP Emulation.setDeviceMetricsOverride 로 '뷰포트 높이'를 콘텐츠 전체 높이로 강제(viewport:null 무관)
+  //         → 내부 flex 콘텐츠 영역이 펼쳐져 스크롤 없이 전부 노출 → captureScreenshot(captureBeyondViewport) → override 해제.
+  let client: any = null;
+  try {
+    // 1) 전체 콘텐츠 높이 추정: document + 모든 내부 스크롤러 scrollHeight 의 최댓값
+    const m0 = await page.evaluate(() => {
+      let h = Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0);
+      let w = document.documentElement.clientWidth;
+      for (const el of Array.from(document.querySelectorAll('body *')) as HTMLElement[]) {
+        if (el.scrollHeight > h) h = el.scrollHeight;
+      }
+      return { w: Math.ceil(w), h: Math.ceil(h) };
+    });
+    const W = Math.min(Math.max(m0.w, 360), 4000);
+    let H = Math.min(Math.max(m0.h, 600), 30000);   // 비정상적으로 큰 페이지 방어(상한 30000px)
+
+    client = await page.context().newCDPSession(page);
+    // 2) 뷰포트 높이를 콘텐츠 높이로 강제 → 내부 flex 콘텐츠가 전부 펼쳐지도록
+    await client.send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
+    await page.waitForTimeout(250);   // reflow 안정화
+    // 3) 강제 뷰포트에서 다시 측정(콘텐츠가 더 늘어났으면 반영) 후 캡처
+    H = await page.evaluate(() => Math.ceil(Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0)));
+    H = Math.min(Math.max(H, 600), 30000);
+    await client.send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: 1, mobile: false });
+    await page.waitForTimeout(120);
+    const { data } = await client.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true });
+    fs.writeFileSync(shot, Buffer.from(data, 'base64'));
+  } catch {
+    // 폴백: 표준 fullPage → 그래도 실패 시 뷰포트만
+    try { await page.screenshot({ path: shot, fullPage: true }); }
+    catch { try { await page.screenshot({ path: shot }); } catch { /* 촬영 불가 무시 */ } }
+  } finally {
+    // 뷰포트 override 해제(비파괴) — 캡처 성패와 무관하게 항상 실행
+    if (client) { try { await client.send('Emulation.clearDeviceMetricsOverride'); } catch { /* */ } await client.detach().catch(() => {}); }
+  }
   return shot;
 }
 
@@ -264,6 +302,14 @@ export async function writeReport(title = 'report'): Promise<string> {
   // IA/SNB 순서로 대메뉴 정렬
   const menus = [...groups.keys()].sort((a, b) => (menuRank(a) - menuRank(b)) || a.localeCompare(b, 'ko'));
 
+  // 상세 시트 행 위치 사전 계산 — 주요 이슈 현황 FAIL 항목 내부 링크용
+  // 상세 시트는 tcRefSort 정렬, row 1 = 헤더, 데이터 row 2~
+  const resultRowMap = new Map<TCResult, number>();
+  for (const m of menus) {
+    const sorted = [...groups.get(m)!].sort(tcRefSort);
+    sorted.forEach((r, i) => resultRowMap.set(r, i + 2));
+  }
+
   // ── 요약 시트: 테스트 현황 대시보드 (TC문서 Summary 스타일) ──
   //   색상/세부 항목 조정 가능. 자동화 특성상 전수 실행 → 수행수=전체수(잔여 0), N/A=SKIP.
   const sum = wb.addWorksheet('요약');
@@ -287,21 +333,50 @@ export async function writeReport(title = 'report'): Promise<string> {
   // 제목
   sum.mergeCells('A1:G1');
   const t1 = sum.getCell('A1'); t1.value = `테스트 현황  —  ${title}`; t1.font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } }; fill(t1, C_TITLE); t1.alignment = { vertical: 'middle' }; sum.getRow(1).height = 24;
-  // 비율 요약
-  const rr = sum.getRow(3); rr.values = ['진행률', '100%', 'PASS Rate', `${passRate}%`, 'Fail Rate', `${failRate}%`];
+  // 비율 요약 — Total 행 번호를 사전 계산해 수식 참조
+  // 레이아웃: row1=제목 / row2=공백 / row3=비율 / row4=공백 / row5=헤더 / row6~=데이터(N) / row(6+N)=Total
+  const totalRowNum = 6 + data.length;
+  const rr = sum.getRow(3);
+  rr.getCell(1).value = '진행률'; rr.getCell(2).value = '100%';
+  rr.getCell(3).value = 'PASS Rate';
+  rr.getCell(4).value = { formula: `=TEXT(D${totalRowNum}/(D${totalRowNum}+E${totalRowNum}),"0%")`, result: `${passRate}%` };
+  rr.getCell(5).value = 'Fail Rate';
+  rr.getCell(6).value = { formula: `=IF((D${totalRowNum}+E${totalRowNum})>0,TEXT(E${totalRowNum}/(D${totalRowNum}+E${totalRowNum}),"0%"),"-")`, result: `${failRate}%` };
   [1, 3, 5].forEach(i => { const c = rr.getCell(i); c.font = { bold: true }; fill(c, C_SUBT); box(c); box(rr.getCell(i + 1)); });
   if (tF > 0) rr.getCell(6).font = { bold: true, color: { argb: 'FFCC0000' } };
 
   // [테스트 수행 수] 헤더
   const hdr = sum.getRow(5); hdr.values = ['구분', '테스트 전체 수', '수행 수', 'PASS', 'FAIL', 'N/A', 'PASS율'];
   hdr.font = { bold: true, color: { argb: 'FF1F3864' } }; hdr.eachCell((c: any) => { fill(c, C_HEAD); box(c); c.alignment = { horizontal: 'center' }; });
-  // 대메뉴별 행
+  // 대메뉴별 행 — COUNTA/COUNTIF 수식으로 상세 시트 실시간 집계
+  const menuSumRows = new Map<string, number>();
+  let firstDataRow = 0, lastDataRow = 0;
   for (const d of data) {
-    const r = sum.addRow([d.m, d.total, d.total, d.pass, d.fail, d.na, (d.pass + d.fail) ? `${Math.round((d.pass / (d.pass + d.fail)) * 100)}%` : '-']);
+    const sn = `'${sheetSafe(d.m).replace(/'/g, "''")}'`;
+    const r = sum.addRow([d.m]);
+    const rn = r.number;
+    menuSumRows.set(d.m, rn);
+    if (!firstDataRow) firstDataRow = rn;
+    lastDataRow = rn;
+    r.getCell(2).value = { formula: `=COUNTA(${sn}!A:A)-1`, result: d.total };
+    r.getCell(3).value = { formula: `=COUNTA(${sn}!A:A)-1`, result: d.total };
+    r.getCell(4).value = { formula: `=COUNTIF(${sn}!G:G,"PASS")`, result: d.pass };
+    r.getCell(5).value = { formula: `=COUNTIF(${sn}!G:G,"FAIL")`, result: d.fail };
+    r.getCell(6).value = { formula: `=COUNTIF(${sn}!G:G,"SKIP")`, result: d.na };
+    const pStr = (d.pass + d.fail) ? `${Math.round(d.pass / (d.pass + d.fail) * 100)}%` : '-';
+    r.getCell(7).value = { formula: `=IF((D${rn}+E${rn})>0,TEXT(D${rn}/(D${rn}+E${rn}),"0%"),"-")`, result: pStr };
     r.eachCell((c: any) => box(c));
     if (d.fail > 0) r.getCell(5).font = { bold: true, color: { argb: 'FFCC0000' } };
   }
-  const tot = sum.addRow(['Total', grandTotal, grandTotal, tP, tF, tS, (tP + tF) ? `${passRate}%` : '-']);
+  const tot = sum.addRow(['Total']);
+  const totRow = tot.number;
+  tot.getCell(2).value = { formula: `=SUM(B${firstDataRow}:B${lastDataRow})`, result: grandTotal };
+  tot.getCell(3).value = { formula: `=SUM(C${firstDataRow}:C${lastDataRow})`, result: grandTotal };
+  tot.getCell(4).value = { formula: `=SUM(D${firstDataRow}:D${lastDataRow})`, result: tP };
+  tot.getCell(5).value = { formula: `=SUM(E${firstDataRow}:E${lastDataRow})`, result: tF };
+  tot.getCell(6).value = { formula: `=SUM(F${firstDataRow}:F${lastDataRow})`, result: tS };
+  const totPStr = (tP + tF) ? `${passRate}%` : '-';
+  tot.getCell(7).value = { formula: `=IF((D${totRow}+E${totRow})>0,TEXT(D${totRow}/(D${totRow}+E${totRow}),"0%"),"-")`, result: totPStr };
   tot.font = { bold: true }; tot.eachCell((c: any) => { fill(c, C_TOTAL); box(c); });
 
   // [이슈 현황] — 결함(FAIL) + 기획-구현 차이(diff) 대메뉴별
@@ -310,21 +385,36 @@ export async function writeReport(title = 'report'): Promise<string> {
   const ih = sum.addRow(['구분', '결함(FAIL)', '기획-구현 차이']); ih.font = { bold: true, color: { argb: 'FF1F3864' } }; [1, 2, 3].forEach(i => { fill(ih.getCell(i), C_HEAD); box(ih.getCell(i)); ih.getCell(i).alignment = { horizontal: 'center' }; });
   const diffByMenu = new Map<string, number>();
   for (const d of diffIssues) { const k = canonMenu(topMenu(d.menu)); diffByMenu.set(k, (diffByMenu.get(k) || 0) + 1); }
+  let issueFirstRow = 0, issueLastRow = 0;
   for (const d of data) {
-    const r = sum.addRow([d.m, d.fail, diffByMenu.get(d.m) || 0]); [1, 2, 3].forEach(i => box(r.getCell(i)));
+    const dataRn = menuSumRows.get(d.m);
+    const r = sum.addRow([d.m]);
+    const rn = r.number;
+    if (!issueFirstRow) issueFirstRow = rn;
+    issueLastRow = rn;
+    r.getCell(2).value = dataRn ? { formula: `=E${dataRn}`, result: d.fail } : d.fail;
+    r.getCell(3).value = diffByMenu.get(d.m) || 0;
+    [1, 2, 3].forEach(i => box(r.getCell(i)));
     if (d.fail > 0) r.getCell(2).font = { bold: true, color: { argb: 'FFCC0000' } };
   }
-  const it = sum.addRow(['Total', tF, diffIssues.length]); it.font = { bold: true }; [1, 2, 3].forEach(i => { fill(it.getCell(i), C_TOTAL); box(it.getCell(i)); });
+  const it = sum.addRow(['Total']);
+  it.getCell(2).value = { formula: `=SUM(B${issueFirstRow}:B${issueLastRow})`, result: tF };
+  it.getCell(3).value = { formula: `=SUM(C${issueFirstRow}:C${issueLastRow})`, result: diffIssues.length };
+  it.font = { bold: true }; [1, 2, 3].forEach(i => { fill(it.getCell(i), C_TOTAL); box(it.getCell(i)); });
   sum.addRow([]);
   sum.addRow(['생성시각', new Date().toLocaleString('ko-KR')]);
   sum.views = [{ state: 'frozen', ySplit: 5 }];
 
   // ── 주요 이슈 현황 시트 (요약 다음) — 결함(FAIL) + 기획-구현 차이 + SNB有/TC無 통합 목록 ──
-  type IssueRow = { no: number; kind: string; menu: string; content: string; ref: string; detail: string; color: string };
+  type IssueRow = { no: number; kind: string; menu: string; content: string; contentLink?: string; ref: string; detail: string; expected?: string; actual?: string; color: string };
   const issueRows: IssueRow[] = [];
   let ino = 0;
-  for (const r of results.filter(r => r.status === 'FAIL'))
-    issueRows.push({ no: ++ino, kind: '🔴 결함(FAIL)', menu: canonMenu(topMenu(r.path)), content: `${r.path} — ${r.error || '검증 실패'}`, ref: r.tcRef || '-', detail: (r.detail || r.actual || '').slice(0, 220), color: 'FFCC0000' });
+  for (const r of results.filter(r => r.status === 'FAIL')) {
+    const menuName = canonMenu(topMenu(r.path));
+    const rowNum = resultRowMap.get(r);
+    const contentLink = rowNum ? `#'${sheetSafe(menuName).replace(/'/g, "''")}'!A${rowNum}` : undefined;
+    issueRows.push({ no: ++ino, kind: '🔴 결함(FAIL)', menu: menuName, content: `${r.path} — ${r.error || '검증 실패'}`, contentLink, ref: r.tcRef || '-', detail: (r.detail || '').slice(0, 220), expected: (r.expected || '').slice(0, 300), actual: (r.actual || '').slice(0, 300), color: 'FFCC0000' });
+  }
   for (const d of diffIssues)
     issueRows.push({ no: ++ino, kind: '≠ 기획-구현 차이', menu: canonMenu(topMenu(d.menu)), content: `기획: ${d.spec}  →  구현: ${d.impl}`, ref: d.tcRef || '-', detail: d.note || '', color: 'FF2F6FB5' });
   for (const n of noTcIssues)
@@ -336,9 +426,11 @@ export async function writeReport(title = 'report'): Promise<string> {
       { header: '순번', key: 'no', width: 6 },
       { header: '구분', key: 'kind', width: 16 },
       { header: '대메뉴', key: 'menu', width: 16 },
-      { header: '내용', key: 'content', width: 72 },
+      { header: '내용', key: 'content', width: 60 },
       { header: 'TC참조', key: 'ref', width: 22 },
-      { header: '판단/상세', key: 'detail', width: 44 },
+      { header: '판단/상세', key: 'detail', width: 40 },
+      { header: '기대값/안내문구', key: 'expected', width: 54 },
+      { header: '실제값', key: 'actual', width: 54 },
     ];
     iss.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
     iss.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
@@ -347,8 +439,14 @@ export async function writeReport(title = 'report'): Promise<string> {
       const row = iss.addRow(r);
       row.alignment = { vertical: 'top', wrapText: true };
       row.getCell('kind').font = { bold: true, color: { argb: r.color } };
+      if (r.contentLink) {
+        const cc = row.getCell('content');
+        // 내부 링크는 HYPERLINK 수식으로 처리 (ExcelJS의 {text,hyperlink} 형식은 외부 URL 전용)
+        cc.value = { formula: `=HYPERLINK("${r.contentLink}","${r.content.replace(/"/g, '""')}")`, result: r.content };
+        cc.font = { color: { argb: 'FF0563C1' }, underline: true };
+      }
     }
-    iss.autoFilter = { from: 'A1', to: 'F1' };
+    iss.autoFilter = { from: 'A1', to: 'H1' };
     console.log(`[report] 주요 이슈 현황 시트 포함 (결함 ${tF} / 차이 ${diffIssues.length} / SNB有TC無 ${noTcIssues.length})`);
   }
 

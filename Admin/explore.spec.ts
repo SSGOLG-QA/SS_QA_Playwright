@@ -1,5 +1,5 @@
-import { test } from '@playwright/test';
-import { openAdmin, navigateMenu, extractDom } from '../lib/adminHelpers';
+import { test } from '../lib/fixtures';
+import { navigateMenu, extractDom } from '../lib/adminHelpers';
 import fs from 'fs';
 import path from 'path';
 
@@ -13,14 +13,13 @@ import path from 'path';
 //    - $env:KEEP_OPEN=1 추가 시 진입 화면을 닫지 않고 유지
 // ──────────────────────────────────────────────────────────────
 
-test('메뉴 진입 + DOM 추출', async ({ page, context }) => {
+test('메뉴 진입 + DOM 추출', async ({ admin }) => {
   test.slow();
 
   const menuSpec = process.env.MENU || '';            // 예: "배토 관리>배토 통계"
   const [parent, child] = menuSpec.split('>').map(s => s.trim());
 
   // 1) 어드민 홈 진입
-  const admin = await openAdmin(page, context);
 
   // 2) 지정 메뉴로 이동 (실패해도 진행 — 창 유지/추출 보장)
   if (parent) {

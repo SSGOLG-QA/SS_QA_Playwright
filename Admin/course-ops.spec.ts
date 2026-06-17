@@ -1,15 +1,13 @@
-import { test } from '@playwright/test';
-import { openAdmin } from '../lib/adminHelpers';
+import { test } from '../lib/fixtures';
 import { runPinPosition, runPinHistory, runPinAnalysis, runCourseAnalysis, runGreenSpeed, runClubNews } from '../lib/suites';
 import { writeReport, resetResults, resetNoTC, resetDiff, gotoMenu } from '../lib/reporter';
 
 // 코스 운영 관리 6종 (핀 포지션 관리/변경이력/분석, 코스 분석, 그린스피드, 골프장 소식) - 구조 기반
 //   ⚠ 전체/선택 적용/수정/등록/삭제/조회/내보내기/checkbox는 비파괴(노출만). 안내문구 부분 일치
 // 실행: npx playwright test --project=admin-chromium Admin/course-ops.spec.ts --no-deps
-test('코스 운영 관리 6종 검증 (구조 기반)', async ({ page, context }) => {
+test('코스 운영 관리 6종 검증 (구조 기반)', async ({ admin }) => {
   test.setTimeout(420_000);
   resetResults(); resetNoTC(); resetDiff();
-  const admin = await openAdmin(page, context);
   const M = '코스 운영 관리';
   if (await gotoMenu(admin, M, '핀 포지션 관리', { path: '코스 운영 관리 > 핀 포지션 관리', tcRef: '코스 운영 관리_핀 포지션 관리', tcId: '진입', desc: '핀 포지션 관리 진입', failMsg: '메뉴 진입 불가' }))
     await runPinPosition(admin);

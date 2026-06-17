@@ -1,5 +1,4 @@
-import { test } from '@playwright/test';
-import { openAdmin, navigateMenu, settle } from '../lib/adminHelpers';
+import { test } from '../lib/fixtures';
 import { isDestructiveAllowed, withFixture } from '../Playwright_New/destructive';
 import { writeReport, resetResults, resetDiff, resetNoTC, resetReview, skip } from '../lib/reporter';
 import { TARGET_LANGS, KOREAN, switchLanguage, withToastObserver, classifyToastText } from '../lib/langCheck';
@@ -20,9 +19,8 @@ const LANGS = FILTER.length ? TARGET_LANGS.filter(l => FILTER.includes(l.ko) || 
 const MARK = 'E2ELANGTOAST';
 const SCREEN = '코스 운영 관리 > 골프장 소식';
 
-test('토스트/에러 언어검증 — 골프장 소식 등록 토스트(전 언어)', async ({ page, context }) => {
+test('토스트/에러 언어검증 — 골프장 소식 등록 토스트(전 언어)', async ({ admin }) => {
   test.setTimeout(900_000);
-  const admin = await openAdmin(page, context);
   resetResults(); resetDiff(); resetNoTC(); resetReview();
   const seen = new Set<string>();
 

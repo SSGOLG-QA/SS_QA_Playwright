@@ -1,5 +1,4 @@
-import { test } from '@playwright/test';
-import { openAdmin } from '../lib/adminHelpers';
+import { test } from '../lib/fixtures';
 import { writeReport, resetResults, resetNoTC, resetDiff, resetReview } from '../lib/reporter';
 import { runLangCheckAll, TARGET_LANGS } from '../lib/langCheck';
 
@@ -17,10 +16,9 @@ const FILTER = (process.env.LANGS || '').split(',').map(s => s.trim()).filter(Bo
 const LANGS = FILTER.length ? TARGET_LANGS.filter(l => FILTER.includes(l.ko) || FILTER.includes(l.label)) : TARGET_LANGS;
 
 for (const lang of LANGS) {
-  test(`언어 검증 전체 메뉴 — ${lang.ko}(${lang.label})`, async ({ page, context }) => {
+  test(`언어 검증 전체 메뉴 — ${lang.ko}(${lang.label})`, async ({ admin }) => {
     test.setTimeout(900_000);
     resetResults(); resetNoTC(); resetDiff(); resetReview();
-    const admin = await openAdmin(page, context);
     await runLangCheckAll(admin, lang);
     await writeReport(`lang-check-${lang.ko}`);
     if (process.env.KEEP_OPEN) await admin.pause();

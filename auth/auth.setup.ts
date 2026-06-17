@@ -34,6 +34,28 @@ setup('authenticate', async ({ page, context }) => {
 
   // ── STEP 1. 대시보드 진입 + 수동 로그인 ──────────────
   await page.goto(DASHBOARD_URL);
+
+  // 중복 로그인 처리(이전 세션 종료) — 대시보드 단계에 핸들러 선등록:
+  //  ① 로그인 진행 확인 프롬프트("…로그인을 진행하시겠습니까?")가 뜨면 [예] →
+  //     앱이 제공하는 방식으로 기존(이전) 세션을 종료하고 우리 세션으로 진행한다.
+  //  ② 이미 '강제 로그아웃' 알림이 떠 있으면 [확인]으로 닫아 대시보드를 재로그인 가능 상태로 복구
+  //     (아래 헤딩 대기 180초가 수동 재로그인을 그대로 흡수).
+  //  ⚠ 서버측 동시 세션 한도(2개)는 클라이언트가 임의 해제 불가 → '진행 확인 수락'으로만 이전 세션 종료 가능.
+  await page.addLocatorHandler(
+    page.getByText('로그인을 진행하시겠습니까?'),
+    async () => { await page.getByRole('button', { name: '예' }).first().click().catch(() => {}); },
+    { noWaitAfter: true, times: 5 },
+  );
+  await page.addLocatorHandler(
+    page.getByText(/중복\s*로그인|강제 로그아웃/),
+    async () => {
+      const ok = page.getByRole('button', { name: '확인', exact: true });
+      if (await ok.first().isVisible().catch(() => false)) await ok.first().click().catch(() => {});
+      console.log('\n[auth.setup] ⚠ 중복 로그인으로 강제 로그아웃됨 — 알림을 닫았습니다. 열린 브라우저에서 다시 로그인해 주세요. (대기 계속)\n');
+    },
+    { noWaitAfter: true, times: 5 },
+  );
+
   console.log('\n[auth.setup] 브라우저에서 로그인을 완료해 주세요. (최대 3분 대기)\n');
   await expect(page.getByRole('heading', { name: /님 안녕하세요/ }))
     .toBeVisible({ timeout: 180_000 });

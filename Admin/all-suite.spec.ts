@@ -1,5 +1,4 @@
-import { test } from '@playwright/test';
-import { openAdmin } from '../lib/adminHelpers';
+import { test } from '../lib/fixtures';
 import * as S from '../lib/suites';
 import { writeReport, resetResults, resetNoTC, resetDiff, resetIA, gotoMenu } from '../lib/reporter';
 
@@ -13,9 +12,11 @@ import { writeReport, resetResults, resetNoTC, resetDiff, resetIA, gotoMenu } fr
 // [parent SNB, child SNB, run 함수] — gotoMenu 진입 후 실행. 홈/라운드관리는 자체 진입/네비
 const STEPS: [string, string, (p: any) => Promise<void>][] = [
   ['대회', '대회관리', S.runTournament],
+  // ✨드리프트(2026-06-16): '관제 모니터' 신규 SNB 메뉴 → noTC 추적(범위제외 가능, 상세 TC 미작성)
+  ['관제 관리', '관제 모니터', S.runControlMonitor],
   ['관제 관리', '아이콘 관리', S.runIconMgmt],
   ['관제 관리', '라이브채팅 공지 조회', S.runLiveChatNotice],
-  ['관제 관리', '카트이동경로 확인', S.runCartTrace],
+  // ⚠️드리프트(2026-06-16): '카트이동경로 확인' 메뉴가 SNB에서 제거됨(관제 모니터로 통합 추정) → 진입 FAIL 방지 위해 STEP 제거. IA 시트가 '미구현'으로 추적, 개별 cart-trace.spec.ts가 제거 사실 diff 기록.
   ['관제 관리', '메시지 기록 조회', S.runMessageHistory],
   ['태블릿 운영 관리', '태블릿 기능 설정', S.runTabletFeature],
   ['태블릿 운영 관리', '메시지 관리', S.runTabletMessage],
@@ -51,10 +52,9 @@ const STEPS: [string, string, (p: any) => Promise<void>][] = [
   ['계정 관리', '계정 권한 관리', S.runAccountPermission],
 ];
 
-test('전체 테스트 — 전 대메뉴 단일 문서', async ({ page, context }) => {
+test('전체 테스트 — 전 대메뉴 단일 문서', async ({ admin }) => {
   test.setTimeout(1_200_000);
   resetResults(); resetNoTC(); resetDiff(); resetIA();
-  const admin = await openAdmin(page, context);
 
   // 홈(진입 직후) → 라운드관리(자체 서브 네비)
   await S.runHome(admin).catch(() => {});

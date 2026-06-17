@@ -1,5 +1,4 @@
-import { test } from '@playwright/test';
-import { openAdmin } from '../lib/adminHelpers';
+import { test } from '../lib/fixtures';
 import { runHome, runRoundMgmt, runIA } from '../lib/suites';
 import { writeReport, resetResults, resetNoTC, resetIA } from '../lib/reporter';
 
@@ -9,11 +8,9 @@ import { writeReport, resetResults, resetNoTC, resetIA } from '../lib/reporter';
 //
 //  실행: npx playwright test --project=admin-chromium Admin/full-suite.spec.ts --no-deps
 // ──────────────────────────────────────────────────────────────
-test('통합 검증 (IA + 홈 + 라운드관리)', async ({ page, context }) => {
+test('통합 검증 (IA + 홈 + 라운드관리)', async ({ admin }) => {
   test.setTimeout(900_000);
   resetResults(); resetNoTC(); resetIA();
-
-  const admin = await openAdmin(page, context);
 
   // 홈 (진입 직후 화면)
   await runHome(admin);

@@ -1,0 +1,317 @@
+[
+  {
+    "menu": "경기진행관리 진행시간>실시간",
+    "depth0": "경기진행관리 진행시간",
+    "depth1": "실시간",
+    "route": "https://td17.smartscore.kr/club/page/control-time-realtime",
+    "file": "경기진행관리_진행시간_실시간.json"
+  },
+  {
+    "menu": "경기진행관리 진행시간>조회",
+    "depth0": "경기진행관리 진행시간",
+    "depth1": "조회",
+    "route": "https://td17.smartscore.kr/club/page/control-time-search",
+    "file": "경기진행관리_진행시간_조회.json"
+  },
+  {
+    "menu": "경기진행관리 진행시간>표준설정",
+    "depth0": "경기진행관리 진행시간",
+    "depth1": "표준설정",
+    "route": "https://td17.smartscore.kr/club/page/control-time-standard",
+    "file": "경기진행관리_진행시간_표준설정.json"
+  },
+  {
+    "menu": "경기진행관리 진행시간 통계",
+    "depth0": "경기진행관리 진행시간 통계",
+    "depth1": "",
+    "route": "https://td17.smartscore.kr/club/page/control-time-statistics",
+    "file": "경기진행관리_진행시간_통계.json"
+  },
+  {
+    "menu": "계정 관리>계정 권한 관리",
+    "depth0": "계정 관리",
+    "depth1": "계정 권한 관리",
+    "route": "https://td17.smartscore.kr/club/page/account-permission",
+    "file": "계정_관리_계정_권한_관리.json"
+  },
+  {
+    "menu": "계정 관리>계정 리스트",
+    "depth0": "계정 관리",
+    "depth1": "계정 리스트",
+    "route": "https://td17.smartscore.kr/club/page/account-user?cp=1&pending=ALL&grpIdx=ALL",
+    "file": "계정_관리_계정_리스트.json"
+  },
+  {
+    "menu": "고객 평가 관리>고객 평가",
+    "depth0": "고객 평가 관리",
+    "depth1": "고객 평가",
+    "route": "https://td17.smartscore.kr/club/page/customer-eval-poll",
+    "file": "고객_평가_관리_고객_평가.json"
+  },
+  {
+    "menu": "고객 평가 관리>캐디 평가",
+    "depth0": "고객 평가 관리",
+    "depth1": "캐디 평가",
+    "route": "https://td17.smartscore.kr/club/page/caddie-evaluation",
+    "file": "고객_평가_관리_캐디_평가.json"
+  },
+  {
+    "menu": "고객 평가 관리>후기 리스트",
+    "depth0": "고객 평가 관리",
+    "depth1": "후기 리스트",
+    "route": "https://td17.smartscore.kr/club/page/review-list?cp=1&sDate=2026-06-01&eDate=2026-06-10",
+    "file": "고객_평가_관리_후기_리스트.json"
+  },
+  {
+    "menu": "고객 평가 관리>후기 통계",
+    "depth0": "고객 평가 관리",
+    "depth1": "후기 통계",
+    "route": "https://td17.smartscore.kr/club/page/review-statistics?cp=1&type=D&sDate=2026-06-03&eDate=2026-06-10&sMonth=2026-06&eMonth=2026-06&graph=cnt",
+    "file": "고객_평가_관리_후기_통계.json"
+  },
+  {
+    "menu": "관제 관리>관제 모니터",
+    "depth0": "관제 관리",
+    "depth1": "관제 모니터",
+    "route": "https://td17.smartscore.kr/club/page/home",
+    "file": "관제_관리_관제_모니터.json"
+  },
+  {
+    "menu": "관제 관리>라이브채팅 공지 조회",
+    "depth0": "관제 관리",
+    "depth1": "라이브채팅 공지 조회",
+    "route": "https://td17.smartscore.kr/club/page/control-live-chat",
+    "file": "관제_관리_라이브채팅_공지_조회.json"
+  },
+  {
+    "menu": "관제 관리>메시지 기록 조회",
+    "depth0": "관제 관리",
+    "depth1": "메시지 기록 조회",
+    "route": "https://td17.smartscore.kr/club/page/control-message-history",
+    "file": "관제_관리_메시지_기록_조회.json"
+  },
+  {
+    "menu": "관제 관리>아이콘 관리",
+    "depth0": "관제 관리",
+    "depth1": "아이콘 관리",
+    "route": "https://td17.smartscore.kr/club/page/live-icon",
+    "file": "관제_관리_아이콘_관리.json"
+  },
+  {
+    "menu": "관제 관리>카트 이동경로 확인",
+    "depth0": "관제 관리",
+    "depth1": "카트 이동경로 확인",
+    "route": "https://td17.smartscore.kr/club/page/live-cart-trace",
+    "file": "관제_관리_카트_이동경로_확인.json"
+  },
+  {
+    "menu": "대회 대회관리",
+    "depth0": "대회 대회관리",
+    "depth1": "",
+    "route": "https://td17.smartscore.kr/club/page/tournament?cp=1",
+    "file": "대회_대회관리.json"
+  },
+  {
+    "menu": "라운드관리 내장 통계",
+    "depth0": "라운드관리 내장 통계",
+    "depth1": "",
+    "route": "https://td17.smartscore.kr/club/page/round-visit-statistics?cp=1&searchStartDate=2026-03-12&searchEndDate=2026-06-10",
+    "file": "라운드관리_내장_통계.json"
+  },
+  {
+    "menu": "라운드관리 내장 현황",
+    "depth0": "라운드관리 내장 현황",
+    "depth1": "",
+    "route": "https://td17.smartscore.kr/club/page/round-visit?cp=1",
+    "file": "라운드관리_내장_현황.json"
+  },
+  {
+    "menu": "라운드관리 단체>라운드",
+    "depth0": "라운드관리 단체",
+    "depth1": "라운드",
+    "route": "https://td17.smartscore.kr/club/page/round-group?cp=1",
+    "file": "라운드관리_단체_라운드.json"
+  },
+  {
+    "menu": "라운드관리 라운드>설정",
+    "depth0": "라운드관리 라운드",
+    "depth1": "설정",
+    "route": "https://td17.smartscore.kr/club/page/round-course",
+    "file": "라운드관리_라운드_설정.json"
+  },
+  {
+    "menu": "라운드관리 전체>라운드",
+    "depth0": "라운드관리 전체",
+    "depth1": "라운드",
+    "route": "https://td17.smartscore.kr/club/page/round-all?cp=1&date_from=2026-03-12&date_to=2026-06-10",
+    "file": "라운드관리_전체_라운드.json"
+  },
+  {
+    "menu": "라운드관리 카트 관리",
+    "depth0": "라운드관리 카트 관리",
+    "depth1": "",
+    "route": "https://td17.smartscore.kr/club/page/cart-all?cp=1&useFlag=1",
+    "file": "라운드관리_카트_관리.json"
+  },
+  {
+    "menu": "라운드관리 홀별 정산 관리",
+    "depth0": "라운드관리 홀별 정산 관리",
+    "depth1": "",
+    "route": "https://td17.smartscore.kr/club/page/live-hole-calc?cp=1&startDate=2026-06-10&endDate=2026-06-10",
+    "file": "라운드관리_홀별_정산_관리.json"
+  },
+  {
+    "menu": "배토 관리>배토 기록 조회",
+    "depth0": "배토 관리",
+    "depth1": "배토 기록 조회",
+    "route": "https://td17.smartscore.kr/club/page/topdressing-record?cp=1&startDate=2026-05-11&endDate=2026-06-10",
+    "file": "배토_관리_배토_기록_조회.json"
+  },
+  {
+    "menu": "배토 관리>배토 통계",
+    "depth0": "배토 관리",
+    "depth1": "배토 통계",
+    "route": "https://td17.smartscore.kr/club/page/home",
+    "file": "배토_관리_배토_통계.json"
+  },
+  {
+    "menu": "식음 관리>버전 및 설정",
+    "depth0": "식음 관리",
+    "depth1": "버전 및 설정",
+    "route": "https://td17.smartscore.kr/club/page/table-order-version",
+    "file": "식음_관리_버전_및_설정.json"
+  },
+  {
+    "menu": "식음 관리>상품 등록 관리",
+    "depth0": "식음 관리",
+    "depth1": "상품 등록 관리",
+    "route": "https://td17.smartscore.kr/club/page/table-order-product",
+    "file": "식음_관리_상품_등록_관리.json"
+  },
+  {
+    "menu": "식음 관리>식당 관리",
+    "depth0": "식음 관리",
+    "depth1": "식당 관리",
+    "route": "https://td17.smartscore.kr/club/page/table-order-restaurant",
+    "file": "식음_관리_식당_관리.json"
+  },
+  {
+    "menu": "식음 관리>주문 내역 관리",
+    "depth0": "식음 관리",
+    "depth1": "주문 내역 관리",
+    "route": "https://td17.smartscore.kr/club/page/home",
+    "file": "식음_관리_주문_내역_관리.json"
+  },
+  {
+    "menu": "캐디 관리>캐디 등록 관리",
+    "depth0": "캐디 관리",
+    "depth1": "캐디 등록 관리",
+    "route": "https://td17.smartscore.kr/club/page/caddie-register",
+    "file": "캐디_관리_캐디_등록_관리.json"
+  },
+  {
+    "menu": "캐디 관리>캐디 리스트",
+    "depth0": "캐디 관리",
+    "depth1": "캐디 리스트",
+    "route": "https://td17.smartscore.kr/club/page/caddie-all?cp=1",
+    "file": "캐디_관리_캐디_리스트.json"
+  },
+  {
+    "menu": "캐디 관리>캐디 실적",
+    "depth0": "캐디 관리",
+    "depth1": "캐디 실적",
+    "route": "https://td17.smartscore.kr/club/page/caddie-performance",
+    "file": "캐디_관리_캐디_실적.json"
+  },
+  {
+    "menu": "코스 운영>관리 골프장소식",
+    "depth0": "코스 운영",
+    "depth1": "관리 골프장소식",
+    "route": "https://td17.smartscore.kr/club/page/course-analysis-club-news?cp=1",
+    "file": "코스_운영_관리_골프장소식.json"
+  },
+  {
+    "menu": "코스 운영>관리 그린스피드",
+    "depth0": "코스 운영",
+    "depth1": "관리 그린스피드",
+    "route": "https://td17.smartscore.kr/club/page/course-analysis-green-speed",
+    "file": "코스_운영_관리_그린스피드.json"
+  },
+  {
+    "menu": "코스 운영>관리 코스 분석",
+    "depth0": "코스 운영",
+    "depth1": "관리 코스 분석",
+    "route": "https://td17.smartscore.kr/club/page/course-analysis-detail",
+    "file": "코스_운영_관리_코스_분석.json"
+  },
+  {
+    "menu": "코스 운영>관리 핀 포지션 관리",
+    "depth0": "코스 운영",
+    "depth1": "관리 핀 포지션 관리",
+    "route": "https://td17.smartscore.kr/club/page/course-analysis-pin-position",
+    "file": "코스_운영_관리_핀_포지션_관리.json"
+  },
+  {
+    "menu": "코스 운영>관리 핀 포지션 변경이력",
+    "depth0": "코스 운영",
+    "depth1": "관리 핀 포지션 변경이력",
+    "route": "https://td17.smartscore.kr/club/page/course-analysis-pin-history?cp=1&startDate=2026-05-11&endDate=2026-06-10",
+    "file": "코스_운영_관리_핀_포지션_변경이력.json"
+  },
+  {
+    "menu": "코스 운영>관리 핀 포지션 분석",
+    "depth0": "코스 운영",
+    "depth1": "관리 핀 포지션 분석",
+    "route": "https://td17.smartscore.kr/club/page/course-analysis-pin",
+    "file": "코스_운영_관리_핀_포지션_분석.json"
+  },
+  {
+    "menu": "태블릿 운영>관리 메시지 관리",
+    "depth0": "태블릿 운영",
+    "depth1": "관리 메시지 관리",
+    "route": "https://td17.smartscore.kr/club/page/live-message",
+    "file": "태블릿_운영_관리_메시지_관리.json"
+  },
+  {
+    "menu": "태블릿 운영>관리 태블릿 기능 설정",
+    "depth0": "태블릿 운영",
+    "depth1": "관리 태블릿 기능 설정",
+    "route": "https://td17.smartscore.kr/club/page/live-game",
+    "file": "태블릿_운영_관리_태블릿_기능_설정.json"
+  },
+  {
+    "menu": "태블릿 운영>관리 홀 이벤트 관리",
+    "depth0": "태블릿 운영",
+    "depth1": "관리 홀 이벤트 관리",
+    "route": "https://td17.smartscore.kr/club/page/live-hole-event",
+    "file": "태블릿_운영_관리_홀_이벤트_관리.json"
+  },
+  {
+    "menu": "홀맵 관리>카트패스 진입여부 설정",
+    "depth0": "홀맵 관리",
+    "depth1": "카트패스 진입여부 설정",
+    "route": "https://td17.smartscore.kr/club/page/holemap-cart-entrance",
+    "file": "홀맵_관리_카트패스_진입여부_설정.json"
+  },
+  {
+    "menu": "홀맵 관리>티샷 유의 거리 설정",
+    "depth0": "홀맵 관리",
+    "depth1": "티샷 유의 거리 설정",
+    "route": "https://td17.smartscore.kr/club/page/holemap-teeshot-distance",
+    "file": "홀맵_관리_티샷_유의_거리_설정.json"
+  },
+  {
+    "menu": "홀맵 관리>홀맵 구역 설정",
+    "depth0": "홀맵 관리",
+    "depth1": "홀맵 구역 설정",
+    "route": "https://td17.smartscore.kr/club/page/holemap-zone-management",
+    "file": "홀맵_관리_홀맵_구역_설정.json"
+  },
+  {
+    "menu": "홀맵 관리>홀맵 미리보기",
+    "depth0": "홀맵 관리",
+    "depth1": "홀맵 미리보기",
+    "route": "https://td17.smartscore.kr/club/page/holemap-preview",
+    "file": "홀맵_관리_홀맵_미리보기.json"
+  }
+]

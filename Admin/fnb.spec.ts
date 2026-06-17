@@ -1,5 +1,4 @@
-import { test } from '@playwright/test';
-import { openAdmin } from '../lib/adminHelpers';
+import { test } from '../lib/fixtures';
 import { runFnbVersion, runFnbRestaurant, runFnbProduct, runFnbOrderHistory } from '../lib/suites';
 import { writeReport, resetResults, resetNoTC, resetDiff, gotoMenu } from '../lib/reporter';
 
@@ -15,10 +14,9 @@ const STEPS: [string, string, (p: any) => Promise<void>][] = [
   ['주문 내역 관리', '식음 관리_주문 내역 관리', runFnbOrderHistory],
 ];
 
-test('식음 관리 4종 검증 (구조 기반)', async ({ page, context }) => {
+test('식음 관리 4종 검증 (구조 기반)', async ({ admin }) => {
   test.setTimeout(300_000);
   resetResults(); resetNoTC(); resetDiff();
-  const admin = await openAdmin(page, context);
   for (const [child, tcRef, fn] of STEPS) {
     if (await gotoMenu(admin, '식음 관리', child, { path: `식음 관리 > ${child}`, tcRef, tcId: '진입', desc: `${child} 진입`, failMsg: '메뉴 진입 불가' })) {
       await admin.locator('.info-box-text, .contents-box').first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});

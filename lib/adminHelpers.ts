@@ -15,7 +15,24 @@ export async function openAdmin(page: Page, context: BrowserContext): Promise<Pa
   const notice = page.locator('.btn-top-close');
   if (await notice.isVisible().catch(() => false)) await notice.click().catch(() => {});
 
+  // ⚠️ 서브도메인 입력 전 선검사: '중복 로그인 강제 로그아웃' 알림 감지 → 세션 무효 상태이므로 fail-fast.
+  //   (같은 계정 2개 이상 동시 로그인 시 서버가 강제 로그아웃 → 알림 모달이 서브도메인 필드를 가려
+  //    fill 이 placeholder 타임아웃으로 실패하면서 진짜 원인이 가려짐. 명확한 메시지로 즉시 실패시킨다.)
   const sub = page.getByPlaceholder('서브도메인 입력');
+  const logoutAlert = page.getByText(/중복 로그인|강제 로그아웃/);
+  await expect
+    .poll(async () => (await sub.isVisible().catch(() => false)) || (await logoutAlert.first().isVisible().catch(() => false)),
+      { timeout: 15_000, intervals: [300, 600, 1000, 1500] })
+    .toBeTruthy()
+    .catch(() => {});
+  if (await logoutAlert.first().isVisible().catch(() => false)) {
+    const msg = (await logoutAlert.first().innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+    throw new Error(
+      `[openAdmin] 세션 무효 — 중복 로그인 강제 로그아웃 감지: "${msg || '중복 로그인이 2개 이상이므로 강제 로그아웃되었습니다.'}" `
+      + `→ 다른 브라우저/탭의 클라우드 로그인 및 동시 실행을 모두 종료한 뒤 `
+      + `'npx playwright test --project=setup --headed' 로 재인증하세요.`,
+    );
+  }
   await sub.fill(SUBDOMAIN);
   await sub.press('Enter');
 
@@ -122,7 +139,16 @@ export async function extractDom(admin: Page) {
   return await admin.evaluate(() => {
     const txt = (e: Element) => (e as HTMLElement).innerText?.trim().slice(0, 60) || null;
     const cls = (e: Element) => (typeof (e as HTMLElement).className === 'string' ? (e as HTMLElement).className : null);
+    const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+    // 버전 표기 전용 캡처 — extractDom의 60자 절단·카드 셀렉터 미포착으로 '현재버전'이 누락되던 갭 보강.
+    //   '현재버전'을 직접 텍스트 노드로 가진 요소만(부모 컨테이너 중복 제외) 전체 텍스트로 기록.
+    const versions = [...document.querySelectorAll('*')]
+      .filter(e => /현재\s*버전/.test([...e.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent || '').join('')))
+      .map(e => ({ tag: e.tagName, c: cls(e), txt: norm((e as HTMLElement).innerText).slice(0, 80) }))
+      .filter(x => x.txt)
+      .slice(0, 8);
     return {
+      versions,
       url: location.href,
       title: document.title,
       headings: [...document.querySelectorAll('h1,h2,h3,h4')].map(e => ({ t: e.tagName, txt: txt(e), c: cls(e) })).filter(x => x.txt),

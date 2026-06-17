@@ -1,10 +1,10 @@
-import { test, Page } from '@playwright/test';
-import { openAdmin } from '../lib/adminHelpers';
+import { test, expect } from '../lib/fixtures';
+import { Page } from '@playwright/test';
 import * as S from '../lib/suites';
 import { writeReport, resetResults, resetNoTC, resetDiff, gotoMenu } from '../lib/reporter';
 
 // ──────────────────────────────────────────────────────────────
-//  IA(메뉴) 순서 전체 검증 — 단일 진입(openAdmin 1회) + 단일 통합 리포트
+//  IA(메뉴) 순서 전체 검증 — 단일 진입( 1회) + 단일 통합 리포트
 //  ⚠ Playwright는 파일을 알파벳순으로 실행하므로, IA 순서 보장을 위해
 //    한 스펙 안에서 run*() 를 IA 트리 순서로 직접 호출한다.
 //  ⚠ 배토 통계는 별도 스타일 스펙(beto-stats.spec.ts)이라 여기서 제외.
@@ -13,10 +13,9 @@ import { writeReport, resetResults, resetNoTC, resetDiff, gotoMenu } from '../li
 //  실행(브라우저 보며, 순차):
 //    npx playwright test --project=admin-chromium Admin/ia-order-full.spec.ts --headed --workers=1 --no-deps
 // ──────────────────────────────────────────────────────────────
-test('IA 순서 전체 검증 (단일 진입·통합 리포트)', async ({ page, context }) => {
+test('IA 순서 전체 검증 (단일 진입·통합 리포트)', async ({ admin }) => {
   test.setTimeout(1_800_000);
   resetResults(); resetNoTC(); resetDiff();
-  const admin = await openAdmin(page, context);
 
   // 1) 홈 (진입 직후 화면)
   await S.runHome(admin);
@@ -25,9 +24,11 @@ test('IA 순서 전체 검증 (단일 진입·통합 리포트)', async ({ page,
 
   // 3) 이하 [대메뉴, 하위메뉴, 검증함수] — IA 트리 순서
   const steps: [string, string, (a: Page) => Promise<void>][] = [
+    ['대회', '대회관리', S.runTournament],
     ['관제 관리', '아이콘 관리', S.runIconMgmt],
     ['관제 관리', '라이브채팅 공지 조회', S.runLiveChatNotice],
-    ['관제 관리', '카트이동경로 확인', S.runCartTrace],
+    ['관제 관리', '메시지 기록 조회', S.runMessageHistory],
+    // ⚠️드리프트(2026-06-16): '카트이동경로 확인' 메뉴 제거됨(관제 모니터 통합 추정) → 진입 FAIL 방지 위해 제외. cart-trace.spec.ts가 제거 사실 추적.
     ['태블릿 운영 관리', '태블릿 기능 설정', S.runTabletFeature],
     ['태블릿 운영 관리', '메시지 관리', S.runTabletMessage],
     ['태블릿 운영 관리', '홀 이벤트 관리', S.runTabletHoleEvent],
@@ -49,6 +50,10 @@ test('IA 순서 전체 검증 (단일 진입·통합 리포트)', async ({ page,
     ['캐디 관리', '캐디 등록 관리', S.runCaddieRegister],
     ['캐디 관리', '캐디 실적', S.runCaddiePerformance],
     ['배토 관리', '배토 기록 조회', S.runBetoRecord],
+    ['식음 관리', '버전 및 설정', S.runFnbVersion],
+    ['식음 관리', '식당 관리', S.runFnbRestaurant],
+    ['식음 관리', '상품 등록 관리', S.runFnbProduct],
+    ['식음 관리', '주문 내역 관리', S.runFnbOrderHistory],
     ['고객 평가 관리', '고객 평가', S.runCustomerEval],
     ['고객 평가 관리', '캐디 평가', S.runCaddieEval],
     ['고객 평가 관리', '후기 리스트', S.runReviewList],

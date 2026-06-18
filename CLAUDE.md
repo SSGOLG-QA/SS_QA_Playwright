@@ -12,17 +12,32 @@
 ## 환경 & 실행
 세션은 **클라우드 대시보드 로그인 → 서브도메인 `td17` → 경기관제 [어드민 가기]** 다리를 통해 어드민에 진입(`storageState` 재사용).
 
+### npm scripts (권장 진입점, 2026-06-18 정비)
 ```bash
-# 0) 최초 1회: 인증 세션 생성 (반드시 headed, 브라우저에서 수동 로그인 — 최대 3분 대기)
-npx playwright test --project=setup --headed
-#    → auth/.auth/admin.json 저장 (클라우드+td17 쿠키 포함). 만료 시 재실행.
-
-# 1) 개별 스펙 실행 (setup 의존 자동)
-npx playwright test --project=admin-chromium Admin/icon-mgmt.spec.ts
-#    --no-deps 로 setup 건너뛰기 가능(세션 유효 시). KEEP_OPEN=1 시 종료 전 pause.
+npm run auth         # 0) 최초/만료 시 인증 세션 생성 (headed 수동 로그인, 최대 3분) → auth/.auth/admin.json
+npm run typecheck    #    tsc --noEmit (스펙 컴파일·타입검증)
+npm run test         # = test:all (전체테스트 단일 문서)
+npm run test:all     # 전 대메뉴 순회 → reports/전체테스트_report_*.xlsx
+npm run test:admin   # 개별 스펙: npm run test:admin -- Admin/icon-mgmt.spec.ts
+npm run test:ia      # IA 순서 전체검증(--workers=1)
+npm run test:l4      # L4 교차정합(매출 요약↔랭킹, 내장통계 요약↔통계표)
+npm run test:lang    # 전 메뉴 언어 검증(7개국, ~26분 — 언어별 리포트)
+npm run test:e2e     # Playwright_New POM E2E(별도 config)
+npm run report       # 최근 HTML 리포트 열기
 ```
-- 설정: `playwright.config.ts` — `fullyParallel:false`, 창 최대화(`--start-maximized`, `viewport:null`), baseURL=td17.
+> raw 명령도 유효: `npx playwright test --project=admin-chromium Admin/<spec>.spec.ts [--no-deps] [--workers=1]`. `--no-deps`=setup 스킵(세션 유효 시), `KEEP_OPEN=1`=종료 전 pause.
+
+### 설정 / 프로젝트
+- `playwright.config.ts` — `fullyParallel:false`, **`retries: CI?2:1`**(진입 레이스 플레이크 흡수), **`trace:'retain-on-failure'`**, 창 최대화(`--start-maximized`, `viewport:null`), baseURL=td17. (Playwright_New는 `retries: CI?1:0`)
 - 프로젝트: `setup`(auth) / `flow`(Flow/) / `admin-chromium`(Admin/, storageState 재사용).
+
+### ⚠️ 세션 만료/중복 로그인 (가장 흔한 실행 실패)
+- **증상 A — 중복 로그인 강제 로그아웃**: `openAdmin`이 명확히 fail-fast(`[openAdmin] 세션 무효 — 중복 로그인 강제 로그아웃 감지`). 다른 브라우저/탭의 클라우드(td17·sv1td4) 로그인·동시 실행을 모두 종료 → `npm run auth`.
+- **증상 B — 세션 만료**: 대시보드 인사말(`님 안녕하세요`) 미노출(로그아웃). 마찬가지로 `npm run auth` 재인증. (세션은 수일 내 만료)
+- **진입 플레이크**: 개별 스펙 첫 `gotoMenu`가 간헐 실패 → retries로 자동 재시도(이번 정비). all-suite는 시퀀스 중간이라 안정적.
+
+### 드리프트 검출 워크플로 (구현 변경 추적)
+`npm run test:all`(라이브) → FAIL/SKIP 확인 → 개별/직렬(`--workers=1`) 재실행으로 플레이크 제거 → 프로브(`Admin/_probe-*.spec.ts`)로 실제값 덤프 → AS-IS 기대값 반영 + `diff()` 추적. (상세: 함정 섹션 드리프트 메모)
 
 ## 디렉터리 & 워크플로
 분석 → 문서화 → 코드 → 실행 → 리포트 파이프라인:

@@ -4,14 +4,9 @@ import { runCommonActions } from './commonActions';
 import { DataGrid } from './components/DataGrid';
 import { VueSelect } from './components/VueSelect';
 import { SummaryCards } from './components/SummaryCards';
+import { FnbOrderPage } from './pages/FnbOrderPage';
 import { verifyInvariants, lockOrSkipFormula } from './domain/calcChecks';
 import { parseVisitRow, visitInvariants, SS_RATIO_CANDIDATES, PRINT_RATE_CANDIDATES, VisitRow } from './domain/visitStatus';
-
-// 헤더 키를 공백무시 정규식으로 찾는 소형 getter(컬럼 드리프트 견고)
-const cell = (rec: Record<string, string>, re: RegExp) => {
-  const k = Object.keys(rec).find(k => re.test(k.replace(/\s+/g, '')));
-  return k ? rec[k] : '';
-};
 
 // ════════════════ 계산 정합성: 내장 현황(round-visit) ════════════════
 //   행 원시값에서 파생값(총=남+여·SS비율·출력률)을 재계산해 정합 검증(구조 불변식 + 공식 자동확정).
@@ -1411,48 +1406,42 @@ export async function runFnbProduct(admin: Page) {
 export async function runFnbOrderHistory(admin: Page) {
   const P = '식음 관리 > 주문 내역 관리';
   const R = '식음 관리_주문 내역 관리';
-  await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
+  // L3 PageObject — L2 컴포넌트(DatePicker/VueSelect/SummaryCards/DataGrid) 조립. run*()는 검증·리포팅에 집중.
+  const page = new FnbOrderPage(admin);
+  await page.ready();
 
   await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'FNBORD-01', desc: '안내 문구 TC 원문 일치', expected: '주문내역을 관리할 수 있습니다. 식당 별, 기간 별 주문 현황에 대하여 확인 및 엑셀 다운로드가 가능합니다.', failMsg: 'UI 불일치(안내 문구)' },
-    admin.locator('.info-box-text'));
+    page.info());
 
   await check(admin, { path: `${P} > 관점 탭`, tcRef: `${R}_2`, tcId: 'FNBORD-02', desc: '관점 탭(캐디주문실적/그늘집주문내역) 노출 — 캐디주문실적·그늘집주문내역 통합', expected: '캐디주문실적/그늘집주문내역', failMsg: '관점 탭 미노출' },
-    async () => { await expect(admin.getByText('캐디주문실적', { exact: true }).first()).toBeVisible(); await expect(admin.getByText('그늘집주문내역', { exact: true }).first()).toBeVisible(); });
+    async () => { await expect(page.perspectiveTab('캐디주문실적')).toBeVisible(); await expect(page.perspectiveTab('그늘집주문내역')).toBeVisible(); });
 
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_3`, tcId: 'FNBORD-03', desc: '기간 datepicker(시작~종료) 노출(달력 전용)', expected: 'datepicker-input ×2', failMsg: '기간 datepicker 미노출' },
-    async () => { expect(await admin.locator('.datepicker-input').count()).toBeGreaterThanOrEqual(2); });
+    async () => { expect(await page.period.count()).toBeGreaterThanOrEqual(2); });
 
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_4`, tcId: 'FNBORD-04', desc: '기간 단위(일별/주별/월별) 버튼 노출', expected: '일별/주별/월별', failMsg: '기간 단위 버튼 미노출' },
-    async () => { for (const b of ['일별', '주별', '월별']) await expect(admin.getByRole('button', { name: b, exact: true }).first()).toBeVisible(); });
+    async () => { for (const b of ['일별', '주별', '월별']) await expect(page.periodUnit(b)).toBeVisible(); });
 
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_5`, tcId: 'FNBORD-05', desc: '식당/캐디 필터(vue-select ≥2) 노출', expected: 'v-select ≥2', failMsg: '필터 미노출' },
-    async () => { expect(await new VueSelect(admin).count()).toBeGreaterThanOrEqual(2); });
+    async () => { expect(await page.filters.count()).toBeGreaterThanOrEqual(2); });
 
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_6`, tcId: 'FNBORD-06', desc: '[적용]/[초기화] 버튼 노출', expected: '적용/초기화', failMsg: '버튼 미노출' },
-    async () => { await expect(admin.getByRole('button', { name: '적용', exact: true }).first()).toBeVisible(); await expect(admin.getByRole('button', { name: '초기화', exact: true }).first()).toBeVisible(); });
+    async () => { await expect(page.applyBtn()).toBeVisible(); await expect(page.resetBtn()).toBeVisible(); });
   diff(`${P} > 검색`, '검색 버튼 라벨 [검색]', '[적용] (리뉴얼 라벨 통일)', `${R}_6`, '기능 정상 — 현 구현(AS-IS) 유지');
 
   await check(admin, { path: `${P} > 요약`, tcRef: `${R}_7`, tcId: 'FNBORD-07', desc: '요약 카드(총 주문금액/총 주문건수/평균 주문금액/주문TOP캐디) 노출(값 데이터 의존)', expected: '요약 카드 4종', failMsg: '요약 카드 미노출' },
-    async () => { const sc = new SummaryCards(admin); for (const t of ['총 주문금액', '총 주문건수', '평균 주문금액', '주문TOP캐디']) await expect(sc.card(t)).toBeVisible(); });
+    async () => { for (const t of ['총 주문금액', '총 주문건수', '평균 주문금액', '주문TOP캐디']) await expect(page.summary.card(t)).toBeVisible(); });
 
   await check(admin, { path: `${P} > 주문 랭킹`, tcRef: `${R}_8`, tcId: 'FNBORD-08', desc: '주문 랭킹 테이블 헤더(순위/캐디명/식당/주문금액/평균주문금액) 노출', expected: '순위·캐디명·식당·주문금액 등', failMsg: '주문 랭킹 헤더 미노출' },
-    async () => { for (const h of ['순위', '캐디명', '주문금액']) await expect(admin.getByRole('columnheader', { name: h, exact: false }).first()).toBeVisible(); });
+    async () => { const hs = await page.ranking.headers(); for (const h of ['순위', '캐디명', '주문금액']) expect(hs.some(x => x.includes(h)), `랭킹 헤더 '${h}' (실제: ${hs.join('/')})`).toBeTruthy(); });
 
   await check(admin, { path: `${P} > 주문 상세 내역`, tcRef: `${R}_9`, tcId: 'FNBORD-09', desc: '주문 상세 내역 테이블 헤더(No/캐디명/식당/주문내역/주문일시) 노출', expected: 'No·캐디명·식당·주문내역·주문일시', failMsg: '주문 상세 헤더 미노출' },
-    async () => { for (const h of ['주문내역', '주문일시']) await expect(admin.getByRole('columnheader', { name: h, exact: false }).first()).toBeVisible(); });
+    async () => { const hs = await page.detail.headers(); for (const h of ['주문내역', '주문일시']) expect(hs.some(x => x.includes(h)), `상세 헤더 '${h}' (실제: ${hs.join('/')})`).toBeTruthy(); });
 
-  // ✨계산 정합성(2026-06-17): 캐디주문실적 랭킹표 행내 불변식(구조 — 명세 불요)
+  // ✨계산 정합성(2026-06-17): 캐디주문실적 랭킹표 행내 불변식(구조 — 명세 불요). PageObject가 행 파싱 제공.
   //   주문금액 = 공급가 + 부가세(공급대가), 평균주문금액 = round(주문금액 / 주문건수)
-  const rank = new DataGrid(admin.locator('table').filter({ has: admin.getByRole('columnheader', { name: '공급가', exact: false }) }).first());
-  if (!(await rank.isEmpty().catch(() => true))) {
-    const rrows = (await rank.records()).map(rec => ({
-      name: cell(rec, /캐디명|순위/),
-      supply: DataGrid.num(cell(rec, /공급가/)),
-      vat: DataGrid.num(cell(rec, /부가세/)),
-      amount: DataGrid.num(cell(rec, /^주문금액$|주문금액/)),
-      cnt: DataGrid.num(cell(rec, /주문건수/)),
-      avg: DataGrid.num(cell(rec, /평균주문금액/)),
-    }));
+  const rrows = await page.rankingRows();
+  if (rrows.length > 0)
     await verifyInvariants(admin, P, R, 'FNBORD-CALC', rrows, r => {
       const inv: { name: string; ok: boolean; detail: string }[] = [];
       if ([r.supply, r.vat, r.amount].every(Number.isFinite))
@@ -1461,7 +1450,6 @@ export async function runFnbOrderHistory(admin: Page) {
         inv.push({ name: '평균주문금액 = 주문금액 / 주문건수', ok: Math.round(r.amount / r.cnt) === r.avg, detail: `${r.name}: round(${r.amount}/${r.cnt})=${Math.round(r.amount / r.cnt)} vs ${r.avg}` });
       return inv;
     });
-  }
 
   await runCommonActions(admin, P, R);
 }

@@ -7,6 +7,7 @@ import { SummaryCards } from './components/SummaryCards';
 import { FnbOrderPage } from './pages/FnbOrderPage';
 import { VisitStatusPage } from './pages/VisitStatusPage';
 import { AccountListPage } from './pages/AccountListPage';
+import { CaddieListPage } from './pages/CaddieListPage';
 import { verifyInvariants, lockOrSkipFormula } from './domain/calcChecks';
 import { parseVisitRow, visitInvariants, SS_RATIO_CANDIDATES, PRINT_RATE_CANDIDATES, VisitRow } from './domain/visitStatus';
 
@@ -872,21 +873,24 @@ export async function runTimeStats(admin: Page) {
 export async function runCaddieList(admin: Page) {
   const P = '캐디 관리 > 캐디리스트';
   const R = '캐디 관리_캐디리스트';
-  await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
+  // L3 PageObject — 캐디 리스트(그래프/통계 카드 + 필터 + 테이블 DataGrid)
+  const page = new CaddieListPage(admin);
+  await page.ready();
   await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'CADL-01', desc: '안내 문구 노출(부분)', expected: '캐디 현황', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('캐디 현황'); });
+    async () => { await expect(page.info()).toBeVisible(); await expect(page.info()).toContainText('캐디 현황'); });
   await check(admin, { path: `${P} > 그래프`, tcRef: `${R}_2`, tcId: 'CADL-02', desc: '그래프 카드 3종(하우스·활동·회원 비율) + 차트(canvas)', expected: 'graph-card ≥3 + canvas', failMsg: '그래프 미노출' },
-    async () => { expect(await admin.locator('.graph-card').count()).toBeGreaterThanOrEqual(3); expect(await admin.locator('canvas').count()).toBeGreaterThanOrEqual(1); });
+    async () => { expect(await page.graphCards().count()).toBeGreaterThanOrEqual(3); expect(await page.canvas().count()).toBeGreaterThanOrEqual(1); });
   await check(admin, { path: `${P} > 통계카드`, tcRef: `${R}_3`, tcId: 'CADL-03', desc: '통계 카드(총 등록 캐디/활동 캐디/운영 비율 등) 노출(≥1)', expected: 'stat-card ≥1', failMsg: '통계카드 미노출' },
-    async () => { expect(await admin.locator('.stat-card').count()).toBeGreaterThanOrEqual(1); });
+    async () => { expect(await page.statCards().count()).toBeGreaterThanOrEqual(1); });
   await check(admin, { path: `${P} > 필터`, tcRef: `${R}_4`, tcId: 'CADL-04', desc: '활동 상태 vue-select + 캐디명 입력 + [적용]/[초기화]', expected: '필터', failMsg: '필터 미노출' },
-    async () => { expect(await new VueSelect(admin).count()).toBeGreaterThanOrEqual(1); await expect(admin.getByPlaceholder('캐디명을 입력하세요.')).toBeVisible(); await expect(admin.getByRole('button', { name: '적용', exact: true })).toBeVisible(); });
+    async () => { expect(await page.filter.count()).toBeGreaterThanOrEqual(1); await expect(page.nameSearch()).toBeVisible(); await expect(page.applyBtn().first()).toBeVisible(); });
   // ✨드리프트(2026-06-17): '회원추천' 컬럼 제거 + '구분'·'등록일'·'해지일' 추가(현 12컬럼 AS-IS)
+  const cadlHeaders = await page.headers();
   for (const [i, c] of ['No', '성명', '구분', '성별', '휴대폰', '카트번호', '태블릿 No.', '배터리', '등록일', '해지일', '라운드기록', '그늘집주문'].entries())
     await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_5`, tcId: `CADL-05-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
-      async () => { await expect(admin.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
+      async () => { expect(cadlHeaders.some(h => h.replace(/\s+/g, '').includes(c.replace(/\s+/g, ''))), `컬럼 '${c}' (실제: ${cadlHeaders.join('/')})`).toBeTruthy(); });
   await check(admin, { path: `${P} > 액션`, tcRef: `${R}_6`, tcId: 'CADL-06', desc: '[관제 적용] 버튼 노출(클릭 미수행·비파괴)', expected: '관제 적용', failMsg: '관제 적용 미노출' },
-    async () => { await expect(admin.getByRole('button', { name: '관제 적용' })).toBeVisible(); });
+    async () => { await expect(page.controlApplyBtn()).toBeVisible(); });
   diff(`${P} > 테이블`, '컬럼: …라운드기록·회원추천·그늘집주문', "'회원추천' 컬럼 제거 + '구분'·'등록일'·'해지일' 추가(현 12컬럼)", `${R}_5`, '구조 변경 — 현 구현(AS-IS) 반영');
   await runCommonActions(admin, P, R);
 }

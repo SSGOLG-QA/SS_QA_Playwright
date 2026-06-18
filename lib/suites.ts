@@ -8,6 +8,10 @@ import { FnbOrderPage } from './pages/FnbOrderPage';
 import { VisitStatusPage } from './pages/VisitStatusPage';
 import { AccountListPage } from './pages/AccountListPage';
 import { CaddieListPage } from './pages/CaddieListPage';
+import { CourseAnalysisPage } from './pages/CourseAnalysisPage';
+import { ReviewStatsPage } from './pages/ReviewStatsPage';
+import { courseInvariants } from './domain/courseAnalysis';
+import { reviewInvariants, OVERALL_RATING_CANDIDATES } from './domain/reviewStats';
 import { verifyInvariants, lockOrSkipFormula } from './domain/calcChecks';
 import { parseVisitRow, visitInvariants, SS_RATIO_CANDIDATES, PRINT_RATE_CANDIDATES, VisitRow } from './domain/visitStatus';
 
@@ -1147,6 +1151,10 @@ export async function runCourseAnalysis(admin: Page) {
       async () => { await expect(admin.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
   await check(admin, { path: `${P} > 차트`, tcRef: `${R}_4`, tcId: 'CRS-04', desc: '분석 차트(svg) 노출(≥1)', expected: 'svg ≥1', failMsg: '차트 미노출' },
     async () => { expect(await admin.locator('svg').count()).toBeGreaterThanOrEqual(1); });
+  // ✨계산 정합성: 홀별 분석표 — 안착률/적중률 ∈[0,100], 퍼트수/스코어 ≥0 (L3 CourseAnalysisPage)
+  const crsPage = new CourseAnalysisPage(admin);
+  if (!(await crsPage.isEmpty().catch(() => true)))
+    await verifyInvariants(admin, P, R, 'CRS-CALC', await crsPage.rows(), courseInvariants);
   await runCommonActions(admin, P, R);
 }
 
@@ -1248,6 +1256,13 @@ export async function runReviewStats(admin: Page) {
       async () => { await expect(admin.getByRole('columnheader', { name: c, exact: true }).first()).toBeVisible(); });
   await check(admin, { path: `${P} > 차트`, tcRef: `${R}_4`, tcId: 'RVS-04', desc: '후기 통계 차트(svg) 노출(≥1)', expected: 'svg ≥1', failMsg: '차트 미노출' },
     async () => { expect(await admin.locator('svg').count()).toBeGreaterThanOrEqual(1); });
+  // ✨계산 정합성: 통계표 — 건수/평점 ≥0 + '전체' 평점이 5항목 평균인지 자동 추론(L3 ReviewStatsPage)
+  const rvsPage = new ReviewStatsPage(admin);
+  if (!(await rvsPage.isEmpty().catch(() => true))) {
+    const rvsRows = await rvsPage.rows();
+    await verifyInvariants(admin, P, R, 'RVS-CALC', rvsRows, reviewInvariants);
+    await lockOrSkipFormula(admin, P, R, 'RVS-RATING', "'전체' 평점", rvsRows, r => r.overall, OVERALL_RATING_CANDIDATES);
+  }
   await runCommonActions(admin, P, R);
 }
 

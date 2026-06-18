@@ -4,7 +4,16 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "auth": "playwright test --project=setup --headed",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "playwright test --project=admin-chromium Admin/all-suite.spec.ts --no-deps",
+    "test:all": "playwright test --project=admin-chromium Admin/all-suite.spec.ts --no-deps",
+    "test:admin": "playwright test --project=admin-chromium --no-deps",
+    "test:ia": "playwright test --project=admin-chromium Admin/ia-order-full.spec.ts --no-deps --workers=1",
+    "test:l4": "playwright test --project=admin-chromium Admin/l4-reconcile.spec.ts --no-deps",
+    "test:lang": "playwright test --project=admin-chromium Admin/lang-check-all.spec.ts --no-deps",
+    "test:e2e": "playwright test --config=Playwright_New/playwright.config.ts",
+    "report": "playwright show-report"
   },
   "keywords": [],
   "author": "",

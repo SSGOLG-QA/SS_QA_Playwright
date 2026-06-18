@@ -13,12 +13,15 @@ export default defineConfig({
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
+  // 진입 레이스(SPA 네비) 플레이크 흡수 — CI는 2회, 로컬은 1회 재시도. (이전: retries 미설정=0이라 trace:on-first-retry가 무용지물이었음)
+  retries: process.env.CI ? 2 : 1,
   reporter: [['list'], ['html', { open: 'never' }]],
 
   use: {
     baseURL: 'https://td17.smartscore.kr',
     actionTimeout: 15_000,
-    trace: 'on-first-retry',
+    // 첫 실패에도 트레이스 확보(재시도 전제인 on-first-retry보다 견고)
+    trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     // 브라우저 창 최대화 (headed 시 전체 화면)
     launchOptions: {

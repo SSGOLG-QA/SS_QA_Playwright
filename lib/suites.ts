@@ -1151,10 +1151,12 @@ export async function runCourseAnalysis(admin: Page) {
       async () => { await expect(admin.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
   await check(admin, { path: `${P} > 차트`, tcRef: `${R}_4`, tcId: 'CRS-04', desc: '분석 차트(svg) 노출(≥1)', expected: 'svg ≥1', failMsg: '차트 미노출' },
     async () => { expect(await admin.locator('svg').count()).toBeGreaterThanOrEqual(1); });
-  // ✨계산 정합성: 홀별 분석표 — 안착률/적중률 ∈[0,100], 퍼트수/스코어 ≥0 (L3 CourseAnalysisPage)
+  // ✨계산 정합성: 분석표 — 안착률/적중률 ∈[0,100], 퍼트수/스코어 ≥0 (L3 CourseAnalysisPage)
   const crsPage = new CourseAnalysisPage(admin);
   if (!(await crsPage.isEmpty().catch(() => true)))
     await verifyInvariants(admin, P, R, 'CRS-CALC', await crsPage.rows(), courseInvariants);
+  else
+    skip({ path: `${P} > 분석표`, tcRef: `${R}_CALC`, tcId: 'CRS-CALC', desc: '분석표 계산 정합성' }, '분석표 데이터 없음(조회 결과 0)');
   await runCommonActions(admin, P, R);
 }
 
@@ -1262,7 +1264,8 @@ export async function runReviewStats(admin: Page) {
     const rvsRows = await rvsPage.rows();
     await verifyInvariants(admin, P, R, 'RVS-CALC', rvsRows, reviewInvariants);
     await lockOrSkipFormula(admin, P, R, 'RVS-RATING', "'전체' 평점", rvsRows, r => r.overall, OVERALL_RATING_CANDIDATES);
-  }
+  } else
+    skip({ path: `${P} > 통계표`, tcRef: `${R}_CALC`, tcId: 'RVS-CALC', desc: '통계표 계산 정합성' }, '통계표 데이터 없음(조회기간 내 후기 0 — "검색된 데이터가 없습니다")');
   await runCommonActions(admin, P, R);
 }
 

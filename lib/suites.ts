@@ -39,6 +39,8 @@ export async function runVisitStatusCalc(admin: Page) {
 
 const num = (s: string) => parseInt((s || '').replace(/[^\d-]/g, ''), 10);
 const norm = (s: string) => (s || '').replace(/\s+/g, '');
+// DataGrid 레코드에서 헤더명을 공백무시 정규식으로 찾는 getter(계산검증 컬럼 매칭)
+const pickCell = (rec: Record<string, string>, re: RegExp) => { const k = Object.keys(rec).find(k => re.test(k.replace(/\s+/g, ''))); return k ? rec[k] : ''; };
 const fmtDot = (d: Date) => `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 const btn = (a: Page, name: string) => a.getByRole('button', { name });
 
@@ -936,6 +938,17 @@ export async function runCaddiePerformance(admin: Page) {
   for (const [i, c] of ['캐디명', '신규회원 추천수', '유효 내장객수', 'SS회원수', 'SS비율'].entries())
     await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_3`, tcId: `CADP-03-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
       async () => { await expect(admin.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
+  // ✨계산 정합성: SS비율(%) = SS회원수 / 유효 내장객수 × 100 (데이터 있는 행만 자동추론, 모호 시 SKIP)
+  const cadpGrid = new DataGrid(admin.locator('.table-overflow-item table, table').first());
+  if (!(await cadpGrid.isEmpty().catch(() => true))) {
+    const rows = (await cadpGrid.records()).map(rec => ({
+      ratio: DataGrid.pct(pickCell(rec, /SS비율/)),
+      ss: DataGrid.num(pickCell(rec, /SS회원수/)),
+      valid: DataGrid.num(pickCell(rec, /유효내장객수/)),
+    }));
+    await lockOrSkipFormula(admin, P, R, 'CADP-CALC', 'SS비율', rows, r => r.ratio,
+      [{ label: 'SS회원수 / 유효내장객수', calc: r => (Number.isFinite(r.ss) && r.valid > 0 ? (r.ss / r.valid) * 100 : NaN) }]);
+  }
   await runCommonActions(admin, P, R);
 }
 
@@ -1012,6 +1025,35 @@ export async function runBetoStats(admin: Page) {
   // ── BSTAT-08 [내보내기] 버튼 노출(클릭 미수행·비파괴) ────────
   await check(admin, { path: `${P} > 액션`, tcRef: `${R}_8`, tcId: 'BSTAT-08', desc: '[내보내기] 버튼 노출(클릭 미수행·비파괴)', expected: '내보내기', failMsg: '내보내기 버튼 미노출' },
     async () => { await expect(admin.getByRole('button', { name: '내보내기' }).first()).toBeVisible(); });
+
+  // ✨계산 정합성: 행내 평균=작업시간 합계/작업자 수 + 요약 총=Σ행·평균=총/구간수
+  const bsGrid = new DataGrid(admin.locator('.table-overflow-item table, table').first());
+  if (!(await bsGrid.isEmpty().catch(() => true))) {
+    const rows = (await bsGrid.records()).map(rec => ({
+      date: pickCell(rec, /날짜/),
+      workers: DataGrid.num(pickCell(rec, /작업자수/)),
+      totalH: DataGrid.num(pickCell(rec, /작업시간합계/)),
+      avgH: DataGrid.num(pickCell(rec, /평균작업시간/)),
+    }));
+    await verifyInvariants(admin, P, R, 'BSTAT-CALC', rows, r => {
+      const inv: { name: string; ok: boolean; detail: string }[] = [];
+      if ([r.totalH, r.workers, r.avgH].every(Number.isFinite) && r.workers > 0) {
+        const exp = Math.round((r.totalH / r.workers) * 10) / 10;
+        inv.push({ name: '평균 작업시간 = 작업시간 합계 / 작업자 수', ok: Math.abs(exp - r.avgH) <= 0.1, detail: `${r.date}: ${r.totalH}/${r.workers}=${exp} vs ${r.avgH}` });
+      }
+      return inv;
+    });
+    const sumW = rows.reduce((a, r) => a + (Number.isFinite(r.workers) ? r.workers : 0), 0);
+    const cardNum = async (re: RegExp) => DataGrid.num(await admin.locator('.summary-card, .stat-card, [class*="card"]').filter({ hasText: re }).first().innerText().catch(() => ''));
+    const totalW = await cardNum(/총\s*작업자\s*수/);
+    const avgW = await cardNum(/평균\s*작업자\s*수/);
+    if (Number.isFinite(totalW))
+      await check(admin, { path: `${P} > 정합성`, tcRef: `${R}_CALC`, tcId: 'BSTAT-CALC-SUM', desc: '요약 총 작업자 수 = Σ(통계표 작업자 수)', expected: 'Σ=총', failMsg: '집계 불일치' },
+        async () => { expect(sumW, `Σ${sumW} vs 총${totalW}`).toBe(totalW); });
+    if (Number.isFinite(avgW) && rows.length > 0)
+      await check(admin, { path: `${P} > 정합성`, tcRef: `${R}_CALC`, tcId: 'BSTAT-CALC-AVG', desc: '요약 평균 작업자 수 = 총 / 구간수', expected: '총/구간수', failMsg: '평균 불일치' },
+        async () => { const exp = Math.round((totalW / rows.length) * 10) / 10; expect(Math.abs(exp - avgW), `${totalW}/${rows.length}=${exp} vs ${avgW}`).toBeLessThanOrEqual(0.1); });
+  }
   await runCommonActions(admin, P, R);
 }
 

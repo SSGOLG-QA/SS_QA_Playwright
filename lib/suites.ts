@@ -10,6 +10,7 @@ import { AccountListPage } from './pages/AccountListPage';
 import { CaddieListPage } from './pages/CaddieListPage';
 import { CourseAnalysisPage } from './pages/CourseAnalysisPage';
 import { ReviewStatsPage } from './pages/ReviewStatsPage';
+import { HolemapZonePage } from './pages/HolemapZonePage';
 import { courseInvariants } from './domain/courseAnalysis';
 import { reviewInvariants, OVERALL_RATING_CANDIDATES } from './domain/reviewStats';
 import { verifyInvariants, lockOrSkipFormula } from './domain/calcChecks';
@@ -880,8 +881,8 @@ export async function runCaddieList(admin: Page) {
   // L3 PageObject — 캐디 리스트(그래프/통계 카드 + 필터 + 테이블 DataGrid)
   const page = new CaddieListPage(admin);
   await page.ready();
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'CADL-01', desc: '안내 문구 노출(부분)', expected: '캐디 현황', failMsg: '안내 미노출' },
-    async () => { await expect(page.info()).toBeVisible(); await expect(page.info()).toContainText('캐디 현황'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'CADL-01', desc: '안내 문구 TC 원문 일치', expected: '골프장에 등록되어 있는 캐디 현황을 확인할 수 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
+    page.info());
   await check(admin, { path: `${P} > 그래프`, tcRef: `${R}_2`, tcId: 'CADL-02', desc: '그래프 카드 3종(하우스·활동·회원 비율) + 차트(canvas)', expected: 'graph-card ≥3 + canvas', failMsg: '그래프 미노출' },
     async () => { expect(await page.graphCards().count()).toBeGreaterThanOrEqual(3); expect(await page.canvas().count()).toBeGreaterThanOrEqual(1); });
   await check(admin, { path: `${P} > 통계카드`, tcRef: `${R}_3`, tcId: 'CADL-03', desc: '통계 카드(총 등록 캐디/활동 캐디/운영 비율 등) 노출(≥1)', expected: 'stat-card ≥1', failMsg: '통계카드 미노출' },
@@ -904,8 +905,8 @@ export async function runCaddieRegister(admin: Page) {
   const P = '캐디 관리 > 캐디 등록 관리';
   const R = '캐디 관리_캐디 등록 관리';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'CADR-01', desc: '안내 문구 노출(부분)', expected: '수정, 삭제', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('수정, 삭제'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'CADR-01', desc: '안내 문구 TC 원문 일치', expected: '캐디를 등록하거나 등록된 캐디 정보를 수정, 삭제할 수 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   await check(admin, { path: `${P} > 탭`, tcRef: `${R}_2`, tcId: 'CADR-02', desc: '탭(캐디 등록 관리 / 캐디 수정·해지) 노출', expected: '탭 2종', failMsg: '탭 미노출' },
     async () => { await expect(admin.getByText('캐디 수정/해지', { exact: false }).first()).toBeVisible(); });
   // ✨드리프트(2026-06-17): 구분·성별이 radio(.check-item)→select(placeholder '선택')로 변경, 자격취득일 추가
@@ -946,8 +947,8 @@ export async function runBetoRecord(admin: Page) {
   const P = '배토 관리 > 배토 기록 조회';
   const R = '배토 관리_배토 기록 조회';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'BREC-01', desc: '안내 문구 노출(부분)', expected: '배토기록을 조회', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('배토기록을 조회'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'BREC-01', desc: '안내 문구 TC 원문 일치', expected: '캐디들이 태블릿 앱으로 배토모드를 통해 입력한 배토기록을 조회할 수 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'BREC-02', desc: '조회기간 datepicker(≥2) + vue-select + [초기화]/[적용](비파괴)', expected: 'datepicker≥2', failMsg: '검색 영역 미노출' },
     async () => { expect(await admin.locator('.datepicker-input').count()).toBeGreaterThanOrEqual(2); await expect(admin.getByRole('button', { name: '적용', exact: true })).toBeVisible(); await expect(admin.getByRole('button', { name: '초기화' })).toBeVisible(); });
   // ✨드리프트(2026-06-16): '작업 경로' 컬럼·행 [보기] 버튼 제거됨 → 테이블 = No./캐디/시작시간/종료시간 4컬럼. AS-IS로 갱신.
@@ -973,8 +974,8 @@ export async function runBetoStats(admin: Page) {
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
 
   // ── BSTAT-01 안내문구(부분 일치) ────────────────────────────
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'BSTAT-01', desc: '안내 문구 노출(부분)', expected: '배토 작업자', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('배토 작업자'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'BSTAT-01', desc: '안내 문구 TC 원문 일치', expected: '배토 작업자 수, 작업 시간과 관련된 통계를 확인할 수 있습니다. 일별 또는 월별 기준으로 표와 그래프를 함께 확인할 수 있으며, 엑셀 변환도 가능합니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
 
   // ── BSTAT-02 조회기간 datepicker(≥2) + [초기화]/[적용](비파괴) ──
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'BSTAT-02', desc: '조회기간 datepicker(≥2) + [초기화]/[적용] 버튼(비파괴)', expected: 'datepicker≥2', failMsg: '검색 영역 미노출' },
@@ -1022,14 +1023,18 @@ export async function runBetoStats(admin: Page) {
 export async function runHolemapZone(admin: Page) {
   const P = '홀맵 관리 > 홀맵 구역 설정';
   const R = '홀맵 관리_홀맵 구역 설정';
-  await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'HMZ-01', desc: '안내 문구 노출(부분)', expected: '홀맵 구역', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('홀맵 구역'); });
-  await check(admin, { path: `${P} > 필터`, tcRef: `${R}_2`, tcId: 'HMZ-02', desc: '필터(코스/홀 vue-select) + [초기화]/[적용]/[구역관리](비파괴)', expected: '필터+버튼', failMsg: '필터/버튼 미노출' },
-    async () => { expect(await new VueSelect(admin).count()).toBeGreaterThanOrEqual(1); await expect(admin.getByRole('button', { name: '적용', exact: true }).first()).toBeVisible(); await expect(admin.getByRole('button', { name: '구역 관리' }).first()).toBeVisible(); });
+  // L3 PageObject(드리프트 빈발 화면) — 필터(VueSelect) + 구역표(DataGrid) 조립
+  const page = new HolemapZonePage(admin);
+  await page.ready();
+  // #7 안내문구 전문 일치(전환)
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'HMZ-01', desc: '안내 문구 TC 원문 일치', expected: '페어웨이 진입 알림 설정과 코스별 허용 상태를 관리하고, 홀맵 구역 데이터를 조회할 수 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
+    page.info());
+  await check(admin, { path: `${P} > 필터`, tcRef: `${R}_2`, tcId: 'HMZ-02', desc: '필터(코스/홀 vue-select) + [초기화]/[적용]/[구역 관리](비파괴)', expected: '필터+버튼', failMsg: '필터/버튼 미노출' },
+    async () => { expect(await page.filter.count()).toBeGreaterThanOrEqual(1); await expect(page.applyBtn()).toBeVisible(); await expect(page.zoneManageBtn()).toBeVisible(); });
+  const hmzHeaders = await page.headers();
   for (const [i, c] of ['No', '코스', '홀', 'PAR', '야디지', '위험구역', 'OB구역', '패널티구역', '관리'].entries())
     await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_3`, tcId: `HMZ-03-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
-      async () => { await expect(admin.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
+      async () => { expect(hmzHeaders.some(h => h.replace(/\s+/g, '').includes(c.replace(/\s+/g, ''))), `컬럼 '${c}' (실제: ${hmzHeaders.join('/')})`).toBeTruthy(); });
   // TC No.54 — 2차 QA FAIL (QA-14970): 구역 관리 팝업에서 마우스 드래그로 플래그 위치 변경 안됨
   // 지도/캔버스 인터랙션은 자동화 범위제외(비파괴 원칙) → skip 으로 추적.
   skip({ path: `${P} > 거리표시 지점 > 드래그`, tcRef: `${R}_54`, tcId: 'HMZ-54', desc: '마우스 드래그로 플래그 위치 변경' },
@@ -1042,8 +1047,8 @@ export async function runHolemapCartEntrance(admin: Page) {
   const P = '홀맵 관리 > 카트패스 진입여부 설정';
   const R = '홀맵 관리_카트패스 진입여부 설정';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'HMCE-01', desc: '안내 문구 노출(부분)', expected: '카트패스 진입', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('카트패스'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'HMCE-01', desc: '안내 문구 TC 원문 일치', expected: '코스를 선택한 뒤 홀 별로 페어웨이 카트패스 진입 가능 여부를 설정합니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   await check(admin, { path: `${P} > 코스 탭`, tcRef: `${R}_2`, tcId: 'HMCE-02', desc: '코스 탭(South/East/West) 노출', expected: '코스 탭', failMsg: '코스 탭 미노출' },
     async () => { await expect(admin.locator('.tab-group').getByText('South', { exact: false }).first()).toBeVisible(); await expect(admin.locator('.tab-group').getByText('West', { exact: false }).first()).toBeVisible(); });
   await check(admin, { path: `${P} > 홀별 설정`, tcRef: `${R}_3`, tcId: 'HMCE-03', desc: '홀별 진입여부 checkbox 노출(≥1)', expected: 'checkbox ≥1', failMsg: '체크박스 미노출' },
@@ -1059,8 +1064,8 @@ export async function runHolemapTeeshot(admin: Page) {
   const P = '홀맵 관리 > 티샷 유의 거리 설정';
   const R = '홀맵 관리_티샷 유의 거리 설정';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'HMTS-01', desc: '안내 문구 노출(부분)', expected: '티박스 진입', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('티박스'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'HMTS-01', desc: '안내 문구 TC 원문 일치', expected: '파4 이상 홀에서 티박스 진입 시점 기준, 설정한 거리 이내에 앞 카트가 위치하는 경우 태블릿에 티샷 유의 안내문구를 노출합니다. 상단 코스를 선택하여 홀 별 기준거리를 관리할 수 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   await check(admin, { path: `${P} > 코스 탭`, tcRef: `${R}_2`, tcId: 'HMTS-02', desc: '코스 탭(South/East/West) 노출', expected: '코스 탭', failMsg: '코스 탭 미노출' },
     async () => { await expect(admin.locator('.tab-group').getByText('South', { exact: false }).first()).toBeVisible(); });
   await check(admin, { path: `${P} > 홀별 거리`, tcRef: `${R}_3`, tcId: 'HMTS-03-1', desc: '홀별 거리 입력(placeholder 미입력) 노출(≥1)', expected: 'input placeholder', failMsg: '거리 입력 미노출' },
@@ -1079,8 +1084,8 @@ export async function runHolemapPreview(admin: Page) {
   const P = '홀맵 관리 > 홀맵 미리보기';
   const R = '홀맵 관리_홀맵 미리보기';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'HMP-01', desc: '안내 문구 노출(부분)', expected: '태블릿에 실제로', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('태블릿에 실제로'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'HMP-01', desc: '안내 문구 TC 원문 일치', expected: '홀맵 구역설정, 카트패스 진입여부 설정, 티샷 유의거리 설정을 기준으로 태블릿에 실제로 보이는 홀 화면을 미리 확인합니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   await check(admin, { path: `${P} > 미리보기 조건`, tcRef: `${R}_2`, tcId: 'HMP-02', desc: '미리보기 조건(코스/홀 vue-select ≥2)', expected: 'vs ≥2', failMsg: '조건 미노출' },
     async () => { expect(await new VueSelect(admin).count()).toBeGreaterThanOrEqual(2); });
   await check(admin, { path: `${P} > 미리보기`, tcRef: `${R}_3`, tcId: 'HMP-03', desc: '미리보기 영역(svg) + 투명도 슬라이더 + 요약(노출만)', expected: 'svg+slider+summary', failMsg: '미리보기 미노출' },
@@ -1096,8 +1101,8 @@ export async function runPinPosition(admin: Page) {
   const P = '코스 운영 관리 > 핀 포지션 관리';
   const R = '코스 운영 관리_핀 포지션 관리';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'PIN-01', desc: '안내 문구 노출(부분)', expected: '핀 위치', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('핀 위치'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'PIN-01', desc: '안내 문구 TC 원문 일치', expected: '스마트스코어 스마트클럽 어플을 통하여 실시간 위치기반으로 핀 위치를 설정하여 태블릿에 현재 핀 위치를 표시할 수 있습니다. 그린을 선택하여 개별 홀, 전체 홀을 한 번에 이동할 수도 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   for (const [i, c] of ['코스명', '홀', 'PAR', '야디지', '그린', '핀 포지션', '선택'].entries())
     await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_2`, tcId: `PIN-02-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
       async () => { await expect(admin.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
@@ -1111,8 +1116,8 @@ export async function runPinHistory(admin: Page) {
   const P = '코스 운영 관리 > 핀 포지션 변경이력';
   const R = '코스 운영 관리_핀 포지션 변경이력';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'PINH-01', desc: '안내 문구 노출(부분)', expected: '변경된 모든 이력', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('이력'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'PINH-01', desc: '안내 문구 TC 원문 일치', expected: '핀 포지션이 변경된 모든 이력을 확인할 수 있습니다. 각 홀별 변경된 시각과 이전 위치, 변경된 위치를 확인할 수 있으며, 변경한 작업자 확인이 가능합니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'PINH-02', desc: '조회기간 datepicker(≥2) + [조회]/[내보내기](비파괴)', expected: 'datepicker≥2', failMsg: '검색 미노출' },
     async () => { expect(await admin.locator('.datepicker-input').count()).toBeGreaterThanOrEqual(2); await expect(admin.getByRole('button', { name: '조회' })).toBeVisible(); await expect(admin.getByRole('button', { name: '내보내기' })).toBeVisible(); });
   for (const [i, c] of ['코스명', '홀 번호', '변경일', '변경시간', '이전 핀위치', '변경 핀위치', '작업자'].entries())
@@ -1126,8 +1131,8 @@ export async function runPinAnalysis(admin: Page) {
   const P = '코스 운영 관리 > 핀 포지션 분석';
   const R = '코스 운영 관리_핀 포지션 분석';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'PINA-01', desc: '안내 문구 노출(부분)', expected: '평균 스코어/난이도', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('난이도'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'PINA-01', desc: '안내 문구 TC 원문 일치', expected: '핀 위치에 따른 고객들의 평균 스코어를 통해 핀 위치별 난이도를 확인할 수 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'PINA-02', desc: '조회기간 datepicker(≥2) + [조회]/[내보내기](비파괴)', expected: 'datepicker≥2', failMsg: '검색 미노출' },
     async () => { expect(await admin.locator('.datepicker-input').count()).toBeGreaterThanOrEqual(2); await expect(admin.getByRole('button', { name: '조회' })).toBeVisible(); });
   // ✨드리프트(2026-06-17): 'SC평균'→'스코어'. 분석표 th가 columnheader role 미노출(복합 피벗표) → th CSS+텍스트 매칭으로 변경
@@ -1142,8 +1147,8 @@ export async function runCourseAnalysis(admin: Page) {
   const P = '코스 운영 관리 > 코스 분석';
   const R = '코스 운영 관리_코스 분석';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'CRS-01', desc: '안내 문구 노출(부분)', expected: '분석 자료', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('분석'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'CRS-01', desc: '안내 문구 TC 원문 일치', expected: '골프장에서 플레이한 고객들의 스코어를 바탕으로 산출된 분석 자료를 통해 성별, 코스, 티잉 구역 별 평균 스코어와 퍼트수, 페어웨이 안착률, 그린 적중률을 확인할 수 있으며, 스마트스코어를 이용 중인 전국 골프장의 데이터와 비교하여 골프장의 난이도를 확인할 수 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'CRS-02', desc: '조건 vue-select(≥1) + [조회](비파괴)', expected: 'vs≥1+조회', failMsg: '검색 미노출' },
     async () => { expect(await new VueSelect(admin).count()).toBeGreaterThanOrEqual(1); await expect(admin.getByRole('button', { name: '조회' })).toBeVisible(); });
   for (const [i, c] of ['홀', '스코어', '퍼트수', '페어웨이안착률', '그린적중률'].entries())

@@ -14,6 +14,7 @@
     "test:lang": "playwright test --project=admin-chromium Admin/lang-check-all.spec.ts --no-deps",
     "test:e2e": "playwright test --config=Playwright_New/playwright.config.ts",
     "test:full": "playwright test --project=admin-chromium --no-deps --workers=1 Admin/all-suite.spec.ts Admin/l4-reconcile.spec.ts Admin/ux-probe-all.spec.ts && playwright test --config=Playwright_New/playwright.config.ts",
+    "ia:confluence": "tsc --project tsconfig.json && node dist/scripts/iaToConfluence.js",
     "report": "playwright show-report"
   },
   "keywords": [],

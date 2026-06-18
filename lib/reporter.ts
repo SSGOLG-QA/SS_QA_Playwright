@@ -136,18 +136,41 @@ export function skip(meta: CheckMeta, note = '데이터 없음/해당없음') {
   console.log(`  - [${meta.path}] ${meta.tcId} — SKIP (${note})`);
 }
 
+// Playwright expect 에러 메시지에서 Received 값 자동 추출
+// 예) "Received string: "hello"" → "hello"
+function parsePlaywrightError(msg: string): { received?: string } {
+  for (const line of msg.split('\n')) {
+    const m = line.trim().match(/^Received(?:\s+string)?\s*:\s*(.+)$/);
+    if (m) return { received: m[1].replace(/^"|"$/g, '').trim().slice(0, 300) };
+  }
+  return {};
+}
+
 // 일반 검증 — 실패해도 throw하지 않고 기록 후 다음 단계 진행
-export async function check(page: Page, meta: CheckMeta, fn: () => Promise<void>) {
+// opts.getActual: PASS/FAIL 공통으로 실제값 캡처 (DOM에서 직접 읽기)
+//   예) { getActual: () => page.locator('.btn').textContent() }
+//   예) { getActual: async () => (await page.locator('tbody tr').count()).toString() }
+export async function check(
+  page: Page,
+  meta: CheckMeta,
+  fn: () => Promise<void>,
+  opts?: { getActual?: () => Promise<string | null> },
+) {
   const time = new Date().toLocaleString('ko-KR');
   try {
     await fn();
-    results.push({ ...meta, status: 'PASS', time });
+    const actual = opts?.getActual ? (await opts.getActual().catch(() => '')) ?? '' : undefined;
+    results.push({ ...meta, status: 'PASS', actual, time });
     console.log(`  ✓ [${meta.path}] ${meta.tcId} ${meta.desc}`);
   } catch (e: any) {
     const screenshot = await capture(page, meta);
-    const error = meta.failMsg || '검증 실패';                 // 자연어 현상
-    const detail = norm(e?.message || String(e)).slice(0, 300); // 기술 원문
-    results.push({ ...meta, status: 'FAIL', error, detail, screenshot, time });
+    const error = meta.failMsg || '검증 실패';
+    const detail = norm(e?.message || String(e)).slice(0, 300);
+    // getActual 미제공 시 Playwright 에러에서 Received 값 자동 파싱 (방법 A 폴백)
+    const actual = opts?.getActual
+      ? (await opts.getActual().catch(() => '')) ?? ''
+      : parsePlaywrightError(e?.message || '').received;
+    results.push({ ...meta, status: 'FAIL', actual, error, detail, screenshot, time });
     console.warn(`  ✗ [${meta.path}] ${meta.tcId} — ${error}`);
   }
 }
@@ -274,17 +297,17 @@ function tcRefSort(a: TCResult, b: TCResult) {
 }
 
 const DETAIL_COLS = [
-  { header: '경로', key: 'path', width: 34 },
-  { header: 'TC참조(드라이브)', key: 'tcRef', width: 22 },
-  { header: 'TC', key: 'tcId', width: 9 },
-  { header: '설명(절차→기대)', key: 'desc', width: 46 },
-  { header: '기대값/안내문구', key: 'expected', width: 60 },
-  { header: '실제값', key: 'actual', width: 50 },
-  { header: '결과', key: 'status', width: 8 },
-  { header: '현상', key: 'error', width: 22 },
-  { header: '상세에러', key: 'detail', width: 45 },
-  { header: '스크린샷', key: 'screenshot', width: 40 },
-  { header: '시각', key: 'time', width: 20 },
+  { header: '경로',             key: 'path',       width: 34 },
+  { header: 'TC참조(드라이브)', key: 'tcRef',      width: 22 },
+  { header: 'TC',               key: 'tcId',       width: 9  },
+  { header: '테스트 절차',       key: 'desc',       width: 40 },
+  { header: '기대결과',          key: 'expected',   width: 44 },
+  { header: '실제결과',          key: 'actual',     width: 44 },
+  { header: '결과',              key: 'status',     width: 8  },
+  { header: '현상',              key: 'error',      width: 22 },
+  { header: '상세에러',          key: 'detail',     width: 45 },
+  { header: '스크린샷',          key: 'screenshot', width: 40 },
+  { header: '시각',              key: 'time',       width: 20 },
 ];
 
 // 엑셀 리포트 생성 — 대메뉴별 결과 시트 + 요약 시트(시트별 집계)
@@ -472,6 +495,64 @@ export async function writeReport(title = 'report'): Promise<string> {
     console.log(`[report] IA 시트 포함 (구현 ${impl}/${iaResults.length})`);
   }
 
+  // ── 화면별 커버리지 시트 (대메뉴 > 화면 단위 집계) ────────────
+  // 경로 "대메뉴 > 화면명 > 세부" 의 화면명(depth-2) 기준. RAW(자동스캔) 제외.
+  {
+    type ScreenStat = { menu: string; pass: number; fail: number; skip: number; tcIds: string[] };
+    const screenMap = new Map<string, ScreenStat>();
+    for (const r of results) {
+      if (r.tcId === 'RAW') continue;
+      const parts = r.path.split('>').map((s: string) => s.trim());
+      const menu = canonMenu(parts[0] || '');
+      const screen = parts[1] || parts[0] || '';
+      const key = `${menu}\x00${screen}`;
+      if (!screenMap.has(key)) screenMap.set(key, { menu, pass: 0, fail: 0, skip: 0, tcIds: [] });
+      const sc = screenMap.get(key)!;
+      if (r.status === 'PASS') sc.pass++;
+      else if (r.status === 'FAIL') sc.fail++;
+      else sc.skip++;
+      if (r.tcId && !sc.tcIds.includes(r.tcId)) sc.tcIds.push(r.tcId);
+    }
+    if (screenMap.size > 0) {
+      const cv = wb.addWorksheet('화면별 커버리지');
+      cv.columns = [
+        { header: '대메뉴',       key: 'menu',   width: 18 },
+        { header: '화면',         key: 'screen', width: 28 },
+        { header: '전체',         key: 'total',  width: 7  },
+        { header: 'PASS',         key: 'pass',   width: 7  },
+        { header: 'FAIL',         key: 'fail',   width: 7  },
+        { header: 'SKIP',         key: 'skip',   width: 7  },
+        { header: 'PASS율',       key: 'rate',   width: 9  },
+        { header: '실행 TC 목록', key: 'tcIds',  width: 64 },
+      ];
+      cv.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      cv.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2F6FB5' } };
+      cv.views = [{ state: 'frozen', ySplit: 1 }];
+      const screenEntries = [...screenMap.entries()].sort((a, b) => {
+        const ra = menuRank(a[1].menu), rb = menuRank(b[1].menu);
+        return ra !== rb ? ra - rb : a[0].localeCompare(b[0], 'ko');
+      });
+      for (const [key, sc] of screenEntries) {
+        const screen = key.split('\x00')[1] || '';
+        const total = sc.pass + sc.fail + sc.skip;
+        const executed = sc.pass + sc.fail;
+        const rate = executed ? `${Math.round(sc.pass / executed * 100)}%` : '-';
+        const row = cv.addRow({ menu: sc.menu, screen, total, pass: sc.pass, fail: sc.fail, skip: sc.skip, rate, tcIds: sc.tcIds.join(', ') });
+        row.alignment = { vertical: 'top', wrapText: false };
+        if (sc.fail > 0) {
+          for (let c = 1; c <= 8; c++) {
+            row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF0F0' } };
+          }
+          row.getCell('fail').font = { bold: true, color: { argb: 'FFCC0000' } };
+        }
+        const rateColor = !executed ? 'FF888888' : sc.fail > 0 ? 'FFCC0000' : 'FF008000';
+        row.getCell('rate').font = { color: { argb: rateColor } };
+      }
+      cv.autoFilter = { from: 'A1', to: 'H1' };
+      console.log(`[report] 화면별 커버리지 시트 포함 (화면 ${screenMap.size}개)`);
+    }
+  }
+
   // ── 대메뉴별 결과 시트 (IA 순서: 홈 → 라운드관리 …) ────
   for (const m of menus) {
     const ws = wb.addWorksheet(sheetSafe(m));
@@ -483,8 +564,21 @@ export async function writeReport(title = 'report'): Promise<string> {
     for (const r of rows) {
       const row = ws.addRow(r);
       row.alignment = { vertical: 'top', wrapText: true };
+      // FAIL 행 전체 연한 분홍 배경
+      if (r.status === 'FAIL') {
+        for (let c = 1; c <= DETAIL_COLS.length; c++) {
+          row.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF0F0' } };
+        }
+      }
       row.getCell('status').font = { bold: true, color: { argb: COLOR[r.status] } };
       if (r.status === 'FAIL') row.getCell('desc').font = { color: { argb: 'FFCC0000' } };
+      // 스크린샷 하이퍼링크 (file:/// 로컬 파일 직접 열기)
+      if (r.screenshot) {
+        const shotCell = row.getCell('screenshot');
+        const fileUrl = 'file:///' + r.screenshot.replace(/\\/g, '/');
+        shotCell.value = { text: path.basename(r.screenshot), hyperlink: fileUrl };
+        shotCell.font = { color: { argb: 'FF0563C1' }, underline: true };
+      }
     }
     ws.autoFilter = { from: 'A1', to: 'K1' };
   }
@@ -577,6 +671,14 @@ export async function writeIAReport(title = 'ia-coverage'): Promise<string> {
   const impl = iaResults.filter(r => r.status === '구현').length;
   const notImpl = iaResults.filter(r => r.status === '미구현').length;
   const noEntry = iaResults.filter(r => r.status === '진입불가').length;
+
+  // IA 결과 JSON 덤프 — scripts/iaToConfluence.ts(Confluence 자동 게시) 입력용
+  try {
+    if (!fs.existsSync('analysis')) fs.mkdirSync('analysis', { recursive: true });
+    fs.writeFileSync('analysis/_ia_coverage.json', JSON.stringify({
+      generatedAt: new Date().toISOString(), total: iaResults.length, impl, notImpl, noEntry, results: iaResults,
+    }, null, 2));
+  } catch { /* 덤프 실패는 리포트 생성에 영향 없음 */ }
 
   // 요약
   const sum = wb.addWorksheet('요약');

@@ -45,7 +45,7 @@ export class FnbOrderPage {
       return k ? rec[k] : '';
     };
     return (await this.ranking.records()).map(rec => ({
-      name: cell(rec, /캐디명|순위/),
+      name: cell(rec, /캐디명/),
       supply: DataGrid.num(cell(rec, /공급가/)),
       vat: DataGrid.num(cell(rec, /부가세/)),
       amount: DataGrid.num(cell(rec, /^주문금액$|주문금액/)),

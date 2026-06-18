@@ -5,6 +5,8 @@ import { DataGrid } from './components/DataGrid';
 import { VueSelect } from './components/VueSelect';
 import { SummaryCards } from './components/SummaryCards';
 import { FnbOrderPage } from './pages/FnbOrderPage';
+import { VisitStatusPage } from './pages/VisitStatusPage';
+import { AccountListPage } from './pages/AccountListPage';
 import { verifyInvariants, lockOrSkipFormula } from './domain/calcChecks';
 import { parseVisitRow, visitInvariants, SS_RATIO_CANDIDATES, PRINT_RATE_CANDIDATES, VisitRow } from './domain/visitStatus';
 
@@ -14,10 +16,11 @@ import { parseVisitRow, visitInvariants, SS_RATIO_CANDIDATES, PRINT_RATE_CANDIDA
 export async function runVisitStatusCalc(admin: Page) {
   const P = '라운드관리 > 내장 현황 > 정합성';
   const R = '라운드 관리_CALC';
-  const grid = new DataGrid(admin.locator('.table-overflow-item table'));
-  await admin.locator('.table-overflow-item table tbody tr').first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
-  if (await grid.isEmpty()) { skip({ path: P, tcRef: R, tcId: 'VS-CALC', desc: '내장 현황 계산 정합성' }, '데이터 없음(행 0건)'); return; }
-  const rows: VisitRow[] = (await grid.records()).map(parseVisitRow);
+  // L3 PageObject — 내장 현황 화면(DataGrid 조립 + VisitRow 파싱)
+  const page = new VisitStatusPage(admin);
+  await page.ready();
+  if (await page.isEmpty()) { skip({ path: P, tcRef: R, tcId: 'VS-CALC', desc: '내장 현황 계산 정합성' }, '데이터 없음(행 0건)'); return; }
+  const rows: VisitRow[] = await page.rows();
   await verifyInvariants(admin, P, R, 'VS-CALC', rows, visitInvariants);
   await lockOrSkipFormula(admin, P, R, 'VS-RATIO-SS', 'SS회원 비율', rows, r => r.ssRatio, SS_RATIO_CANDIDATES);
   await lockOrSkipFormula(admin, P, R, 'VS-RATIO-PRINT', '출력률', rows, r => r.printRate, PRINT_RATE_CANDIDATES);
@@ -1251,18 +1254,21 @@ export async function runReviewStats(admin: Page) {
 export async function runAccountList(admin: Page) {
   const P = '계정 관리 > 계정 리스트';
   const R = '계정 관리_계정 리스트';
-  await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
+  // L3 PageObject — 계정 리스트(검색 + 테이블 DataGrid)
+  const page = new AccountListPage(admin);
+  await page.ready();
   await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'ACL-01', desc: '안내 문구 노출(부분)', expected: '등록된 계정들을 관리', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('계정'); });
+    async () => { await expect(page.info()).toBeVisible(); await expect(page.info()).toContainText('계정'); });
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'ACL-02', desc: '검색(이름 input + vue-select) + [적용](비파괴)', expected: '검색 영역', failMsg: '검색 미노출' },
-    async () => { await expect(admin.getByPlaceholder('이름을 입력해주세요')).toBeVisible(); await expect(admin.getByRole('button', { name: '적용', exact: true })).toBeVisible(); });
+    async () => { await expect(page.nameSearch()).toBeVisible(); await expect(page.applyBtn().first()).toBeVisible(); });
+  const acHeaders = await page.headers();
   for (const [i, c] of ['No.', '계정 상태', '부서', '이름', 'ID', '연락처', '권한'].entries())
     await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_3`, tcId: `ACL-03-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
-      async () => { await expect(admin.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
+      async () => { expect(acHeaders.some(h => h.replace(/\s+/g, '').includes(c.replace(/\s+/g, ''))), `컬럼 '${c}' (실제: ${acHeaders.join('/')})`).toBeTruthy(); });
   // ✨드리프트(2026-06-17): 리스트 행 액션에서 [패스워드 변경] 버튼 제거(권한변경만 노출)
   for (const [i, b] of ['권한변경'].entries())
     await check(admin, { path: `${P} > 행 액션`, tcRef: `${R}_4`, tcId: `ACL-04-${i + 1}`, desc: `행 [${b}] 버튼 노출(클릭 미수행·비파괴)`, expected: `[${b}]`, failMsg: '버튼 미노출' },
-      async () => { await expect(admin.getByRole('button', { name: b }).first()).toBeVisible(); });
+      async () => { await expect(page.rowAction(b)).toBeVisible(); });
   diff(`${P} > 행 액션`, '행 액션 [권한변경]·[패스워드 변경]', '[패스워드 변경] 리스트에서 제거(권한변경만)', `${R}_4`, '구조 변경 — 현 구현(AS-IS) 반영');
   // [로그아웃] 버튼은 '현재 로그인된 계정' 행에만 노출(TC No.23 사전조건 '로그인된 계정 있음') → 데이터 의존, 없으면 SKIP
   if ((await admin.getByRole('button', { name: '로그아웃' }).count().catch(() => 0)) > 0)

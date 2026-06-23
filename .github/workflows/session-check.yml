@@ -28,10 +28,14 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
 
-      - name: Restore auth session
+      - name: Generate auth session (CI auto-login)
+        env:
+          CI: true
+          SS_USERNAME: ${{ secrets.SS_USERNAME }}
+          SS_PASSWORD: ${{ secrets.SS_PASSWORD }}
         run: |
           mkdir -p auth/.auth
-          echo "${{ secrets.PLAYWRIGHT_SESSION }}" | base64 -d > auth/.auth/admin.json
+          npx playwright test --project=setup
 
       - name: Check session validity
         env:
@@ -41,4 +45,4 @@ jobs:
         run: |
           # 홈 메뉴 단일 진입으로 세션 유효성 확인
           npx playwright test --project=admin-chromium Admin/home.spec.ts --no-deps || \
-          (echo "::error::세션이 만료되었습니다. 로컬에서 npm run auth 실행 후 PLAYWRIGHT_SESSION Secret을 갱신하세요." && exit 1)
+          (echo "::error::CI 자동 로그인 실패. SS_USERNAME / SS_PASSWORD Secret 값을 확인하세요." && exit 1)

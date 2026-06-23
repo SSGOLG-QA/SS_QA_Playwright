@@ -22,11 +22,53 @@ import path from 'path';
 // ──────────────────────────────────────────────────────────────
 
 const DASHBOARD_URL = 'https://sv1td4.smartscore.kr/ko/dashboard';
+const LOGIN_URL = 'https://sv1td4.smartscore.kr/ko/login';
 const SUBDOMAIN = 'td17';
+const CLUB_NAME = '킹즈락';
+
+// CI 자동 로그인 모드: SS_USERNAME / SS_PASSWORD 환경변수가 모두 있을 때 활성화
+const CI_AUTO_LOGIN = Boolean(process.env.CI && process.env.SS_USERNAME && process.env.SS_PASSWORD);
 
 async function closeNoticeIfPresent(p: Page) {
   const close = p.locator('.btn-top-close');
   if (await close.isVisible().catch(() => false)) await close.click().catch(() => {});
+}
+
+// CI 자동 로그인: 로그인 폼에 계정/비밀번호 입력 → 대시보드 진입
+async function autoLogin(page: Page): Promise<void> {
+  const username = process.env.SS_USERNAME!;
+  const password = process.env.SS_PASSWORD!;
+
+  console.log(`\n[auth.setup] CI 자동 로그인 시작 (계정: ${username})\n`);
+  await page.goto(LOGIN_URL);
+  await expect(page.getByRole('button', { name: '로그인' })).toBeVisible({ timeout: 15_000 });
+
+  // 중복 로그인 팝업 핸들러 (자동 로그인 전 구간 감시)
+  await page.addLocatorHandler(
+    page.locator('.modal-group').filter({ hasText: '로그인을 진행하시겠습니까?' }),
+    async () => {
+      await page.locator('.modal-group').getByRole('button', { name: '확인' }).click();
+    },
+    { noWaitAfter: true, times: 3 },
+  );
+
+  // 클럽 검색 + 선택
+  const clubSearch = page.getByRole('searchbox');
+  await clubSearch.click();
+  await clubSearch.pressSequentially(CLUB_NAME, { delay: 50 });
+  await page.locator('.select-group-dropdown li', { hasText: CLUB_NAME })
+    .waitFor({ state: 'visible', timeout: 8_000 });
+  await page.locator('.select-group-dropdown li', { hasText: CLUB_NAME }).click();
+
+  // 계정/비밀번호 입력 후 로그인
+  await page.getByPlaceholder('아이디를 입력해주세요').fill(username);
+  await page.getByPlaceholder('비밀번호를 입력해주세요').fill(password);
+  await page.getByRole('button', { name: '로그인' }).click();
+
+  // 대시보드 진입 확인
+  await expect(page.getByRole('heading', { name: /님 안녕하세요/ }))
+    .toBeVisible({ timeout: 30_000 });
+  console.log('\n[auth.setup] CI 자동 로그인 완료\n');
 }
 
 // 한 계정에 대해: 대시보드 로그인 → td17 → 어드민 진입 → storageState 저장
@@ -34,15 +76,21 @@ async function captureAccount(page: Page, context: BrowserContext, idx: number) 
   const out = accountStorage(idx);
   const label = ACCOUNT_COUNT > 1 ? `계정 ${idx + 1}/${ACCOUNT_COUNT}` : '계정';
 
-  // ── STEP 1. 대시보드 진입 + 수동 로그인 ──────────────
-  await page.goto(DASHBOARD_URL);
-  if (idx === 0) {
-    console.log(`\n[auth.setup] ${label}: 브라우저에서 로그인을 완료해 주세요. (최대 3분 대기)\n`);
+  // ── STEP 1. 대시보드 진입 + 로그인 ──────────────
+  if (CI_AUTO_LOGIN) {
+    // CI: 자동 로그인
+    await autoLogin(page);
   } else {
-    console.log(`\n[auth.setup] ${label}: 이전 계정 쿠키를 비웠습니다. ⚠ **다른 테스트 계정**으로 로그인해 주세요(같은 계정 금지). (최대 3분 대기)\n`);
+    // 로컬: 수동 로그인 (기존 동작 유지)
+    await page.goto(DASHBOARD_URL);
+    if (idx === 0) {
+      console.log(`\n[auth.setup] ${label}: 브라우저에서 로그인을 완료해 주세요. (최대 3분 대기)\n`);
+    } else {
+      console.log(`\n[auth.setup] ${label}: 이전 계정 쿠키를 비웠습니다. ⚠ **다른 테스트 계정**으로 로그인해 주세요(같은 계정 금지). (최대 3분 대기)\n`);
+    }
+    await expect(page.getByRole('heading', { name: /님 안녕하세요/ }))
+      .toBeVisible({ timeout: 180_000 });
   }
-  await expect(page.getByRole('heading', { name: /님 안녕하세요/ }))
-    .toBeVisible({ timeout: 180_000 });
   await closeNoticeIfPresent(page);
 
   // ── STEP 2. 서브도메인 td17 입력 + Enter ─────────────

@@ -54,15 +54,19 @@ jobs:
       - name: TypeScript typecheck
         run: npm run typecheck
 
-      # ── 6. 로그인 세션 복원 ─────────────────────────────────────
-      #    로컬에서 생성한 admin.json을 base64로 인코딩하여 Secret에 저장
-      #    등록 방법: scripts/encode-session.ps1 실행 후 출력값을
-      #    GitHub > Settings > Secrets > PLAYWRIGHT_SESSION 에 붙여넣기
-      - name: Restore auth session
+      # ── 6. CI 자동 로그인 (auth.setup.ts)  ──────────────────────
+      #    CI=true + SS_USERNAME/SS_PASSWORD 환경변수가 있으면
+      #    auth.setup.ts 가 자동으로 로그인 폼을 채워 admin.json을 생성한다.
+      #    (로컬 수동 로그인 분기와 동일 파일 — process.env.CI 로 분기)
+      - name: Generate auth session (CI auto-login)
+        env:
+          CI: true
+          SS_USERNAME: ${{ secrets.SS_USERNAME }}
+          SS_PASSWORD: ${{ secrets.SS_PASSWORD }}
         run: |
           mkdir -p auth/.auth
-          echo "${{ secrets.PLAYWRIGHT_SESSION }}" | base64 -d > auth/.auth/admin.json
-          echo "세션 파일 복원 완료: $(wc -c < auth/.auth/admin.json) bytes"
+          npx playwright test --project=setup
+          echo "세션 생성 완료: $(wc -c < auth/.auth/admin.json) bytes"
 
       # ── 7. 테스트 실행 ──────────────────────────────────────────
       - name: Run Playwright tests

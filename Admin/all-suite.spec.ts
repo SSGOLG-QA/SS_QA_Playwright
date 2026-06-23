@@ -1,6 +1,7 @@
 import { test } from '../lib/fixtures';
 import * as S from '../lib/suites';
-import { writeReport, resetResults, resetNoTC, resetDiff, resetIA, gotoMenu } from '../lib/reporter';
+import { writeReport, resetResults, resetNoTC, resetDiff, resetIA, gotoMenu, diff, skip } from '../lib/reporter';
+import { navigateMenu } from '../lib/adminHelpers';
 
 // ──────────────────────────────────────────────────────────────
 //  전체 테스트 — 전 대메뉴를 한 문서(탭=대메뉴명)로 산출
@@ -38,6 +39,14 @@ const STEPS: [string, string, (p: any) => Promise<void>][] = [
   ['캐디 관리', '캐디 리스트', S.runCaddieList],
   ['캐디 관리', '캐디 등록 관리', S.runCaddieRegister],
   ['캐디 관리', '캐디 실적', S.runCaddiePerformance],
+  // ⚠ 캐디피 관리: 환경 조건부(태블릿 캐디피 결제 ON 시에만 SNB 노출). td17 킹즈락 = 미구현.
+  //   → STEPS에 포함하되, 진입 실패 시 fn() 미호출(gotoMenu FAIL 분기 자연 처리).
+  //   실제 SNB 부재 환경에서는 gotoMenu가 '메뉴 진입 불가' 기록 후 다음 STEP으로 넘어감.
+  //   완전한 적응형(diff+skip) 처리는 개별 Admin/caddie-fee.spec.ts 에서 수행.
+  ['캐디피 관리', '캐디피 설정', S.runCaddyFeeSettings],
+  ['캐디피 관리', '캐디피 통계', S.runCaddyFeeStats],
+  ['캐디피 관리', '캐디피 결제 내역', S.runCaddyFeePayment],
+  ['캐디피 관리', '캐디 자료/신고서', S.runCaddyFeeDocument],
   ['배토 관리', '배토 기록 조회', S.runBetoRecord],
   ['배토 관리', '배토 통계', S.runBetoStats],
   ['식음 관리', '버전 및 설정', S.runFnbVersion],
@@ -50,6 +59,8 @@ const STEPS: [string, string, (p: any) => Promise<void>][] = [
   ['고객 평가 관리', '후기 통계', S.runReviewStats],
   ['계정 관리', '계정 리스트', S.runAccountList],
   ['계정 관리', '계정 권한 관리', S.runAccountPermission],
+  // ✨2026-06-22: 계정 관리인 리스트 — TC 작성 진행중, SNB 미구현(미노출) → gotoMenu SKIP 처리
+  ['계정 관리', '계정 관리인 리스트', S.runAccountAdminList],
 ];
 
 test('전체 테스트 — 전 대메뉴 단일 문서', async ({ admin }) => {

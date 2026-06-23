@@ -1,4 +1,8 @@
 import { defineConfig } from '@playwright/test';
+import { config } from 'dotenv';
+
+// .env 파일에서 환경변수 로드 (없어도 오류 없음 — CI는 직접 env 주입)
+config();
 
 // ──────────────────────────────────────────────────────────────
 //  Playwright 설정
@@ -8,11 +12,20 @@ import { defineConfig } from '@playwright/test';
 
 export const STORAGE_STATE = 'auth/.auth/admin.json';
 
+// ── 병렬 최적화: 계정 풀 (기본 1 = 현 직렬, 하위호환) ───────────────────────
+//  ACCOUNT_COUNT=N 이면 워커마다 다른 계정 storageState 사용 → 동시 로그인 충돌 없이 N병렬.
+//  ⚠ 전제: N개 테스트 계정 + setup 으로 admin-0..N-1 storageState 생성(계정0=admin.json 재사용).
+export const ACCOUNT_COUNT = Math.max(1, Number(process.env.ACCOUNT_COUNT) || 1);
+//  계정 인덱스 → storageState 경로 (계정0 = 기존 admin.json 하위호환, 1.. = admin-N.json)
+export const accountStorage = (i: number) => (i === 0 ? STORAGE_STATE : `auth/.auth/admin-${i}.json`);
+
 export default defineConfig({
   testDir: '.',
   timeout: 60_000,
   expect: { timeout: 10_000 },
-  fullyParallel: false,
+  // 단일 계정(기본)은 직렬 — 같은 계정 동시 로그인 시 강제 로그아웃. 계정 풀(N>1)에서만 병렬.
+  fullyParallel: ACCOUNT_COUNT > 1,
+  workers: ACCOUNT_COUNT,   // 1=직렬(안전 기본) / N=N병렬(워커별 distinct 계정)
   // 진입 레이스(SPA 네비) 플레이크 흡수 — CI는 2회, 로컬은 1회 재시도. (이전: retries 미설정=0이라 trace:on-first-retry가 무용지물이었음)
   retries: process.env.CI ? 2 : 1,
   reporter: [['list'], ['html', { open: 'never' }]],

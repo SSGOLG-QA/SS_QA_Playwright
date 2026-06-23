@@ -4,198 +4,333 @@ import { HolemapZonePage, HolemapCartEntrancePage, HolemapTeeshotPage, HolemapPr
 import { SCREEN } from './holemap-mgmt.data';
 
 // ──────────────────────────────────────────────────────────────
-//  홀맵 관리 E2E (현재 구현 AS-IS 기준) — POM 패턴
-//  4화면(홀맵 구역 설정 / 카트패스 진입여부 설정 / 티샷 유의 거리 설정 / 홀맵 미리보기) × 8항목
-//  ⚠ 비파괴: 저장/적용/구역관리 확인/전체허용·제한/checkbox 변경/초기화 클릭 금지.
-//     [구역관리] 클릭 → 모달 노출 → 취소(닫기)까지만 허용. 홀맵 미리보기는 시각도구 제한 검증.
-//  실행: npx playwright test --config=Playwright_New/playwright.config.ts holemap-mgmt
+//  홀맵 관리 E2E — describe 분리로 개별 항목 독립 실행·리포트
+//  4화면 × 개별 test(): 홀맵 구역 설정 / 카트패스 진입여부 / 티샷 유의 거리 / 홀맵 미리보기
+//  ⚠ 비파괴: 저장/적용/전체허용·제한/checkbox 변경/초기화 금지
+//  특정 항목 실행: npx playwright test holemap-mgmt --config=Playwright_New/playwright.config.ts -g "구역 설정"
 // ──────────────────────────────────────────────────────────────
 
-let admin: Page;
-test.beforeEach(async ({ page, context }) => {
-  admin = await openAdmin(page, context);
-});
+const MS = 8_000; // action timeout
 
-// 1. 기능 진입 — 홀맵 구역 설정 URL 접속 및 페이지 로드 확인
-test('항목1: 기능 진입 — 홀맵 구역 설정 URL 접속 및 로드', async () => {
-  const p = new HolemapZonePage(admin);
-  await p.open();
-  await p.expectLoaded(SCREEN.zone.urlPart);
-  await expect(p.infoBox, '안내 문구 로드').toContainText(SCREEN.zone.guide);
-  // 코스/홀 필터(vue-select) 노출 확인
-  await expect(p.vueSelects.first(), '코스/홀 필터(vue-select) 노출').toBeVisible();
-});
+// ═══════════════════════════════════════════════════════════════
+//  1. 홀맵 구역 설정
+// ═══════════════════════════════════════════════════════════════
+test.describe('홀맵 구역 설정', () => {
+  let admin: Page;
+  let p: HolemapZonePage;
 
-// 2. 텍스트 검증 — 오타/가공되지 않은 코드 노출 여부 (4화면 전체)
-test('항목2: 텍스트 검증 — raw code/미가공 코드 미노출', async () => {
-  for (const PageCls of [HolemapZonePage, HolemapCartEntrancePage, HolemapTeeshotPage, HolemapPreviewPage]) {
-    const p = new PageCls(admin);
+  test.beforeEach(async ({ page, context }) => {
+    admin = await openAdmin(page, context);
+    p = new HolemapZonePage(admin);
     await p.open();
-    const hits = await p.scanRawCode();
-    expect(hits, `[${p.constructor.name}] 미가공 코드 노출: ${JSON.stringify(hits)}`).toEqual([]);
-  }
-});
-
-// 3. 버튼(메뉴) 클릭 → 4화면 순회 이동 + 마지막 랜딩 후 세션 유지
-test('항목3: 버튼(메뉴) 클릭 → 4화면 순회 이동 + 세션 유지', async () => {
-  const zone = new HolemapZonePage(admin);
-  await zone.open();
-  await zone.expectLoaded(SCREEN.zone.urlPart);
-
-  const cart = new HolemapCartEntrancePage(admin);
-  await cart.open();
-  await cart.expectLoaded(SCREEN.cartEntrance.urlPart);
-
-  const tee = new HolemapTeeshotPage(admin);
-  await tee.open();
-  await tee.expectLoaded(SCREEN.teeshot.urlPart);
-
-  const preview = new HolemapPreviewPage(admin);
-  await preview.open();
-  await preview.expectLoaded(SCREEN.preview.urlPart);
-  await preview.expectSessionAlive();
-});
-
-// 4. 데이터 정합성 — 홀맵 구역 설정 테이블 컬럼 수 + 행(≥1) 또는 빈 안내 확인
-test('항목4: 데이터 정합성 — 홀맵 구역 설정 테이블 컬럼/행 확인', async () => {
-  const p = new HolemapZonePage(admin);
-  await p.open();
-  await p.expectLoaded(SCREEN.zone.urlPart);
-
-  // 테이블 컬럼 확인 (9개 컬럼)
-  for (const col of SCREEN.zone.columns) {
-    const header = p.column(col);
-    const cnt = await header.count();
-    if (cnt > 0) {
-      await expect(header, `컬럼 '${col}' 노출`).toBeVisible();
-    } else {
-      test.info().annotations.push({ type: '주의', description: `컬럼 '${col}' 미발견 — 화면 구조 변경 가능성` });
-    }
-  }
-
-  // 행 수 확인 — 0건이면 skip 주석
-  const rowCount = await p.renderedRowCount();
-  if (rowCount > 0) {
-    expect(rowCount, '테이블 행 ≥1').toBeGreaterThanOrEqual(1);
-  } else {
-    test.info().annotations.push({ type: '주의', description: '홀맵 구역 설정 테이블 데이터 없음(0건) — 데이터 의존 행 검증 skip' });
-  }
-});
-
-// 5. 페이지네이션 — 홀맵 구역 설정(best-effort)
-//    ⚠ 설정형 화면(카트패스/티샷/미리보기)은 페이지네이션 없음. 홀맵 구역 설정 테이블 대상.
-test('항목5: 페이지네이션 — 홀맵 구역 설정(best-effort)', async () => {
-  const p = new HolemapZonePage(admin);
-  await p.open();
-  await p.expectLoaded(SCREEN.zone.urlPart);
-
-  const page2Btn = admin.getByRole('button', { name: '2', exact: true }).first();
-  if (await page2Btn.count() > 0) {
-    await page2Btn.click();
-    await admin.waitForTimeout(800);
-    await expect(p.rows.first(), '2페이지 행 렌더').toBeVisible();
-  } else {
-    test.info().annotations.push({ type: '주의', description: '2페이지 버튼 미발견 — 홀맵 구역 설정 데이터 1페이지 이내' });
-  }
-  for (const dir of ['prev', 'next', 'first', 'last'] as const) {
-    const a = p.arrow(dir);
-    if (await a.count()) {
-      await a.click().catch(() => {});
-      await admin.waitForTimeout(400);
-      await expect(p.rows.first()).toBeVisible().catch(() => {});
-    } else {
-      test.info().annotations.push({ type: '주의', description: `[${dir}] 화살표 버튼 미발견` });
-    }
-  }
-});
-
-// 6. 달력/탭 경계 — datepicker 없음 → 코스 탭 첫·마지막 전환(카트패스 진입여부 설정 대상)
-//    ⚠ 홀맵 관리 4화면 모두 날짜 조회기간 없음 → 달력 검증 불가.
-//       카트패스 진입여부 설정 코스 탭 경계 전환으로 대체.
-test('항목6: 달력/탭 경계 — 카트패스 코스 탭 경계 전환(datepicker 없음, 탭으로 대체)', async () => {
-  const p = new HolemapCartEntrancePage(admin);
-  await p.open();
-  await p.expectLoaded(SCREEN.cartEntrance.urlPart);
-
-  test.info().annotations.push({
-    type: '한계(자동화 불가)',
-    description: '홀맵 관리 4화면에 datepicker/조회기간 없음 → 달력 경계 검증 불가. 카트패스 코스 탭 경계 전환으로 대체.',
+    await p.expectLoaded(SCREEN.zone.urlPart);
   });
 
-  for (const tabName of SCREEN.cartEntrance.courseTabs) {
-    const t = p.tab(tabName);
-    if (await t.count() > 0) {
-      await t.click();
-      await admin.waitForTimeout(600);
-      await expect(p.page, `탭 '${tabName}' 클릭 후 URL 유지`).toHaveURL(new RegExp(SCREEN.cartEntrance.urlPart.replace(/\//g, '\\/')));
-      await expect(p.tabGroup, `탭 그룹 노출(탭: ${tabName})`).toBeVisible();
-    } else {
-      test.info().annotations.push({ type: '주의', description: `코스 탭 '${tabName}' 미발견` });
+  // ── 진입 ──────────────────────────────────────────────────
+  test('진입: URL + GNB 헤더 노출', async () => {
+    await expect(admin).toHaveURL(new RegExp(SCREEN.zone.urlPart.replace(/\//g, '\\/')));
+    await expect(p.gnbTitle, 'GNB 헤더 노출').toBeVisible();
+  });
+
+  test('안내문구: "홀맵 구역" 포함 텍스트 노출', async () => {
+    await expect(p.infoBox, '안내문구 노출').toContainText(SCREEN.zone.guide);
+  });
+
+  test('필터: vue-select(전체코스/전체홀) 2개 노출', async () => {
+    await expect(p.courseSelect, '전체코스 vue-select 노출').toBeVisible();
+    await expect(p.holeSelect, '전체홀 vue-select 노출').toBeVisible();
+  });
+
+  // ── 텍스트 품질 ──────────────────────────────────────────
+  test('raw code: 미가공 코드/오타 미노출', async () => {
+    const hits = await p.scanRawCode();
+    expect(hits, `미가공 코드 노출: ${JSON.stringify(hits)}`).toEqual([]);
+  });
+
+  // ── 테이블 ───────────────────────────────────────────────
+  test('테이블: 컬럼 15개 노출', async () => {
+    for (const col of SCREEN.zone.columns) {
+      await test.step(`컬럼 '${col}'`, async () => {
+        const header = p.column(col);
+        if (await header.count() > 0) {
+          await expect(header, `'${col}' 노출`).toBeVisible();
+        } else {
+          test.info().annotations.push({ type: '주의', description: `컬럼 '${col}' 미발견 — 화면 변경 가능성` });
+        }
+      });
     }
-  }
-});
+  });
 
-// 7. 입력/반영 — 티샷 유의 거리 코스 탭 전환 + 거리 입력 필드 노출 확인(비파괴)
-//    ⚠ 검색 필드 없음. 탭 클릭 → 거리 입력 필드 변경 확인. 실제 입력/저장 금지(비파괴).
-test('항목7: 입력/반영 — 티샷 유의 거리 코스 탭 전환 + 입력 필드 노출(비파괴)', async () => {
-  const p = new HolemapTeeshotPage(admin);
-  await p.open();
-  await p.expectLoaded(SCREEN.teeshot.urlPart);
+  test('테이블: 행 수 ≥ 1 (또는 빈 상태 안내)', async () => {
+    const rowCount = await p.renderedRowCount();
+    if (rowCount > 0) {
+      expect(rowCount, '행 수 ≥ 1').toBeGreaterThanOrEqual(1);
+    } else {
+      test.info().annotations.push({ type: '주의', description: '데이터 없음(0건) — 데이터 의존 skip' });
+    }
+  });
 
-  // 기본 탭(South) 전환 확인 + 거리 입력 필드 노출
-  const courseTab = p.tab(SCREEN.teeshot.courseTab);
-  if (await courseTab.count() > 0) {
-    await courseTab.click();
+  // ── 페이지네이션 ─────────────────────────────────────────
+  test('페이지네이션: 2페이지 이동 (best-effort)', async () => {
+    const page2Btn = admin.getByRole('button', { name: '2', exact: true }).first();
+    if (await page2Btn.count() > 0) {
+      await page2Btn.click();
+      await admin.waitForTimeout(800);
+      await expect(p.rows.first(), '2페이지 행 렌더').toBeVisible();
+    } else {
+      test.info().annotations.push({ type: '주의', description: '2페이지 버튼 없음 — 1페이지 이내 데이터' });
+    }
+    for (const dir of ['prev', 'next', 'first', 'last'] as const) {
+      const a = p.arrow(dir);
+      if (await a.count()) {
+        await a.click().catch(() => {});
+        await admin.waitForTimeout(400);
+        await expect(p.rows.first()).toBeVisible().catch(() => {});
+      }
+    }
+  });
+
+  // ── 필터 동작 ────────────────────────────────────────────
+  test('필터 적용: 코스 선택 → [적용] → 행 필터링 (비파괴 조회)', async () => {
+    const beforeCount = await p.renderedRowCount();
+    const pickedCourse = await p.pickFirstSpecificCourse();
+    if (!pickedCourse) {
+      test.info().annotations.push({ type: '주의', description: '전체코스 외 옵션 없음 → skip' });
+      return;
+    }
+    const selectedText = await p.selectedCourseText();
+    expect(selectedText, `선택값 반영(${pickedCourse})`).toContain(pickedCourse);
+
+    await p.applyFilterBtn.click();
     await admin.waitForTimeout(800);
-    await expect(p.page, '탭 전환 후 URL 유지').toHaveURL(new RegExp(SCREEN.teeshot.urlPart.replace(/\//g, '\\/')));
-    // 거리 입력 필드(placeholder='미입력') 노출 확인 — 실제 입력 금지
-    const inputCount = await p.distanceInputs.count();
-    if (inputCount > 0) {
-      await expect(p.distanceInputs.first(), `거리 입력 필드(placeholder='미입력') 노출`).toBeVisible();
-      test.info().annotations.push({ type: '한계', description: `거리 입력 필드 ${inputCount}개 노출 확인. 실제 값 입력/저장은 비파괴 원칙으로 금지.` });
-    } else {
-      test.info().annotations.push({ type: '주의', description: '거리 입력 필드(placeholder=미입력) 미발견' });
+
+    await expect(admin, '[적용] 후 URL 유지').toHaveURL(new RegExp(SCREEN.zone.urlPart.replace(/\//g, '\\/')));
+    const afterCount = await p.renderedRowCount();
+    expect(afterCount, '필터 후 행 수 ≤ 전체').toBeLessThanOrEqual(beforeCount);
+    if (afterCount > 0) {
+      const firstRowCourse = await p.rows.first().locator('td').nth(1).textContent();
+      expect((firstRowCourse ?? '').trim(), '필터 결과 첫 행 코스 = 선택 코스').toBe(pickedCourse);
     }
-  } else {
-    test.info().annotations.push({ type: '주의', description: `코스 탭 '${SCREEN.teeshot.courseTab}' 미발견 — 탭 전환 검증 불가` });
-  }
-});
+  });
 
-// 8. 팝업/모달 — 홀맵 구역 설정 [구역관리] 모달 노출 후 취소(비파괴)
-//    ⚠ [적용]/[저장]/[전체 허용·제한]/[홀별 설정 저장] 클릭 금지(비파괴 원칙).
-//       [구역관리] 버튼 → 모달 노출 → 취소로 검증. 행 없으면 skip.
-test('항목8: 팝업/모달 — 홀맵 구역 설정 [구역관리] 모달 노출 후 취소(비파괴)', async () => {
-  const p = new HolemapZonePage(admin);
-  await p.open();
-  await p.expectLoaded(SCREEN.zone.urlPart);
+  test('필터 초기화: [초기화] → 코스 원복 (비파괴)', async () => {
+    const pickedCourse = await p.pickFirstSpecificCourse();
+    if (!pickedCourse) {
+      test.info().annotations.push({ type: '주의', description: '전체코스 외 옵션 없음 → skip' });
+      return;
+    }
+    await p.applyFilterBtn.click();
+    await admin.waitForTimeout(600);
 
-  // [구역관리] 버튼(행별 버튼 → 첫 번째)
-  const zoneBtn = p.zoneBtn;
-  const zoneBtnCount = await zoneBtn.count();
-  if (zoneBtnCount > 0) {
-    await zoneBtn.evaluate((el: HTMLElement) => el.click());
+    await p.resetFilterBtn.click();
+    await admin.waitForTimeout(600);
+
+    const textAfter = await p.selectedCourseText();
+    expect(textAfter, '초기화 후 선택 코스 변경').not.toBe(pickedCourse);
+    await expect(p.table, '초기화 후 테이블 유지').toBeVisible();
+  });
+
+  // ── 모달 ──────────────────────────────────────────────────
+  test('모달: [구역관리] → 오버레이 노출', async () => {
+    if (await p.zoneBtn.count() === 0) {
+      test.info().annotations.push({ type: '주의', description: '행 없음 → skip' });
+      return;
+    }
+    await p.zoneBtn.evaluate((el: HTMLElement) => el.click());
+    const container = p.modalContainer();
+    const isVisible = await container.isVisible({ timeout: MS }).catch(() => false);
+    if (isVisible) {
+      await expect(container, '모달 오버레이(.modal-group) 노출').toBeVisible();
+      const cancelBtn = p.modalCancelBtn();
+      if (await cancelBtn.count() > 0) await cancelBtn.click();
+      else await admin.keyboard.press('Escape');
+    } else {
+      await expect(admin, '별도 레이어 방식 — /club/ URL 유지').toHaveURL(/\/club\//);
+      await admin.goBack().catch(() => {});
+    }
+  });
+
+  test('모달: 내부 텍스트 + 버튼 ≥ 1개 노출', async () => {
+    if (await p.zoneBtn.count() === 0) {
+      test.info().annotations.push({ type: '주의', description: '행 없음 → skip' });
+      return;
+    }
+    await p.zoneBtn.evaluate((el: HTMLElement) => el.click());
+    const container = p.modalContainer();
+    if (!(await container.isVisible({ timeout: MS }).catch(() => false))) {
+      test.info().annotations.push({ type: '주의', description: '.modal-group 미발견 — 별도 레이어 방식' });
+      await admin.goBack().catch(() => {});
+      return;
+    }
+    const modalText = (await container.innerText().catch(() => '')).trim();
+    expect(modalText.length, '모달 내 텍스트 존재').toBeGreaterThan(0);
+    const btnCount = await container.locator('button.button-common').filter({ hasNotText: '' }).count();
+    expect(btnCount, '모달 버튼 ≥ 1').toBeGreaterThanOrEqual(1);
+    test.info().annotations.push({ type: '정보', description: `모달 버튼 ${btnCount}개` });
+    const cancelBtn = p.modalCancelBtn();
+    if (await cancelBtn.count() > 0) await cancelBtn.click();
+    else await admin.keyboard.press('Escape');
+  });
+
+  test('모달: [취소] → 닫힘 (비파괴)', async () => {
+    if (await p.zoneBtn.count() === 0) {
+      test.info().annotations.push({ type: '주의', description: '행 없음 → skip' });
+      return;
+    }
+    await p.zoneBtn.evaluate((el: HTMLElement) => el.click());
     const modal = p.modal();
-    const isModalVisible = await modal.isVisible({ timeout: TIMEOUT_ACTION }).catch(() => false);
-    if (isModalVisible) {
-      await expect(modal, '[구역관리] 클릭 후 모달 노출').toBeVisible();
+    const isVisible = await modal.isVisible({ timeout: MS }).catch(() => false);
+    if (isVisible) {
+      await expect(modal, '모달 footer 노출').toBeVisible();
       const cancelBtn = p.modalCancelBtn();
       if (await cancelBtn.count() > 0) {
         await cancelBtn.click();
-        await expect(modal, '취소 후 모달 닫힘').toBeHidden({ timeout: TIMEOUT_ACTION });
+        await expect(modal, '취소 후 모달 닫힘').toBeHidden({ timeout: MS });
       } else {
         await admin.keyboard.press('Escape');
-        test.info().annotations.push({ type: '주의', description: '.modal-footer 취소 버튼 미발견 → ESC로 닫음' });
+        test.info().annotations.push({ type: '주의', description: '취소 버튼 미발견 → ESC 닫음' });
       }
     } else {
-      // 별도 화면/레이어로 이동한 경우 — URL 유지 확인 후 pass
-      await expect(p.page, '[구역관리] 클릭 후 URL 유지(인라인 방식)').toHaveURL(/\/club\//);
-      test.info().annotations.push({ type: '주의', description: '[구역관리] 클릭 시 .modal-footer 미발견 — 별도 레이어 또는 페이지 이동 방식. URL /club/ 유지 확인.' });
-      // 어드민으로 복귀
+      await expect(admin).toHaveURL(/\/club\//);
       await admin.goBack().catch(() => {});
     }
-  } else {
-    test.info().annotations.push({ type: '주의', description: '[구역관리] 버튼 미발견(데이터 없음) → 모달 검증 skip' });
-  }
+  });
 });
 
-const TIMEOUT_ACTION = 8_000;
+// ═══════════════════════════════════════════════════════════════
+//  2. 카트패스 진입여부 설정
+// ═══════════════════════════════════════════════════════════════
+test.describe('카트패스 진입여부 설정', () => {
+  let admin: Page;
+  let p: HolemapCartEntrancePage;
+
+  test.beforeEach(async ({ page, context }) => {
+    admin = await openAdmin(page, context);
+    p = new HolemapCartEntrancePage(admin);
+    await p.open();
+    await p.expectLoaded(SCREEN.cartEntrance.urlPart);
+  });
+
+  test('진입: URL + GNB 헤더 노출', async () => {
+    await expect(admin).toHaveURL(new RegExp(SCREEN.cartEntrance.urlPart.replace(/\//g, '\\/')));
+    await expect(p.gnbTitle).toBeVisible();
+  });
+
+  test('raw code: 미가공 코드 미노출', async () => {
+    const hits = await p.scanRawCode();
+    expect(hits).toEqual([]);
+  });
+
+  test('탭: 코스 탭 전환 (datepicker 없음 — 탭으로 대체)', async () => {
+    test.info().annotations.push({ type: '한계', description: '홀맵 관리 화면은 datepicker 없음 → 코스 탭 전환으로 대체' });
+    for (const tabName of SCREEN.cartEntrance.courseTabs) {
+      await test.step(`탭 '${tabName}' 전환`, async () => {
+        const t = p.tab(tabName);
+        if (await t.count() > 0) {
+          await t.click();
+          await admin.waitForTimeout(600);
+          await expect(admin).toHaveURL(new RegExp(SCREEN.cartEntrance.urlPart.replace(/\//g, '\\/')));
+          await expect(p.tabGroup).toBeVisible();
+        } else {
+          test.info().annotations.push({ type: '주의', description: `탭 '${tabName}' 미발견` });
+        }
+      });
+    }
+  });
+
+  test('세션: 화면 진입 후 세션 유지', async () => {
+    await p.expectSessionAlive();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  3. 티샷 유의 거리 설정
+// ═══════════════════════════════════════════════════════════════
+test.describe('티샷 유의 거리 설정', () => {
+  let admin: Page;
+  let p: HolemapTeeshotPage;
+
+  test.beforeEach(async ({ page, context }) => {
+    admin = await openAdmin(page, context);
+    p = new HolemapTeeshotPage(admin);
+    await p.open();
+    await p.expectLoaded(SCREEN.teeshot.urlPart);
+  });
+
+  test('진입: URL + GNB 헤더 노출', async () => {
+    await expect(admin).toHaveURL(new RegExp(SCREEN.teeshot.urlPart.replace(/\//g, '\\/')));
+    await expect(p.gnbTitle).toBeVisible();
+  });
+
+  test('raw code: 미가공 코드 미노출', async () => {
+    const hits = await p.scanRawCode();
+    expect(hits).toEqual([]);
+  });
+
+  test('입력 필드: 코스 탭 전환 → 거리 input(placeholder=미입력) 노출 (비파괴)', async () => {
+    const courseTab = p.tab(SCREEN.teeshot.courseTab);
+    if (await courseTab.count() > 0) {
+      await courseTab.click();
+      await admin.waitForTimeout(800);
+      await expect(admin).toHaveURL(new RegExp(SCREEN.teeshot.urlPart.replace(/\//g, '\\/')));
+      const inputCount = await p.distanceInputs.count();
+      if (inputCount > 0) {
+        await expect(p.distanceInputs.first(), '거리 입력 필드 노출').toBeVisible();
+        test.info().annotations.push({ type: '정보', description: `거리 입력 필드 ${inputCount}개 노출(저장 금지)` });
+      } else {
+        test.info().annotations.push({ type: '주의', description: '거리 입력 필드 미발견' });
+      }
+    } else {
+      test.info().annotations.push({ type: '주의', description: `코스 탭 '${SCREEN.teeshot.courseTab}' 미발견` });
+    }
+  });
+
+  test('세션: 화면 진입 후 세션 유지', async () => {
+    await p.expectSessionAlive();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+//  4. 홀맵 미리보기
+// ═══════════════════════════════════════════════════════════════
+test.describe('홀맵 미리보기', () => {
+  let admin: Page;
+  let p: HolemapPreviewPage;
+
+  test.beforeEach(async ({ page, context }) => {
+    admin = await openAdmin(page, context);
+    p = new HolemapPreviewPage(admin);
+    await p.open();
+    await p.expectLoaded(SCREEN.preview.urlPart);
+  });
+
+  test('진입: URL + GNB 헤더 노출', async () => {
+    await expect(admin).toHaveURL(new RegExp(SCREEN.preview.urlPart.replace(/\//g, '\\/')));
+    await expect(p.gnbTitle).toBeVisible();
+  });
+
+  test('raw code: 미가공 코드 미노출', async () => {
+    const hits = await p.scanRawCode();
+    expect(hits).toEqual([]);
+  });
+
+  test('미리보기: SVG 홀맵 렌더 영역 노출 (시각 도구 제한)', async () => {
+    test.info().annotations.push({ type: '한계', description: 'SVG 홀맵 시각 렌더 검증 불가 — 노출 여부만 확인' });
+    const svg = p.svgArea;  // vs__open-indicator(드롭다운 화살표) 제외
+    const count = await svg.count();
+    if (count > 0) {
+      const isVis = await svg.isVisible().catch(() => false);
+      if (isVis) {
+        await expect(svg, 'SVG 영역 노출').toBeVisible();
+      } else {
+        test.info().annotations.push({ type: '주의', description: 'SVG 존재하나 미노출 — 홀맵 데이터 없거나 렌더 지연 가능성' });
+      }
+    } else {
+      test.info().annotations.push({ type: '주의', description: 'SVG 미발견 — 홀맵 데이터 없음 가능성' });
+    }
+  });
+
+  test('세션: 마지막 화면 진입 후 세션 유지', async () => {
+    await p.expectSessionAlive();
+  });
+});

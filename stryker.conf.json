@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "뮤테이션 테스트(B안) — 브라우저 무관 순수 계산 로직만 대상. 라이브 PoC(assertion-sensitivity)와 별개 영역. 실행: npm run mutation",
+  "packageManager": "npm",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "npm run test:unit"
+  },
+  "mutate": [
+    "lib/domain/formula.ts",
+    "lib/domain/visitStatus.ts",
+    "lib/domain/reviewStats.ts",
+    "lib/domain/courseAnalysis.ts",
+    "lib/components/DataGrid.ts"
+  ],
+  "reporters": ["html", "clear-text", "progress"],
+  "htmlReporter": { "fileName": "reports/mutation/index.html" },
+  "coverageAnalysis": "off",
+  "_concurrency_note": "command 러너+tsc는 고동시성에서 점수가 흔들릴 수 있어 2로 고정(안정 우선). 빠른 탐색은 상향 가능.",
+  "concurrency": 2,
+  "tempDirName": ".stryker-tmp",
+  "thresholds": { "high": 80, "low": 60, "break": 0 }
+}

@@ -16,6 +16,9 @@
     "test:full": "playwright test --project=admin-chromium --no-deps --workers=1 Admin/all-suite.spec.ts Admin/l4-reconcile.spec.ts Admin/ux-probe-all.spec.ts && playwright test --config=Playwright_New/playwright.config.ts",
     "ia:confluence": "tsc --project tsconfig.json && node dist/scripts/iaToConfluence.js",
     "drift:diff": "tsc --project tsconfig.json && node dist/scripts/driftDiff.js",
+    "audit:assert": "tsc --project tsconfig.json && node dist/scripts/assertionAudit.js",
+    "test:unit": "tsc -p tsconfig.unit.json && node --test dist-unit/test/domain.test.js",
+    "mutation": "stryker run",
     "report": "playwright show-report"
   },
   "keywords": [],
@@ -24,6 +27,7 @@
   "type": "commonjs",
   "devDependencies": {
     "@playwright/test": "^1.60.0",
+    "@stryker-mutator/core": "^9.6.1",
     "@types/node": "^25.9.3",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"

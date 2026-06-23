@@ -1,5 +1,5 @@
 import { DataGrid } from '../components/DataGrid';
-import { Invariant, RatioCandidate } from './calcChecks';
+import type { Invariant, RatioCandidate } from './formula';
 
 // ────────────────────────────────────────────────────────────────
 //  Domain Oracle — 후기 통계(review-statistics) 통계표

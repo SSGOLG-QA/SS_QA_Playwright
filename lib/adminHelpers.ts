@@ -86,14 +86,24 @@ export async function openAdmin(page: Page, context: BrowserContext): Promise<Pa
   return admin;
 }
 
-// 대메뉴 펼치기 (공백 무시)
+// 대메뉴 펼치기 — 이미 열린 메뉴를 다시 클릭해 접히는 토글 버그 방지 (공백 무시)
 async function expandParent(admin: Page, parent: string) {
   const norm = (s: string) => (s || '').replace(/\s+/g, '');
   const parents = admin.locator('.depth-1-title');
   const pCount = await parents.count();
   for (let i = 0; i < pCount; i++) {
     const t = await parents.nth(i).innerText().catch(() => '');
-    if (norm(t).includes(norm(parent))) { await parents.nth(i).click().catch(() => {}); return; }
+    if (norm(t).includes(norm(parent))) {
+      // 이미 펼쳐진 상태면 클릭하면 접히므로 DOM 구조로 확인 후 필요할 때만 클릭
+      const isAlreadyOpen = await parents.nth(i).evaluate((el: HTMLElement) => {
+        const li = el.closest('li') ?? el.parentElement;
+        const depth2 = li?.querySelector('ul, .depth-2');
+        if (!depth2) return false;
+        return (depth2 as HTMLElement).offsetParent !== null;
+      }).catch(() => false);
+      if (!isAlreadyOpen) await parents.nth(i).click().catch(() => {});
+      return;
+    }
   }
 }
 
@@ -118,12 +128,13 @@ export async function navigateMenu(admin: Page, parent: string, child?: string):
     return false;
   }
 
-  // 보이지 않으면(접힘) 부모 펼치기 — 이미 펼쳐졌으면 토글하지 않음
+  // 보이지 않으면(접힘) 부모 펼치기
   if (!(await target.isVisible().catch(() => false))) {
     await expandParent(admin, parent);
     await target.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => {});
   }
-  await target.click();
+  // DOM click 사용: SPA 애니메이션 중 hidden 상태에서도 Vue Router 이벤트 발생 보장
+  await target.evaluate((el: HTMLElement) => el.click());
   await admin.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
   return true;
 }

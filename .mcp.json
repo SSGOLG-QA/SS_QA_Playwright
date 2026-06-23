@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--browser=chromium",
+        "--storage-state=${PW_MCP_STORAGE:-auth/.auth/admin-1.json}",
+        "--isolated",
+        "--viewport-size=1920,1080",
+        "--allowed-origins=https://td17.smartscore.kr;https://sv1td4.smartscore.kr",
+        "--save-trace",
+        "--output-dir=./mcp-out"
+      ]
+    }
+  }
+}

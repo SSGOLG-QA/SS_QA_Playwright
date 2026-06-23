@@ -14,6 +14,8 @@ import { Locator } from '@playwright/test';
 //    DataGrid.pct('85.7%')  === 85.7
 // ────────────────────────────────────────────────────────────────
 export class DataGrid {
+  // Stryker disable all : 아래 인스턴스 메서드는 라이브 Locator(브라우저) 의존 → 단위테스트 비대상.
+  //   순수 정적 파서(num/pair/pct)만 뮤테이션 테스트 대상(아래 Stryker restore).
   constructor(private root: Locator) {}
 
   private norm(s: string): string { return (s || '').replace(/\s+/g, ' ').trim(); }
@@ -56,7 +58,8 @@ export class DataGrid {
     return out;
   }
 
-  // ── 값 파서(정적 유틸 — 화면 무관 재사용) ──────────────────────
+  // Stryker restore all
+  // ── 값 파서(정적 유틸 — 화면 무관 재사용·순수) ─────────────────
   /** "1,234" → 1234 / 숫자 없으면 NaN */
   static num(s: string | undefined | null): number {
     if (s == null) return NaN;

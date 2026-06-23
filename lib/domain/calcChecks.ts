@@ -1,5 +1,9 @@
 import { Page, expect } from '@playwright/test';
 import { check, skip } from '../reporter';
+import { Invariant, RatioCandidate, inferFormula } from './formula';
+
+// 순수 로직은 formula.ts로 분리(단위/뮤테이션 테스트 대상). 하위호환 위해 재export.
+export { Invariant, RatioCandidate, inferFormula } from './formula';
 
 // ────────────────────────────────────────────────────────────────
 //  재사용 계산검증 엔진 (화면/도메인 무관)
@@ -8,8 +12,6 @@ import { check, skip } from '../reporter';
 //   · lockOrSkipFormula : 비율/파생 공식 후보를 라이브 행에서 자동추론 → 유일 일치 시 잠금(검증), 모호 시 SKIP
 //  내장 현황·주문 내역 등 계산보유 메뉴가 공통으로 호출.
 // ────────────────────────────────────────────────────────────────
-export type Invariant = { name: string; ok: boolean; detail: string };
-export type RatioCandidate<T> = { label: string; calc: (r: T) => number };
 
 /** 전 행 불변식 검증 — 불변식명별로 집계해 check() 1건씩 기록. 다음 사용 idx 반환 */
 export async function verifyInvariants<T>(
@@ -30,18 +32,6 @@ export async function verifyInvariants<T>(
       async () => { expect(fails, `불일치 ${fails.length}/${n}건: ${fails.slice(0, 5).join(' | ')}`).toHaveLength(0); });
   }
   return idx;
-}
-
-/** 표시 정밀도 자동감지(전 행 정수면 정수 반올림, 아니면 소수1자리)해 후보를 동일 정밀도로 맞춰 적합도 산출 */
-export function inferFormula<T>(rows: T[], shown: (r: T) => number, cands: RatioCandidate<T>[], tol = 0.15) {
-  const usable = rows.filter(r => Number.isFinite(shown(r)));
-  const allInt = usable.length > 0 && usable.every(r => Number.isInteger(shown(r)));
-  const adj = (x: number) => (allInt ? Math.round(x) : Math.round(x * 10) / 10);
-  return cands.map(c => ({
-    label: c.label,
-    fit: usable.filter(r => Number.isFinite(c.calc(r)) && Math.abs(adj(c.calc(r)) - shown(r)) <= tol).length,
-    of: usable.length,
-  })).sort((a, b) => b.fit - a.fit);
 }
 
 /** 비율/파생 공식 후보 자동추론 → 유일 전행일치 시 잠금(검증), 모호/불일치 시 SKIP(가짜 FAIL 방지) */

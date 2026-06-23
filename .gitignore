@@ -14,11 +14,19 @@ reports/
 blob-report/
 playwright/.cache/
 
+# Playwright MCP 탐색 산출물 (trace/스냅샷)
+mcp-out/
+
 # 분석 원시 덤프 (기계가독, 일회성)
 analysis/
 
 # 빌드 산출물 (tsc 컴파일 결과 — 소스(.ts)만 추적)
 dist/
+dist-unit/
+
+# 뮤테이션 테스트(StrykerJS) 임시·산출물
+.stryker-tmp/
+stryker.log
 
 # OS / 에디터
 .DS_Store

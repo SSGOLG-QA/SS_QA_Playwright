@@ -1,0 +1,44 @@
+name: 세션 만료 감지
+
+on:
+  # 매주 월요일 오전 8시(KST) 사전 점검
+  schedule:
+    - cron: '0 23 * * 0'   # UTC 23:00 일요일 = KST 월요일 08:00
+  workflow_dispatch:
+
+jobs:
+  session-check:
+    name: 세션 유효성 확인
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Restore auth session
+        run: |
+          mkdir -p auth/.auth
+          echo "${{ secrets.PLAYWRIGHT_SESSION }}" | base64 -d > auth/.auth/admin.json
+
+      - name: Check session validity
+        env:
+          CI: true
+          SS_USERNAME: ${{ secrets.SS_USERNAME }}
+          SS_PASSWORD: ${{ secrets.SS_PASSWORD }}
+        run: |
+          # 홈 메뉴 단일 진입으로 세션 유효성 확인
+          npx playwright test --project=admin-chromium Admin/home.spec.ts --no-deps || \
+          (echo "::error::세션이 만료되었습니다. 로컬에서 npm run auth 실행 후 PLAYWRIGHT_SESSION Secret을 갱신하세요." && exit 1)

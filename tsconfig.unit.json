@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist-unit",
+    "rootDir": ".",
+    "noEmit": false
+  },
+  "include": [
+    "lib/domain/formula.ts",
+    "lib/domain/visitStatus.ts",
+    "lib/domain/reviewStats.ts",
+    "lib/domain/courseAnalysis.ts",
+    "lib/components/DataGrid.ts",
+    "test/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist", "dist-unit"]
+}

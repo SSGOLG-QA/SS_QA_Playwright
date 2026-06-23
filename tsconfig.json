@@ -3,7 +3,7 @@
     "target": "ES2019",
     "module": "commonjs",
     "moduleResolution": "bundler",
-    "strict": false,
+    "strict": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "outDir": "./dist",

@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
 
+const SS_USERNAME = process.env.SS_USERNAME ?? (() => { throw new Error('SS_USERNAME 환경변수가 설정되지 않았습니다. .env 파일을 확인하세요.'); })();
+const SS_PASSWORD = process.env.SS_PASSWORD ?? (() => { throw new Error('SS_PASSWORD 환경변수가 설정되지 않았습니다. .env 파일을 확인하세요.'); })();
+
 test('SmartScore 클럽 로그인 시나리오', async ({ page }) => {
 
   // ──────────────────────────────────────────
@@ -22,8 +25,8 @@ test('SmartScore 클럽 로그인 시나리오', async ({ page }) => {
   // STEP 2. 로그인
   // ──────────────────────────────────────────
   // ⚠️ fakeid/fakepass honeypot 필드가 있으므로 placeholder로 정확히 타겟팅
-  await page.getByPlaceholder('ID').fill('shin02160');
-  await page.getByPlaceholder('Password').fill('Jys0918S!');
+  await page.getByPlaceholder('ID').fill(SS_USERNAME);
+  await page.getByPlaceholder('Password').fill(SS_PASSWORD);
   await page.getByRole('button', { name: '로그인' }).click();
 
   // 로그인 완료 확인 (index.html로 이동)
@@ -65,7 +68,7 @@ test('SmartScore 클럽 로그인 시나리오', async ({ page }) => {
   // ──────────────────────────────────────────
   // 암호 입력 (name="ss_pass")
   await page.locator('input[name="ss_pass"]').click();
-  await page.locator('input[name="ss_pass"]').fill('Jys0918S!');
+  await page.locator('input[name="ss_pass"]').fill(SS_PASSWORD);
 
   // [클럽 로그인] 버튼 클릭
   // ⚠️ <button> 아닌 <div class="btn bt-st02"> 이므로 getByRole('button') 불가

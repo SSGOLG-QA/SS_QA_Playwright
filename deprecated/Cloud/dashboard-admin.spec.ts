@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
 
+const SS_USERNAME = process.env.SS_USERNAME ?? (() => { throw new Error('SS_USERNAME 환경변수가 설정되지 않았습니다. .env 파일을 확인하세요.'); })();
+const SS_PASSWORD = process.env.SS_PASSWORD ?? (() => { throw new Error('SS_PASSWORD 환경변수가 설정되지 않았습니다. .env 파일을 확인하세요.'); })();
+
 // ──────────────────────────────────────────────────────────────
 //  TC-CLOUD-002: 대시보드 > 경기관제 어드민 가기
 //  대상: https://sv1td4.smartscore.kr/ko/dashboard
@@ -39,8 +42,8 @@ test('TC-CLOUD-002: 대시보드 > 경기관제 [어드민 가기] → 어드민
   // ──────────────────────────────────────────
   // STEP 3. 아이디 / 비밀번호 입력
   // ──────────────────────────────────────────
-  await page.getByPlaceholder('아이디를 입력해주세요').fill('shin02160');
-  await page.getByPlaceholder('비밀번호를 입력해주세요').fill('Jys0918S!');
+  await page.getByPlaceholder('아이디를 입력해주세요').fill(SS_USERNAME);
+  await page.getByPlaceholder('비밀번호를 입력해주세요').fill(SS_PASSWORD);
 
   // ──────────────────────────────────────────
   // STEP 4. 중복 로그인 팝업 핸들러 등록 (cloud 로그인 화면)

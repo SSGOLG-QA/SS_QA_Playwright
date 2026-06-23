@@ -1,5 +1,8 @@
 import { test, expect, type Page } from '@playwright/test';
 
+const SS_USERNAME = process.env.SS_USERNAME ?? (() => { throw new Error('SS_USERNAME 환경변수가 설정되지 않았습니다. .env 파일을 확인하세요.'); })();
+const SS_PASSWORD = process.env.SS_PASSWORD ?? (() => { throw new Error('SS_PASSWORD 환경변수가 설정되지 않았습니다. .env 파일을 확인하세요.'); })();
+
 // ============================================================
 //  공통 헬퍼
 // ============================================================
@@ -53,8 +56,8 @@ async function loginToMng(page: Page): Promise<void> {
 
   await expect(page.getByRole('heading', { name: '로그인이 필요합니다.' })).toBeVisible();
 
-  await page.getByPlaceholder('ID').fill('shin02160');
-  await page.getByPlaceholder('Password').fill('Jys0918S!');
+  await page.getByPlaceholder('ID').fill(SS_USERNAME);
+  await page.getByPlaceholder('Password').fill(SS_PASSWORD);
   await page.getByRole('button', { name: '로그인' }).click();
   await page.waitForURL('**/index.html');
 }
@@ -81,8 +84,8 @@ async function loginToAdmin(page: Page): Promise<void> {
     await cloudModal.click();
   }
 
-  await page.getByPlaceholder('ID').fill('shin02160');
-  await page.getByPlaceholder('Password').fill('Jys0918S!');
+  await page.getByPlaceholder('ID').fill(SS_USERNAME);
+  await page.getByPlaceholder('Password').fill(SS_PASSWORD);
   await page.getByRole('button', { name: '로그인' }).click();
   await page.waitForURL('**/admin/**');
   await expect(page.getByRole('heading', { name: '밀양 에스파크' })).toBeVisible();
@@ -124,7 +127,7 @@ test.describe('시나리오 1: SmartScore 클럽 로그인', () => {
 
     // ── STEP 4. 본인 암호 입력 및 클럽 로그인 ────────────────
     await page.locator('input[name="ss_pass"]').click();
-    await page.locator('input[name="ss_pass"]').fill('Jys0918S!');
+    await page.locator('input[name="ss_pass"]').fill(SS_PASSWORD);
     // ⚠️ <div class="btn bt-st02"> — <button> 아님 → getByRole('button') 불가
     await page.locator('div.btn.bt-st02').first().click();
     await page.waitForTimeout(2000);

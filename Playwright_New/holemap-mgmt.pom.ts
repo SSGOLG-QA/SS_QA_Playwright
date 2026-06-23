@@ -67,14 +67,56 @@ export class HolemapBasePage {
 // 1) 홀맵 구역 설정 (/club/page/holemap-zone-management)
 export class HolemapZonePage extends HolemapBasePage {
   async open() { await super.open(SCREEN.zone.sub); }
-  // 코스/홀 필터 (vue-select .vs__dropdown-toggle)
+
+  // ── 테이블 ────────────────────────────────────────────────────
   get vueSelects(): Locator { return this.page.locator('.vs__dropdown-toggle'); }
-  // [구역관리] 버튼 (여러 행에 존재 → 첫 번째 사용)
   get zoneBtn(): Locator { return this.button(SCREEN.zone.zoneBtn).first(); }
   column(name: string): Locator { return this.table.getByRole('columnheader', { name, exact: false }).first(); }
-  // 모달 (구역관리 클릭 시 오픈)
+
+  // ── 필터 영역 (.contents-box 중 vue-select를 포함한 것) ───────
+  get filterBox(): Locator {
+    return this.page.locator('.contents-box')
+      .filter({ has: this.page.locator('.vs__dropdown-toggle') }).first();
+  }
+  get courseSelect(): Locator { return this.filterBox.locator('.vs__dropdown-toggle').nth(0); }
+  get holeSelect(): Locator   { return this.filterBox.locator('.vs__dropdown-toggle').nth(1); }
+  get applyFilterBtn(): Locator  { return this.filterBox.getByRole('button', { name: '적용',  exact: true }); }
+  get resetFilterBtn(): Locator  { return this.filterBox.getByRole('button', { name: '초기화', exact: true }); }
+
+  // 드롭다운에서 '전체' 제외한 첫 번째 옵션 선택 → 선택 텍스트 반환 (없으면 null)
+  async pickFirstSpecificCourse(): Promise<string | null> {
+    await this.courseSelect.click();
+    const menu = this.page.locator('.vs__dropdown-menu').first();
+    if (!(await menu.isVisible({ timeout: 3_000 }).catch(() => false))) return null;
+
+    const options = menu.locator('li.vs__dropdown-option');
+    const count = await options.count();
+    for (let i = 0; i < count; i++) {
+      const txt = (await options.nth(i).textContent() ?? '').trim();
+      if (txt && !txt.includes('전체')) {
+        await options.nth(i).click();
+        return txt;
+      }
+    }
+    await this.page.keyboard.press('Escape');
+    return null;
+  }
+
+  // 현재 선택된 코스 텍스트 (선택 없으면 '')
+  async selectedCourseText(): Promise<string> {
+    const sel = this.filterBox.locator('.vs__selected').first();
+    return (await sel.count()) > 0 ? ((await sel.textContent()) ?? '').trim() : '';
+  }
+
+  // ── 모달 ──────────────────────────────────────────────────────
+  // 전체 모달 오버레이 (.modal-group)
+  modalContainer(): Locator { return this.page.locator('.modal-group').first(); }
+  // 모달 footer(기존 하위호환)
   modal(): Locator { return this.page.locator('.modal-footer').first(); }
-  modalCancelBtn(): Locator { return this.modal().getByRole('button', { name: /취소|아니요|닫기|닫 기/ }).first(); }
+  modalCancelBtn(): Locator {
+    return this.page.locator('.modal-group, .modal-footer')
+      .getByRole('button', { name: /취소|아니요|닫기|닫 기/ }).first();
+  }
 }
 
 // 2) 카트패스 진입여부 설정 (/club/page/holemap-cart-entrance)
@@ -98,8 +140,8 @@ export class HolemapTeeshotPage extends HolemapBasePage {
 export class HolemapPreviewPage extends HolemapBasePage {
   async open() { await super.open(SCREEN.preview.sub); }
   get vueSelects(): Locator { return this.page.locator('.vs__dropdown-toggle'); }
-  // 미리보기 영역 — svg(홀맵 렌더), opacity-slider, preview-summary
-  get svgArea(): Locator { return this.page.locator('svg').first(); }
+  // 미리보기 영역 — svg(홀맵 렌더): vs__open-indicator(드롭다운 화살표 아이콘) 제외
+  get svgArea(): Locator { return this.page.locator('svg:not(.vs__open-indicator)').first(); }
   get opacitySlider(): Locator { return this.page.locator('.opacity-slider').first(); }
   get previewSummary(): Locator { return this.page.locator('.preview-summary').first(); }
 }

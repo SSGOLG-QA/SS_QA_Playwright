@@ -58,6 +58,124 @@ export async function switchLanguage(admin: Page, toLabel: string): Promise<bool
   return now === toLabel;
 }
 
+// ── 진입 안정화 헬퍼 (cascade 차단 + 미구현/진입실패/렌더 구분) ──────────────
+//  근본 원인(2026-06-19 분석): 언어 원복(switchLanguage(KOREAN)) 실패 시 SNB가 외국어로 잔존 →
+//  다음 메뉴 navigateMenu(한국어명) 매칭 실패 → 구현된 메뉴가 'SKIP 미구현/범위제외'로 오분류(연쇄).
+//  + 빈 화면/진입실패가 모두 SKIP로 뭉뚱그려져 FAIL에서 누락. 아래 헬퍼로 자가치유·구분.
+
+// 비파괴 오버레이 닫기 — 헤더 언어 트리거를 가리는 모달/드롭다운/달력 제거(언어 무관·클래스 기반).
+//  Escape 우선(대부분 닫힘) → 잔존 모달은 클래스 close 버튼(modal 스코프, 파괴 confirm 회피).
+async function closeOverlays(admin: Page): Promise<void> {
+  for (let i = 0; i < 4; i++) {
+    const open = await admin.locator('.modal-group, .modal-box, .vs__dropdown-menu, .datepicker-layer, .slot-list')
+      .filter({ visible: true }).count().catch(() => 0);
+    if (!open) return;
+    await admin.keyboard.press('Escape').catch(() => {});
+    await admin.waitForTimeout(250);
+    if (await admin.locator('.modal-group, .modal-box').filter({ visible: true }).count().catch(() => 0)) {
+      const x = admin.locator('.modal-group [class*="close"], .modal-box [class*="close"]').filter({ visible: true }).first();
+      if (await x.isVisible().catch(() => false)) await x.click({ force: true }).catch(() => {});
+      await admin.waitForTimeout(250);
+    }
+  }
+}
+
+// 오버레이 z-index 우회 DOM 클릭 전환(force click이 오버레이에 가로채일 때 폴백). 성공 시 true.
+async function domSwitchLang(admin: Page, toLabel: string): Promise<boolean> {
+  await langTrigger(admin).evaluate((el: HTMLElement) => el.click()).catch(() => {});
+  await admin.waitForTimeout(400);
+  await admin.locator('.slot-item', { hasText: toLabel }).first().evaluate((el: HTMLElement) => el.click()).catch(() => {});
+  await settle(admin, 800);
+  await admin.keyboard.press('Escape').catch(() => {});
+  await admin.waitForTimeout(200);
+  return (await currentLang(admin)) === toLabel;
+}
+
+// #1·#2: 외국어 잔존 시 한국어로 확실히 원복. 3단 복구: ①오버레이 닫고 일반 전환 ②DOM클릭(z-index 우회)
+//   ③홈 리셋(스턱 팝업/라우트 해제) 후 전환. cascade 차단의 핵심.
+async function ensureKorean(admin: Page): Promise<boolean> {
+  if ((await currentLang(admin)) === KOREAN) return true;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await closeOverlays(admin);
+    if (await switchLanguage(admin, KOREAN)) return true;     // ① 일반 전환
+    if (await domSwitchLang(admin, KOREAN)) return true;       // ② 오버레이 우회 DOM 클릭
+    // ③ 홈으로 리셋 — 닫히지 않는 팝업/맵에디터/스턱 라우트를 SPA 네비로 해제 후 재시도
+    await admin.locator('.depth-1-title').first().evaluate((el: HTMLElement) => el.click()).catch(() => {});
+    await settle(admin, 800);
+    await closeOverlays(admin);
+    if (await switchLanguage(admin, KOREAN)) return true;
+    await admin.waitForTimeout(400);
+  }
+  return (await currentLang(admin)) === KOREAN;
+}
+
+// #3: 한국어 SNB에 해당 하위 메뉴 링크가 존재하는지(=구현 여부). navigateMenu와 동일 매칭(공백무시 includes).
+async function snbLinkExists(admin: Page, sub: string): Promise<boolean> {
+  const n = (s: string) => (s || '').replace(/\s+/g, '');
+  const texts = await admin.locator('.depth-2 a').allInnerTexts().catch(() => []);
+  return texts.some(t => n(t).includes(n(sub)));
+}
+
+// #4: 진입했으나 본문이 비었는지(렌더 실패). 시스템 콘텐츠/시각요소가 하나도 안 보이면 blank.
+//  시각 도구(canvas/svg/map/preview)는 정상 렌더로 인정. ⚠ 즉시 스냅샷은 순회 중 렌더 지연에 오탐
+//  (2026-06-22: 정상 화면 24건 false-blank) → 콘텐츠가 나타날 때까지 폴링(positive-wait).
+//  진짜 빈 화면(예: 홀맵 미리보기 외국어)은 timeout까지 안 나타나 blank=true로 정확 검출.
+const CONTENT_SELS = '.contents-box, .info-box-text, table, .list-table-group, .summary-card, .card-col, canvas, svg, [class*="map"], [class*="preview"], [class*="chart"], [class*="viewer"]';
+async function hasVisibleContent(admin: Page): Promise<boolean> {
+  return await admin.evaluate((sel: string) => {
+    const vis = (el: Element) => {
+      const r = (el as HTMLElement).getBoundingClientRect();
+      const st = getComputedStyle(el as HTMLElement);
+      return r.width > 2 && r.height > 2 && st.visibility !== 'hidden' && st.display !== 'none';
+    };
+    return Array.from(document.querySelectorAll(sel)).some(vis);
+  }, CONTENT_SELS);
+}
+async function isContentBlank(admin: Page, timeout = 6000): Promise<boolean> {
+  const present = await expect.poll(() => hasVisibleContent(admin), { timeout, intervals: [200, 400, 800, 1500, 2500] })
+    .toBe(true).then(() => true).catch(() => false);
+  return !present;
+}
+
+// #3·#4·#5: 메뉴 진입을 언어상태 자가치유 + 미구현/진입실패/렌더 구분으로 수행.
+//  반환: {ok:true} 진입성공 / {ok:false, reason, defect} (defect=true면 결함으로 FAIL, false면 정당 SKIP)
+export type LangEntry = { ok: true } | { ok: false; reason: string; defect: boolean };
+async function enterMenuChecked(admin: Page, menu: string, sub: string): Promise<LangEntry> {
+  // #1·#2: 진입 전 한국어 보장(연쇄 자가치유). 원복 자체가 실패하면 외국어 잔존 결함으로 surfacing.
+  if (!(await ensureKorean(admin)))
+    return { ok: false, reason: '언어 원복 실패 — SNB 외국어 잔존(진입 차단)', defect: true };
+  const exists = await snbLinkExists(admin, sub);                 // #3: 구현 여부(한국어 SNB 링크)
+  const navOk = exists && await navigateMenu(admin, menu, sub).catch(() => false);
+  await settle(admin);
+  if (!navOk) {
+    if (!exists) return { ok: false, reason: '미구현(SNB 링크 없음)', defect: false };          // 진짜 미구현 → 정당 SKIP
+    return { ok: false, reason: '진입 실패(구현된 메뉴인데 네비 실패)', defect: true };           // #3 결함 → FAIL
+  }
+  // ⚠ 진입(한국어) 시점 blank 검사는 제거(2026-06-22): navigate 직후 최이른 시점이라 데이터 로딩 화면
+  //   (캐디 리스트/고객 평가 등)이 폴링으로도 false-blank 오탐. 실제 i18n 렌더 결함은 외국어 전환 후
+  //   `failForeignBlank`가 검출(captureSlots·전환 후라 콘텐츠 로드 완료 시점 → 오탐 없음).
+  return { ok: true };
+}
+
+// #4(외국어 모드): 언어 전환 후 본문이 비었는지 검출. KO는 enterMenuChecked에서 정상 확인됨 →
+//  외국어에서만 백지면 i18n 렌더 결함(FAIL). 전환 직후 렌더 지연 대비 1회 재확인. 결함이면 true.
+//  ⚠ 사라진 슬롯은 'KO↔FG 미매칭→skip' 규칙에 흡수되어 PASS로 묻히므로, 화면 단위 백지 검사가 별도 필요.
+async function failForeignBlank(admin: Page, lang: Lang, screen: string, tcRef: string, tcId: string, desc: string, shot: string): Promise<boolean> {
+  if (!(await isContentBlank(admin))) return false;
+  await admin.waitForTimeout(1000);
+  if (!(await isContentBlank(admin))) return false;
+  record({ path: `${screen} > 언어검증`, tcRef, tcId, desc: `${lang.ko} ${desc}`, failMsg: '외국어 모드 화면 미노출' }, 'FAIL',
+    { error: '외국어 모드 화면 미노출(렌더 실패)', actual: `${lang.label} 모드 본문 빈 화면(한국어는 정상 렌더)`, detail: '언어 전환 후 콘텐츠 미렌더 — i18n 렌더 결함 의심', screenshot: shot });
+  return true;
+}
+
+// 진입 실패 결과를 리포트에 기록(#5: 사유별 분리 — 결함은 FAIL, 정당 미구현/범위제외는 SKIP).
+function recordEntryFailure(screen: string, menu: string, lang: Lang, descSuffix: string, entry: Extract<LangEntry, { ok: false }>) {
+  const meta: CheckMeta = { path: `${screen} > 언어검증`, tcRef: `언어검증_${menu}`, tcId: `LANG-${lang.ko}`, desc: `${lang.ko} ${descSuffix}`, failMsg: entry.reason };
+  if (entry.defect) record(meta, 'FAIL', { error: entry.reason, detail: `${lang.ko} 모드 진입 단계 — ${entry.reason}` });
+  else skip(meta, entry.reason);
+}
+
 // ── '정적 UI' 영역 정의 ────────────────────────────────────────
 //  INCLUDE: 메뉴/버튼/탭/테이블헤더/안내문구/섹션제목/폼라벨/placeholder
 //  EXCLUDE: 테이블 본문(td)·공지 본문·대화창·입력값 등 사용자 데이터(한국어 입력이 정상)
@@ -221,7 +339,7 @@ export async function scanScreenAllLangs(admin: Page, screen: string, tcRef: str
     for (const h of hits.slice(0, 40))
       diff(`${screen}`, `${lang.ko} 번역`, `[${h.zone}] "${h.text}" (한글 노출)`, tcRef, `${lang.label} 모드 미번역 의심`);
   }
-  await switchLanguage(admin, KOREAN); // 비파괴 원복
+  await ensureKorean(admin); // 비파괴 원복(#2: 검증·재시도)
 }
 
 // ── 전체 메뉴 순회(단일 언어) ──────────────────────────────────
@@ -365,11 +483,12 @@ async function scanScreen(admin: Page, lang: Lang, screen: string, tcRef: string
   const ko = await captureSlots(admin);
   const ok = await switchLanguage(admin, lang.label);
   if (!ok) { skip(base, `${lang.label} 전환 실패`); return; }
-  const fg = await captureSlots(admin);
   const shot = await capture(admin, { ...base, path: `${screen}_${lang.ko}` });
+  if (await failForeignBlank(admin, lang, screen, tcRef, `LANG-${lang.ko}`, '모드 — 화면 미노출 점검', shot)) { await ensureKorean(admin); return; }
+  const fg = await captureSlots(admin);
   applySlotComparison(ko, fg, lang, screen, tcRef, shot, seen);
   // (글리프 깨짐 □·이미지 내 텍스트·픽셀 레이아웃은 검증 범위 제외)
-  await switchLanguage(admin, KOREAN);
+  await ensureKorean(admin);   // #2: 원복 검증·재시도(실패 시 다음 메뉴 cascade 방지)
 }
 
 // ════════════════ 토스트·에러 메시지 언어 검증 ════════════════
@@ -915,9 +1034,12 @@ export async function runLangCheckDynamic(admin: Page, lang: Lang, allowDestruct
     for (const sub of subs) {
       if (!want(menu, sub)) continue;
       const screen = `${menu} > ${sub}`;
-      const ok = await navigateMenu(admin, menu, sub).catch(() => false);
-      await settle(admin);
-      if (!ok) { skip({ path: `${screen} > 동적요소`, tcRef: `언어검증_동적`, tcId: `LANGDYN-${lang.ko}`, desc: `${lang.ko} 동적 요소 검증` }, '메뉴 진입불가'); continue; }
+      const entry = await enterMenuChecked(admin, menu, sub);   // #1~#5: 자가치유 + 미구현/진입실패/렌더 구분
+      if (!entry.ok) {
+        const m: CheckMeta = { path: `${screen} > 동적요소`, tcRef: `언어검증_동적`, tcId: `LANGDYN-${lang.ko}`, desc: `${lang.ko} 동적 요소 검증`, failMsg: entry.reason };
+        if (entry.defect) record(m, 'FAIL', { error: entry.reason, detail: `${lang.ko} 모드 진입 단계 — ${entry.reason}` }); else skip(m, entry.reason);
+        continue;
+      }
       // 가변 데이터 위주 화면 동적 스캔 제외(false positive 방지)
       if (DYNAMIC_SKIP_SCREENS.some(s => screen.includes(s))) {
         skip({ path: `${screen} > 동적요소`, tcRef: `언어검증_동적`, tcId: `LANGDYN-${lang.ko}`, desc: `${lang.ko} 동적 요소 검증` }, '가변 데이터 화면 — 동적 스캔 제외(DYNAMIC_SKIP_SCREENS)');
@@ -930,13 +1052,14 @@ export async function runLangCheckDynamic(admin: Page, lang: Lang, allowDestruct
       const switched = await switchLanguage(admin, lang.label);
       if (!switched) { skip({ path: `${screen} > 동적요소`, tcRef: `언어검증_동적`, tcId: `LANGDYN-${lang.ko}`, desc: `${lang.ko} 동적 요소 검증` }, `${lang.label} 전환 실패`); continue; }
       const shot = await capture(admin, { path: `${screen}_동적_${lang.ko}`, tcRef: `언어검증_동적`, tcId: `LANGDYN-${lang.ko}`, desc: `${lang.ko} 동적요소` });
+      if (await failForeignBlank(admin, lang, screen, `언어검증_동적`, `LANGDYN-${lang.ko}`, '동적 — 화면 미노출 점검', shot)) { await ensureKorean(admin); continue; }
       await scanDropdownsInLang(admin, lang, screen, seen, shot, koDropdownLabels);
       await scanRadioStatesInLang(admin, lang, screen, seen, shot, radioTriggers);
       await scanPopupTriggers(admin, lang, screen, seen, shot, popupTriggers);
-      await switchLanguage(admin, KOREAN);   // 다음 메뉴 한글 네비 위해 원복
+      await ensureKorean(admin);   // #2: 다음 메뉴 한글 네비 위해 원복(검증·재시도 — cascade 차단)
     }
   }
-  await switchLanguage(admin, KOREAN);
+  await ensureKorean(admin);
 }
 
 // 전체 메뉴 순회(단일 언어). openAdmin 직후(한국어·홈 랜딩) 호출.
@@ -948,16 +1071,12 @@ export async function runLangCheckAll(admin: Page, lang: Lang) {
   for (const { menu, subs } of MENU_LIST) {
     for (const sub of subs) {
       const screen = `${menu} > ${sub}`;
-      const ok = await navigateMenu(admin, menu, sub).catch(() => false);
-      await settle(admin);
-      if (!ok) {
-        skip({ path: `${screen} > 언어검증`, tcRef: `언어검증_${menu}`, tcId: `LANG-${lang.ko}`, desc: `${lang.ko} 번역 검증` }, '메뉴 진입불가(미구현/범위제외)');
-        continue;
-      }
+      const entry = await enterMenuChecked(admin, menu, sub);   // #1~#5: 자가치유 + 미구현/진입실패/렌더 구분
+      if (!entry.ok) { recordEntryFailure(screen, menu, lang, '번역 검증', entry); continue; }
       await scanScreen(admin, lang, screen, `언어검증_${menu}`, seen);
     }
   }
-  await switchLanguage(admin, KOREAN); // 비파괴 최종 원복
+  await ensureKorean(admin); // 비파괴 최종 원복(#2: 검증·재시도)
 }
 
 // 전체 메뉴 단일 패스 통합 검증(단일 언어): 정적 슬롯 비교 + 동적 스캔(드롭다운/라디오/팝업)을
@@ -976,12 +1095,8 @@ export async function runLangCheckUnified(admin: Page, lang: Lang, allowDestruct
     for (const sub of subs) {
       if (!want(menu, sub)) continue;
       const screen = `${menu} > ${sub}`;
-      const ok = await navigateMenu(admin, menu, sub).catch(() => false);
-      await settle(admin);
-      if (!ok) {
-        skip({ path: `${screen} > 언어검증`, tcRef: `언어검증_${menu}`, tcId: `LANG-${lang.ko}`, desc: `${lang.ko} 통합 검증` }, '메뉴 진입불가(미구현/범위제외)');
-        continue;
-      }
+      const entry = await enterMenuChecked(admin, menu, sub);   // #1~#5: 자가치유 + 미구현/진입실패/렌더 구분
+      if (!entry.ok) { recordEntryFailure(screen, menu, lang, '통합 검증', entry); continue; }
       const skipDynamic = DYNAMIC_SKIP_SCREENS.some(s => screen.includes(s));
       // 한국어 모드: 정적 슬롯 캡처 + 동적 트리거·드롭박스 라벨 수집(전환 후 번역되어 패턴 매칭 불가)
       const ko = await captureSlots(admin);
@@ -997,6 +1112,9 @@ export async function runLangCheckUnified(admin: Page, lang: Lang, allowDestruct
       }
       const shot = await capture(admin, { path: `${screen}_통합_${lang.ko}`, tcRef: `언어검증_${menu}`, tcId: `LANG-${lang.ko}`, desc: `${lang.ko} 통합(정적+동적) 검증` });
 
+      // #4(외국어 모드): 전환 후 본문 백지면 i18n 렌더 결함 FAIL 후 다음 메뉴로
+      if (await failForeignBlank(admin, lang, screen, `언어검증_${menu}`, `LANG-${lang.ko}`, '통합 — 화면 미노출 점검', shot)) { await ensureKorean(admin); continue; }
+
       // 정적 슬롯 비교
       const fg = await captureSlots(admin);
       applySlotComparison(ko, fg, lang, screen, `언어검증_${menu}`, shot, seen);
@@ -1009,8 +1127,8 @@ export async function runLangCheckUnified(admin: Page, lang: Lang, allowDestruct
         await scanPopupTriggers(admin, lang, screen, seen, shot, popupTriggers);
       }
 
-      await switchLanguage(admin, KOREAN);   // 다음 메뉴 한글 네비 위해 원복
+      await ensureKorean(admin);   // #2: 다음 메뉴 한글 네비 위해 원복(검증·재시도 — cascade 차단)
     }
   }
-  await switchLanguage(admin, KOREAN);
+  await ensureKorean(admin);
 }

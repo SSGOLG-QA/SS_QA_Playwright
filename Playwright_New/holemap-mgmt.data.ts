@@ -10,7 +10,7 @@ export const SCREEN = {
     sub: '홀맵 구역 설정',
     urlPart: '/club/page/holemap-zone-management',
     guide: '홀맵 구역',
-    columns: ['No', '코스', '홀', 'PAR', '야디지', '위험구역', 'OB구역', '패널티구역', '관리'],
+    columns: ['No', '코스', '홀', 'PAR', '야디지', '위험구역', 'OB구역', '패널티구역', '뒷카트알림', '거리표시', '특정 위치 알림', '다음 홀 방향', '관리', '작업자', '작성 IP'],
     resetBtn: '초기화',
     applyBtn: '적용',
     zoneBtn: '구역관리',

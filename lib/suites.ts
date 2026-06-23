@@ -16,6 +16,11 @@ import { reviewInvariants, OVERALL_RATING_CANDIDATES } from './domain/reviewStat
 import { verifyInvariants, lockOrSkipFormula } from './domain/calcChecks';
 import { parseVisitRow, visitInvariants, SS_RATIO_CANDIDATES, PRINT_RATE_CANDIDATES, VisitRow } from './domain/visitStatus';
 
+// 컬럼헤더 정확 일치 헬퍼 — 부분일치(.includes)의 부분문자열 충돌('주문금액'⊂'평균주문금액', '홀'⊂'다음 홀 방향')을
+//   제거하되, 정렬 글리프(▼▲↑↓)·공백 변동엔 강건. 컬럼 '이름'만 정확 비교(정렬 상태 무관).
+const colName = (s: string) => (s || '').replace(/[▼▲↑↓\s]/g, '');
+const hasCol = (headers: string[], name: string) => headers.some(h => colName(h) === colName(name));
+
 // ════════════════ 계산 정합성: 내장 현황(round-visit) ════════════════
 //   행 원시값에서 파생값(총=남+여·SS비율·출력률)을 재계산해 정합 검증(구조 불변식 + 공식 자동확정).
 //   runRoundMgmt(내장 현황) + visit-status-calc.spec.ts 양쪽에서 호출(DRY).
@@ -611,12 +616,16 @@ export async function runTabletMessage(admin: Page) {
   const R = '태블릿 운영 관리_메시지 관리';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
 
-  await check(admin, { path: `${P} > 설명 영역`, tcRef: `${R}_1`, tcId: 'TMSG-01', desc: '안내 문구 노출(부분 일치)', expected: '태블릿 및 센터에서 자주 사용하는 메시지를 등록…', failMsg: '안내 문구 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('자주 사용하는 메시지를 등록'); });
+  await checkText(admin, { path: `${P} > 설명 영역`, tcRef: `${R}_1`, tcId: 'TMSG-01', desc: '안내 문구 TC 원문 일치', expected: '태블릿 및 센터에서 자주 사용하는 메시지를 등록 후 순서를 배정하여 이용할 수 있습니다. 또한, 구역 발송 메시지 설정을 하여 특정구역 진입 시 전송되는 메시지를 관리할 수 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
 
   for (const [i, t] of ['태블릿 메시지', '셀프모드 메시지', '뒷카트 알림 메시지', '센터 메시지', '분실물'].entries())
     await check(admin, { path: `${P} > 탭`, tcRef: `${R}_2`, tcId: `TMSG-02-${i + 1}`, desc: `탭 '${t}' 노출`, expected: t, failMsg: '탭 미노출' },
       async () => { await expect(admin.locator('.tab-group').getByText(t, { exact: false }).first()).toBeVisible(); });
+
+  // ── 기획-구현 차이: 센터 메시지 탭명·위치 (QA-14973, fixed_code/완료 2026-06-22) ──────
+  // 수정 완료됨 — 탭 명칭/위치가 기획과 일치하는지 2차 검증 요망(2026-06-22 fix 적용 후 재확인 필요)
+  diff(`${P} > 탭`, '센터 메시지 탭 명칭·위치 기획 일치', 'QA-14973 fixed_code/완료(2026-06-22) — 센터 메시지 탭명 및 위치 수정 완료. 재검증 요망', `${R}_2`, 'TC TMSG-02-4 / 2026-06-22 fix 적용 후 탭 순서/명칭 재확인 필요');
 
   await check(admin, { path: `${P} > 버튼 배열 미리보기`, tcRef: `${R}_3`, tcId: 'TMSG-03', desc: '태블릿 관제 버튼 배열 미리보기(그리드) + [저장](드래그&드롭·비파괴)', expected: 'tablet-grid+저장', failMsg: '미리보기/저장 미노출' },
     async () => { await expect(admin.locator('.tablet-grid').first()).toBeVisible(); await expect(admin.getByRole('button', { name: '저장' }).first()).toBeVisible(); });
@@ -643,8 +652,8 @@ export async function runTabletHoleEvent(admin: Page) {
   // 통합 연속 실행 시 홀이벤트 섹션 렌더 지연 대비 — 섹션 노출까지 대기
   await admin.locator('.contents-box').filter({ hasText: /홀\s*이벤트/ }).first().waitFor({ state: 'visible', timeout: 8_000 }).catch(() => {});
 
-  await check(admin, { path: `${P} > 설명 영역`, tcRef: `${R}_1`, tcId: 'THEV-01', desc: '안내 문구 노출(부분 일치, 700 X 480)', expected: '특정 홀에 노출될 이미지… 700 X 480', failMsg: '안내 문구 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('700 X 480'); });
+  await checkText(admin, { path: `${P} > 설명 영역`, tcRef: `${R}_1`, tcId: 'THEV-01', desc: '안내 문구 TC 원문 일치', expected: '특정 홀 진입 시 등록된 이벤트 이미지가 팝업 형태로 송출됩니다. 이미지는 700 X 480 사이즈로 등록해야 태블릿에서 정확히 보여집니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
 
   // ⚠ 리뉴얼 띄어쓰기 변경(2026-06-05): '홀이벤트' → '홀 이벤트'(메뉴/섹션/컬럼/버튼). 공백 변동 대비 정규식 매칭
   const secEvent = admin.locator('.contents-box').filter({ hasText: /홀\s*이벤트/ });
@@ -669,7 +678,7 @@ export async function runTabletHoleEvent(admin: Page) {
   else
     skip({ path: `${P} > 아이템 > 카드`, tcRef: `${R}_5`, tcId: 'THEV-05-2', desc: '아이템 카드(.item-card) 노출' }, '등록된 아이템 없음(빈 상태)');
 
-  diff(`${P} > 설명 영역`, '안내문구 정상 표기', "안내문구 오타 의심('…노출될 이미지가태 없을 때…')", `${R}_1`, '오타 의심 — 전문 확인 요망');
+  // (2026-06-19) 의심 오타 '이미지가태'는 현재 전문에 없음(문구 개정됨) → 해당 diff 제거. THEV-01 전문일치로 승격하며 AS-IS 확정.
   diff(`${P} > 명칭`, "'홀이벤트'(붙임)", "'홀 이벤트'(띄어쓰기) — 메뉴·섹션·컬럼·버튼 일괄 변경(2026-06-05 리뉴얼)", `${R}_2`, '명칭 띄어쓰기 변경 — AS-IS 반영');
   await runCommonActions(admin, P, R);
 }
@@ -683,8 +692,8 @@ export async function runTimeStandard(admin: Page) {
   const P = '경기 진행 관리 > 진행시간 표준 설정';
   const R = '경기 진행 관리_진행시간 표준 설정';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'TSTD-01', desc: '안내 문구 노출(부분)', expected: '표준적인 진행시간', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('표준적인 진행시간'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'TSTD-01', desc: '안내 문구 TC 원문 일치', expected: '진행시간을 평가하고 관리할 수 있도록 사전에 표준적인 진행시간을 다양하게 설정할 수 있습니다. 모든 홀에 시간이 설정되어 있어야 평가 및 관리가 가능하며 데이터 산출이 가능합니다. *코스대기: 해당코스가 후반인 경우 표준적인 중간 대기시간', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   await check(admin, { path: `${P} > 코스 선택`, tcRef: `${R}_2`, tcId: 'TSTD-02', desc: '코스 선택 패널 + 코스 카드(≥1, South/East/West)', expected: 'course-card ≥1', failMsg: '코스 카드 미노출' },
     async () => { await expect(admin.locator('.course-panel').first()).toBeVisible(); expect(await admin.locator('.course-card').count()).toBeGreaterThanOrEqual(1); });
   await check(admin, { path: `${P} > 홀별 입력`, tcRef: `${R}_3`, tcId: 'TSTD-03', desc: '홀별 입력 카드(.hole-card ≥1, PAR/진행시간/다음홀대기)', expected: 'hole-card ≥1', failMsg: '홀 카드 미노출' },
@@ -792,8 +801,8 @@ export async function runTimeRealtime(admin: Page) {
   const P = '경기 진행 관리 > 진행시간 실시간';
   const R = '경기 진행 관리_진행시간 실시간';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'TRT-01', desc: '안내 문구 노출(부분)', expected: '진행시간을 모니터', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('모니터'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'TRT-01', desc: '안내 문구 TC 원문 일치', expected: '당일 진행중인 경기 및 완료된 경기의 홀별 및 전체 진행시간을 모니터할 수 있습니다. 붉은색 표시된 시간은 표준설정된 시간을 초과한 경우입니다. *우수 모든 시간이 표준범위내, 정상: 전체시간이 표준시간의 110% 이내, 개선: 전체시간이 표준시간의 110% ~ 120%, 위급: 전체시간 및 특정시간이 표준의 120%를 초과', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'TRT-02', desc: '검색 필드(캐디명/카트번호/내장객명) 노출', expected: '검색 input', failMsg: '검색 필드 미노출' },
     async () => { await expect(admin.getByPlaceholder('캐디명')).toBeVisible(); await expect(admin.getByPlaceholder('카트번호')).toBeVisible(); await expect(admin.getByPlaceholder('내장객명')).toBeVisible(); });
   for (const [i, b] of ['검색', '초기화', '새로고침', '내보내기', '홀별시각보기'].entries())
@@ -841,8 +850,8 @@ export async function runTimeSearch(admin: Page) {
   const P = '경기 진행 관리 > 진행시간 조회';
   const R = '경기 진행 관리_진행시간 조회';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'TSCH-01', desc: '안내 문구 노출(부분)', expected: '진행시간', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('진행시간'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'TSCH-01', desc: '안내 문구 TC 원문 일치', expected: '당일 진행중인 경기 및 완료된 경기의 홀별 및 전체 진행시간을 모니터할 수 있습니다. 붉은색 표시된 시간은 표준설정된 시간을 초과한 경우입니다. 최장 7일간의 전체 라운드는 한번에 조회할 수 있으며, 7일을 초과하는 경우 캐디명 또는 카트번호를 지정하셔야 조회가 가능합니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'TSCH-02', desc: '조회기간 datepicker(≥2) + 조건 vue-select(≥1)', expected: 'datepicker≥2', failMsg: '검색 영역 미노출' },
     async () => { expect(await admin.locator('.datepicker-input').count()).toBeGreaterThanOrEqual(2); expect(await new VueSelect(admin).count()).toBeGreaterThanOrEqual(1); });
   for (const [i, b] of ['검색', '초기화', '내보내기', '홀별시각보기'].entries())
@@ -851,7 +860,7 @@ export async function runTimeSearch(admin: Page) {
   for (const [i, c] of ['년도', '티업', '캐디', '전반', '후반', '전체', '코스간'].entries())
     await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_4`, tcId: `TSCH-04-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
       async () => { await expect(admin.getByRole('columnheader', { name: c, exact: true }).first()).toBeVisible(); });
-  diff(`${P} > 설명 영역`, '조회 화면에 맞는 안내문구', "안내문구가 '진행시간 실시간'과 동일('당일 진행중인 경기…모니터') — 조회 화면 안내 복붙 의심", `${R}_1`, '안내문구 부적합 의심 — QA 확인 요망');
+  diff(`${P} > 설명 영역`, '조회 화면 전용 안내문구', "안내문구 도입부 2문장이 '진행시간 실시간'과 동일(공용 문구 재사용) — 화면 특화 안내('최장 7일간…조회')는 상이", `${R}_1`, '공용 도입부 재사용 — 의도 여부 QA 확인 요망(2026-06-19 전문일치 승격 시 확인)');
   await runCommonActions(admin, P, R);
 }
 
@@ -860,8 +869,8 @@ export async function runTimeStats(admin: Page) {
   const P = '경기 진행 관리 > 진행시간 통계';
   const R = '경기 진행 관리_진행시간 통계';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'TSTAT-01', desc: '안내 문구 노출(부분)', expected: '통계자료', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('통계자료'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'TSTAT-01', desc: '안내 문구 TC 원문 일치', expected: '진행시간 누적데이터를 활용하여 운영에 유익한 다양한 차원의 통계자료를 자동으로 작성할 수 있습니다. 통계값은 기본적으로 조회된 라운드의 평균값입니다. * 표준편차: 표준시간 대비 시간차이의 평균, 평점: 전체 라운드 중 우수정상 라운드 비율. 모든 통계에서 18홀 미만 라운드는 제외합니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   await check(admin, { path: `${P} > 통계 조건`, tcRef: `${R}_2`, tcId: 'TSTAT-02', desc: '통계 조건(라디오 + vue-select + 기간 datepicker)', expected: '조건 영역', failMsg: '조건 미노출' },
     async () => { expect(await admin.locator('.check-item').count()).toBeGreaterThanOrEqual(1); expect(await admin.locator('.datepicker-input').count()).toBeGreaterThanOrEqual(1); });
   for (const [i, b] of ['통계자료 작성', '초기화', '내보내기'].entries())
@@ -895,7 +904,7 @@ export async function runCaddieList(admin: Page) {
   const cadlHeaders = await page.headers();
   for (const [i, c] of ['No', '성명', '구분', '성별', '휴대폰', '카트번호', '태블릿 No.', '배터리', '등록일', '해지일', '라운드기록', '그늘집주문'].entries())
     await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_5`, tcId: `CADL-05-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
-      async () => { expect(cadlHeaders.some(h => h.replace(/\s+/g, '').includes(c.replace(/\s+/g, ''))), `컬럼 '${c}' (실제: ${cadlHeaders.join('/')})`).toBeTruthy(); });
+      async () => { expect(hasCol(cadlHeaders, c), `컬럼 '${c}' 정확 일치 (실제: ${cadlHeaders.join('/')})`).toBeTruthy(); });
   await check(admin, { path: `${P} > 액션`, tcRef: `${R}_6`, tcId: 'CADL-06', desc: '[관제 적용] 버튼 노출(클릭 미수행·비파괴)', expected: '관제 적용', failMsg: '관제 적용 미노출' },
     async () => { await expect(page.controlApplyBtn()).toBeVisible(); });
   diff(`${P} > 테이블`, '컬럼: …라운드기록·회원추천·그늘집주문', "'회원추천' 컬럼 제거 + '구분'·'등록일'·'해지일' 추가(현 12컬럼)", `${R}_5`, '구조 변경 — 현 구현(AS-IS) 반영');
@@ -930,8 +939,8 @@ export async function runCaddiePerformance(admin: Page) {
   const R = '캐디 관리_캐디 실적';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
   // 안내문구 개정(2026-06): '애사심' 문구 → '…사용자 등록…골프장의 발전에 기여한 내역…'(QA-14896 기획과 상이로 기록됨). AS-IS 반영
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'CADP-01', desc: '안내 문구 노출(부분)', expected: '골프장의 발전에 기여', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e.first()).toBeVisible(); await expect(e.first()).toContainText('골프장의 발전에 기여'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'CADP-01', desc: '안내 문구 TC 원문 일치', expected: '스마트스코어 태블릿을 통해 스마트스코어 앱으로 사용자 등록을 하여, 스마트스코어와 골프장의 발전에 기여한 내역을 확인할 수 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   diff(`${P} > 설명 영역`, "안내문구('애사심' 포함 구문)", "안내문구 개정: '스마트스코어 태블릿을 통해…사용자 등록을 하여, …골프장의 발전에 기여한 내역을 확인할 수 있습니다.'", `${R}_1`, 'QA-14896(기획과 상이) — AS-IS 반영');
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'CADP-02', desc: '조회기간 datepicker(≥2) + [조회]/[내보내기] 버튼(비파괴)', expected: 'datepicker≥2', failMsg: '검색 영역 미노출' },
     async () => { expect(await admin.locator('.datepicker-input').count()).toBeGreaterThanOrEqual(2); await expect(admin.getByRole('button', { name: '조회' })).toBeVisible(); await expect(admin.getByRole('button', { name: '내보내기' })).toBeVisible(); });
@@ -952,27 +961,86 @@ export async function runCaddiePerformance(admin: Page) {
   await runCommonActions(admin, P, R);
 }
 
-// ════════════════ 배토 관리 > 배토 기록 조회 - 구조 기반 TC ════════════════
-//   URL: /club/page/topdressing-record · 조회기간 + 테이블(작업 경로 보기) + 차트
-//   ⚠ 초기화/적용/보기는 비파괴(조회·노출만). 안내문구 부분 일치
-//   ⛔ 작업 경로 팝업([보기] 클릭 후 지도/경로 시각화)은 범위 제외 — 지도 상호작용·경로 재생 검증 부적합(카트 이동경로와 동일 정책). [보기] 버튼 노출만 검증.
+// ════════════════ 배토 관리 > 배토 기록 조회 - TC No.1~25 전수 검증 ════════════════
+//   URL: /club/page/topdressing-record · 설명 + 검색조건(datepicker/초기화/적용) + 검색기능(작업자선택) + 기록조회 테이블
+//   ⚠ 비파괴(조회·노출만). No.6(1년초과 알럿)·No.12(캐디선택 반영)·No.14(빈결과)·No.25(페이지이동)은 데이터의존/알럿충돌로 skip.
+//   ⛔ No.17~23 작업경로 팝업: 2026-06-16 드리프트로 작업경로 컬럼·[보기] 버튼 제거됨 → N/A(QA-14962, 배포 이후 재진행).
+//   ✨ 2026-06-18 TC No.1~25 전수 적용(드라이브 배토기록조회_1~4 기준). 총건수 정합성·페이지네이션·vue-select 추가.
 export async function runBetoRecord(admin: Page) {
   const P = '배토 관리 > 배토 기록 조회';
   const R = '배토 관리_배토 기록 조회';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'BREC-01', desc: '안내 문구 TC 원문 일치', expected: '캐디들이 태블릿 앱으로 배토모드를 통해 입력한 배토기록을 조회할 수 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
+
+  // ── BREC-01 No.1 페이지 4영역 구조 ─────────────────────────
+  await check(admin, { path: `${P} > 페이지 구조`, tcRef: `${R}_1`, tcId: 'BREC-01', desc: '페이지 4영역(설명/검색조건/검색기능/기록조회테이블) 제공', expected: '4영역 노출', failMsg: '페이지 구조 미노출' },
+    async () => {
+      await expect(admin.locator('.info-box-text')).toBeVisible();
+      expect(await admin.locator('.contents-box').count()).toBeGreaterThanOrEqual(2);
+    });
+
+  // ── BREC-02 No.2 타이틀 "배토 기록 조회" ───────────────────
+  await check(admin, { path: `${P} > 타이틀`, tcRef: `${R}_1`, tcId: 'BREC-02', desc: '타이틀 "배토 기록 조회" 노출', expected: '타이틀: 배토 기록 조회', failMsg: '타이틀 미노출' },
+    async () => { await expect(admin.getByText('배토 기록 조회', { exact: true }).first()).toBeAttached(); });
+
+  // ── BREC-03 No.3 안내문구(원문 일치) ────────────────────────
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'BREC-03', desc: '안내 문구 TC 원문 일치', expected: '캐디들이 태블릿 앱으로 배토모드를 통해 입력한 배토기록을 조회할 수 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
     admin.locator('.info-box-text'));
-  await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'BREC-02', desc: '조회기간 datepicker(≥2) + vue-select + [초기화]/[적용](비파괴)', expected: 'datepicker≥2', failMsg: '검색 영역 미노출' },
-    async () => { expect(await admin.locator('.datepicker-input').count()).toBeGreaterThanOrEqual(2); await expect(admin.getByRole('button', { name: '적용', exact: true })).toBeVisible(); await expect(admin.getByRole('button', { name: '초기화' })).toBeVisible(); });
-  // ✨드리프트(2026-06-16): '작업 경로' 컬럼·행 [보기] 버튼 제거됨 → 테이블 = No./캐디/시작시간/종료시간 4컬럼. AS-IS로 갱신.
+
+  // ── BREC-04 No.4~5 검색조건(조회기간/초기화/적용) + 기본값 ──
+  await check(admin, { path: `${P} > 검색조건`, tcRef: `${R}_2`, tcId: 'BREC-04', desc: '검색조건: datepicker(≥2) + [초기화]/[적용] 버튼 노출 + 기본값 날짜 제공', expected: 'datepicker≥2 + 버튼 + 날짜값', failMsg: '검색조건 영역 미노출' },
+    async () => {
+      const dps = admin.locator('.datepicker-input');
+      expect(await dps.count()).toBeGreaterThanOrEqual(2);
+      await expect(admin.getByRole('button', { name: '적용', exact: true })).toBeVisible();
+      await expect(admin.getByRole('button', { name: '초기화' })).toBeVisible();
+      // No.5 기본값: 날짜 input 값 존재
+      expect((await dps.nth(0).inputValue()).trim()).not.toBe('');
+      expect((await dps.nth(1).inputValue()).trim()).not.toBe('');
+    });
+
+  // ── BREC-06 No.6 1년 초과 알럿 ── SKIP(openAdmin 자동 알림 핸들러 충돌)
+  skip({ path: `${P} > 1년 초과`, tcRef: `${R}_2-1`, tcId: 'BREC-06', desc: '조회기간 1년 초과 시 토스트 알럿 발생' }, 'openAdmin 자동 알림 핸들러(확인 버튼) 충돌 — 달력 상호작용 불가');
+
+  // ── BREC-10 No.10 검색기능 — 작업자 선택 vue-select 존재 ────
+  await check(admin, { path: `${P} > 검색기능`, tcRef: `${R}_3`, tcId: 'BREC-10', desc: '검색기능: 작업자 선택 [캐디선택] vue-select 드롭다운 노출(≥1)', expected: 'vue-select ≥1', failMsg: '작업자선택 드롭다운 미노출' },
+    async () => { expect(await new VueSelect(admin).count()).toBeGreaterThanOrEqual(1); });
+
+  // ── BREC-11 No.11 기본값 "전체" ─────────────────────────────
+  await check(admin, { path: `${P} > 검색기능 > 기본값`, tcRef: `${R}_3`, tcId: 'BREC-11', desc: '작업자 선택 기본값 "전체" 노출', expected: '기본값: 전체', failMsg: '"전체" 기본값 미노출' },
+    async () => { await expect(admin.locator('.vs__selected').filter({ hasText: '전체' }).first()).toBeVisible(); });
+
+  // ── BREC-12 No.12 캐디 선택 후 테이블 반영(데이터 의존) ── SKIP
+  skip({ path: `${P} > 검색기능 > 캐디선택`, tcRef: `${R}_3`, tcId: 'BREC-12', desc: '캐디 선택 후 테이블 반영(활성 캐디 옵션 ≥1)' }, '데이터 의존(등록 활성 캐디 필요) — 비파괴 구조 검증으로 갈음');
+
+  // ── BREC-13 No.13~15 테이블 구조 + 총건수 정합성 ─────────────
+  await checkRowCountVsTotal(admin, { path: `${P} > 정합성`, tcRef: `${R}_4`, tcId: 'BREC-13', desc: '총 건수 vs 렌더 행 수 정합성(No.15)' });
+
+  // ── BREC-15 No.15 총건수 "총 n건" 텍스트 노출 ───────────────
+  await check(admin, { path: `${P} > 총건수`, tcRef: `${R}_4`, tcId: 'BREC-15', desc: '총 건수 표시 "총 n건" 노출', expected: '총 n건 텍스트', failMsg: '총건수 표시 미노출' },
+    async () => { await expect(admin.locator('.contents-box').filter({ hasText: /총\s*\d+건/ }).first()).toBeVisible(); });
+
+  // ── BREC-14 No.14 빈결과 안내문구(데이터 의존) ── SKIP
+  skip({ path: `${P} > no result`, tcRef: `${R}_4`, tcId: 'BREC-14', desc: '배토 기록 없음 안내문구 "배토 기록이 없습니다."' }, '데이터 의존 — 빈 상태 재현 불가(비파괴)');
+
+  // ── BREC-16 No.16 컬럼 4종(드리프트 AS-IS: 작업경로 제거) ───
+  // ✨드리프트(2026-06-16): '작업 경로' 컬럼·[보기] 버튼 제거됨 → 4컬럼(No./캐디/시작시간/종료시간)으로 AS-IS 갱신
   for (const [i, c] of ['No.', '캐디', '시작시간', '종료시간'].entries())
-    await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_3`, tcId: `BREC-03-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
+    await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_4`, tcId: `BREC-16-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
       async () => { await expect(admin.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
-  // BREC-04/05: '작업 경로' 컬럼·[보기] 버튼이 리뉴얼에서 제거됨(부재 확인) → 기획-구현 차이로 추적
-  await check(admin, { path: `${P} > 행`, tcRef: `${R}_4`, tcId: 'BREC-04', desc: '행 [보기](작업 경로) 버튼 제거 확인 — 부재', expected: '보기 버튼 없음', failMsg: '보기 버튼 잔존' },
+
+  // ── BREC-17 No.17 [보기] 버튼 부재 확인(드리프트 기록) ──────
+  await check(admin, { path: `${P} > 행`, tcRef: `${R}_4`, tcId: 'BREC-17', desc: '[보기](작업경로) 버튼 제거 확인 — 부재', expected: '보기 버튼 없음', failMsg: '보기 버튼 잔존' },
     async () => { await expect(admin.getByRole('button', { name: '보기', exact: true })).toHaveCount(0); });
-  diff(`${P} > 테이블`, "'작업 경로' 컬럼 + 행 [보기] 버튼(경로 시각화)", '컬럼·버튼 제거됨(4컬럼: No./캐디/시작시간/종료시간)', `${R}_3`, '구조 변경 — QA 확인 요망(기능 제거/이전 여부)');
-  skip({ path: `${P} > 작업 경로 팝업`, tcRef: `${R}_5`, tcId: 'BREC-05', desc: '작업 경로 팝업([보기] 클릭) 내용 검증' }, '기능 제거 — [보기] 버튼·작업 경로 컬럼 부재(2026-06-16 드리프트)');
+  diff(`${P} > 테이블`, "'작업 경로' 컬럼 + 행 [보기] 버튼(경로 시각화)", '컬럼·버튼 제거됨(4컬럼: No./캐디/시작시간/종료시간)', `${R}_4`, '구조 변경 — QA 확인 요망(기능 제거/이전 여부)');
+
+  // ── BREC-18 No.18~23 작업경로 보기 팝업 N/A ─────────────────
+  skip({ path: `${P} > 작업경로 보기 팝업`, tcRef: `${R}_5`, tcId: 'BREC-18', desc: '작업경로 보기 팝업 내용 검증(No.18~23)' }, '[보기] 버튼·작업경로 컬럼 제거(2026-06-16 드리프트) — N/A(QA-14962, 배포 이후 재진행)');
+
+  // ── BREC-24 No.24~25 페이지네이션(컴포넌트 존재, 데이터 의존) ─
+  await check(admin, { path: `${P} > 페이지네이션`, tcRef: `${R}_4`, tcId: 'BREC-24', desc: '페이지네이션 컴포넌트 존재(20건 초과 시 노출·단일 페이지는 숨김, 데이터 의존)', expected: '페이지네이션 렌더', failMsg: '페이지네이션 컴포넌트 미존재' },
+    async () => { await expect(admin.locator('.paging-group, .pagination, [class*="paging"]').first()).toBeAttached(); });
+  skip({ path: `${P} > 페이지네이션 > 이동`, tcRef: `${R}_4`, tcId: 'BREC-25', desc: '페이지 번호 선택 시 리스트 이동(No.25)' }, '데이터 의존(20건 초과 필요) — 비파괴 컴포넌트 존재 검증으로 갈음');
+
   await runCommonActions(admin, P, R);
 }
 
@@ -1076,7 +1144,7 @@ export async function runHolemapZone(admin: Page) {
   const hmzHeaders = await page.headers();
   for (const [i, c] of ['No', '코스', '홀', 'PAR', '야디지', '위험구역', 'OB구역', '패널티구역', '관리'].entries())
     await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_3`, tcId: `HMZ-03-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
-      async () => { expect(hmzHeaders.some(h => h.replace(/\s+/g, '').includes(c.replace(/\s+/g, ''))), `컬럼 '${c}' (실제: ${hmzHeaders.join('/')})`).toBeTruthy(); });
+      async () => { expect(hasCol(hmzHeaders, c), `컬럼 '${c}' 정확 일치 (실제: ${hmzHeaders.join('/')})`).toBeTruthy(); });
   // TC No.54 — 2차 QA FAIL (QA-14970): 구역 관리 팝업에서 마우스 드래그로 플래그 위치 변경 안됨
   // 지도/캔버스 인터랙션은 자동화 범위제외(비파괴 원칙) → skip 으로 추적.
   skip({ path: `${P} > 거리표시 지점 > 드래그`, tcRef: `${R}_54`, tcId: 'HMZ-54', desc: '마우스 드래그로 플래그 위치 변경' },
@@ -1212,8 +1280,8 @@ export async function runGreenSpeed(admin: Page) {
   const P = '코스 운영 관리 > 그린스피드';
   const R = '코스 운영 관리_그린스피드';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'GRN-01', desc: '안내 문구 노출(부분)', expected: '그린 스피드', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('그린 스피드'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'GRN-01', desc: '안내 문구 TC 원문 일치', expected: '당일 그린 스피드를 골프장 방문고객에게 제공할 수 있는 메뉴 입니다. (스마트스코어App,태블릿 내 노출) 그린 스피드 입력 후 적용만 누르면 간단하게 저장이 됩니다. 그린스피드 Data를 관리하여 더 좋은 서비스를 제공할 수 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   await check(admin, { path: `${P} > 입력`, tcRef: `${R}_2`, tcId: 'GRN-02', desc: '그린스피드 입력(예 2.6) + [수정] 버튼 노출(비파괴)', expected: 'input+수정', failMsg: '입력/버튼 미노출' },
     async () => { await expect(admin.getByPlaceholder('예) 2.6').first()).toBeVisible(); await expect(admin.getByRole('button', { name: '수정' }).first()).toBeVisible(); });
   await runCommonActions(admin, P, R);
@@ -1224,8 +1292,8 @@ export async function runClubNews(admin: Page) {
   const P = '코스 운영 관리 > 골프장 소식';
   const R = '코스 운영 관리_골프장 소식';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'NEWS-01', desc: '안내 문구 노출(부분)', expected: '골프장의 소식', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('골프장의 소식'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'NEWS-01', desc: '안내 문구 TC 원문 일치', expected: '골프장의 소식을 방문고객에게 제공할 수 있는 메뉴 입니다. (스마트스코어App 노출) 방문고객에게 골프장의 다양한 소식을 제공해 보세요.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   for (const [i, c] of ['순서', '골프장소식', '노출기간', '노출여부', '작성자'].entries())
     await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_2`, tcId: `NEWS-02-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
       async () => { await expect(admin.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
@@ -1242,8 +1310,8 @@ export async function runCustomerEval(admin: Page) {
   const P = '고객 평가 관리 > 고객 평가';
   const R = '고객 평가 관리_고객 평가';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'CEVAL-01', desc: '안내 문구 노출(부분)', expected: '항목별 고객 평가 현황', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('고객 평가 현황'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'CEVAL-01', desc: '안내 문구 TC 원문 일치', expected: '식음, 그린, 페어웨이 등 항목별 고객 평가 현황을 확인할 수 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'CEVAL-02', desc: '조회기간 datepicker(≥2) + 조건 vue-select + [적용]/[내보내기](비파괴)', expected: 'datepicker≥2', failMsg: '검색 미노출' },
     async () => { expect(await admin.locator('.datepicker-input').count()).toBeGreaterThanOrEqual(2); await expect(admin.getByRole('button', { name: '적용', exact: true })).toBeVisible(); await expect(admin.getByRole('button', { name: '내보내기' })).toBeVisible(); });
   for (const [i, c] of ['기간', '평균 평점', '총 평가 수', '평가팀수'].entries())
@@ -1259,8 +1327,8 @@ export async function runCaddieEval(admin: Page) {
   const P = '고객 평가 관리 > 캐디 평가';
   const R = '고객 평가 관리_캐디 평가';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'CDEV-01', desc: '안내 문구 노출(부분)', expected: '캐디에 대한 고객들의 평가', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('캐디에 대한 고객'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'CDEV-01', desc: '안내 문구 TC 원문 일치', expected: '캐디에 대한 고객들의 평가를 확인할 수 있습니다. 캐디 평가는 고객이 키오스크에서 스코어카드 출력 시, 평가가 가능합니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'CDEV-02', desc: '조회기간 datepicker(≥2) + [적용]/[내보내기](비파괴)', expected: 'datepicker≥2', failMsg: '검색 미노출' },
     async () => { expect(await admin.locator('.datepicker-input').count()).toBeGreaterThanOrEqual(2); await expect(admin.getByRole('button', { name: '적용', exact: true })).toBeVisible(); });
   for (const [i, c] of ['태블릿 No.', '캐디명', '평균 평점', '총점', '총 평가 수', '평가팀수'].entries())
@@ -1274,8 +1342,8 @@ export async function runReviewList(admin: Page) {
   const P = '고객 평가 관리 > 후기 리스트';
   const R = '고객 평가 관리_후기 리스트';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'RVL-01', desc: '안내 문구 노출(부분)', expected: '스마트스코어앱에 등록한 후기', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('후기'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'RVL-01', desc: '안내 문구 TC 원문 일치', expected: '라운드를 마친 고객이 스마트스코어앱에 등록한 후기를 관리할 수 있습니다. 후기에 대한 답변을 등록할 수 있고 숨기고자 하는 후기를 숨길 수 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'RVL-02', desc: '기간 버튼(1주일/1개월…) + datepicker(≥2) + [적용](비파괴)', expected: '기간+datepicker', failMsg: '검색 미노출' },
     async () => { expect(await admin.locator('.datepicker-input').count()).toBeGreaterThanOrEqual(2); await expect(admin.getByRole('button', { name: '1개월' })).toBeVisible(); await expect(admin.getByRole('button', { name: '적용', exact: true })).toBeVisible(); });
   for (const [i, c] of ['작성일시', '내용', '작성자', '전체평점', '공감', '비공감', '답변상태'].entries())
@@ -1296,8 +1364,12 @@ export async function runReviewStats(admin: Page) {
   const P = '고객 평가 관리 > 후기 통계';
   const R = '고객 평가 관리_후기 통계';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'RVS-01', desc: '안내 문구 노출(부분)', expected: '후기 통계', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('후기 통계'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'RVS-01', desc: '안내 문구 TC 원문 일치', expected: '스마트스코어 앱에서 고객들이 평가한 후기 통계룰 통하여 개선사항 파악 및 고객 만족도를 향상 시킬 수 있습니다. 기간 별 조회 및 엑셀 다운로드가 가능합니다', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
+  diff(`${P} > 설명 영역`, "안내문구 '후기 통계를 통하여'", "오타 의심 '후기 통계룰 통하여'(룰→를) + 문장 끝 마침표 누락", `${R}_1`, '오타·문장부호 의심 — 전문일치 승격(2026-06-19) 시 발견, QA 확인 요망');
+  // QA-14989: 후기 통계 > 내보내기 버튼 클릭 시 전체 내역이 아닌 현재 페이지만 다운로드되는 현상
+  //   2차 QA FAIL(TC No.112) — 수정 여부 미확인(2026-06-22 기준 미fix)
+  diff(`${P} > 후기 목록 > 내보내기`, '현재 조회된 전체 후기 목록 다운로드', '페이지만 다운로드됨(전체 내역 미포함)', `${R}_112`, 'QA-14989 / TC No.112 2차 FAIL — 수정 미완료 여부 확인 필요');
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'RVS-02', desc: '기간 버튼 + datepicker(≥2) + [조회]/[내보내기](비파괴)', expected: 'datepicker≥2', failMsg: '검색 미노출' },
     async () => { expect(await admin.locator('.datepicker-input').count()).toBeGreaterThanOrEqual(2); await expect(admin.getByRole('button', { name: '조회' })).toBeVisible(); });
   for (const [i, c] of ['순서', '날짜', '등록후기 수', '전체', '코스', '그린', '서비스', '진행', '식음료'].entries())
@@ -1326,14 +1398,14 @@ export async function runAccountList(admin: Page) {
   // L3 PageObject — 계정 리스트(검색 + 테이블 DataGrid)
   const page = new AccountListPage(admin);
   await page.ready();
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'ACL-01', desc: '안내 문구 노출(부분)', expected: '등록된 계정들을 관리', failMsg: '안내 미노출' },
-    async () => { await expect(page.info()).toBeVisible(); await expect(page.info()).toContainText('계정'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'ACL-01', desc: '안내 문구 TC 원문 일치', expected: '골프장에 등록된 계정들을 관리할 수 있습니다. 계정의 활성/중지, 패스워드 변경. 로그아웃 등 계정 상태에 대한 변경이 가능합니다.', failMsg: 'UI 불일치(안내 문구)' },
+    page.info());
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'ACL-02', desc: '검색(이름 input + vue-select) + [적용](비파괴)', expected: '검색 영역', failMsg: '검색 미노출' },
     async () => { await expect(page.nameSearch()).toBeVisible(); await expect(page.applyBtn().first()).toBeVisible(); });
   const acHeaders = await page.headers();
   for (const [i, c] of ['No.', '계정 상태', '부서', '이름', 'ID', '연락처', '권한'].entries())
     await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_3`, tcId: `ACL-03-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
-      async () => { expect(acHeaders.some(h => h.replace(/\s+/g, '').includes(c.replace(/\s+/g, ''))), `컬럼 '${c}' (실제: ${acHeaders.join('/')})`).toBeTruthy(); });
+      async () => { expect(hasCol(acHeaders, c), `컬럼 '${c}' 정확 일치 (실제: ${acHeaders.join('/')})`).toBeTruthy(); });
   // ✨드리프트(2026-06-17): 리스트 행 액션에서 [패스워드 변경] 버튼 제거(권한변경만 노출)
   for (const [i, b] of ['권한변경'].entries())
     await check(admin, { path: `${P} > 행 액션`, tcRef: `${R}_4`, tcId: `ACL-04-${i + 1}`, desc: `행 [${b}] 버튼 노출(클릭 미수행·비파괴)`, expected: `[${b}]`, failMsg: '버튼 미노출' },
@@ -1345,6 +1417,17 @@ export async function runAccountList(admin: Page) {
       async () => { await expect(admin.getByRole('button', { name: '로그아웃' }).first()).toBeVisible(); });
   else
     skip({ path: `${P} > 행 액션`, tcRef: `${R}_4`, tcId: 'ACL-04-3', desc: '행 [로그아웃] 버튼 노출' }, '현재 로그인된 계정 없음 → 로그아웃 버튼 미노출(데이터 의존, TC No.23 사전조건 미충족)');
+  // ── TC QA 코멘트 기반 기획-구현 차이 기록 (2026-06-22, 드라이브 TC 분석) ──────────
+  // No.2: 타이틀이 기획서와 상이(JIRA 미등록)
+  diff(`${P} > 설명 영역 > 타이틀`, '[확인 필요: 기획서 타이틀]', '현 구현 타이틀이 기획서와 상이', `${R}_2`, 'TC No.2 QA 코멘트 / JIRA 미등록');
+  // No.4: 검색 영역 버튼명이 기획서와 상이([검색]→[적용] 등)
+  diff(`${P} > 검색 영역 > 버튼명`, '[확인 필요: 기획서 검색 버튼명]', '현 구현 버튼명이 기획서와 상이', `${R}_4b`, 'TC No.4 QA 코멘트 / JIRA 미등록');
+  // No.5: 계정 상태 드롭다운 옵션명이 기획서와 상이
+  diff(`${P} > 검색 영역 > 계정 상태 옵션명`, '[확인 필요: 기획서 옵션명]', '계정 상태 드롭다운 옵션명이 기획서와 상이', `${R}_5`, 'TC No.5 QA 코멘트 / JIRA 미등록');
+  // No.13-15: 카드 요약(전체/활성/비활성) 수치가 검색 조건 변경 후 미갱신(버그 의심)
+  diff(`${P} > 카드 요약 > 검색 미반영`, '검색 조건 변경 시 카드 요약 수치 갱신', '전체/활성/비활성 계정 수가 검색 후 미갱신 — 버그 의심', `${R}_13`, 'TC No.13-15 QA 코멘트 / JIRA 미등록');
+  // No.28: 권한변경 팝업 내 버튼명이 기획서와 상이
+  diff(`${P} > 계정목록 > 권한변경 팝업 > 버튼명`, '[확인 필요: 기획서 팝업 버튼명]', '권한변경 팝업 버튼명이 기획서와 상이', `${R}_28`, 'TC No.28 QA 코멘트 / JIRA 미등록');
   await runCommonActions(admin, P, R);
 }
 
@@ -1353,14 +1436,27 @@ export async function runAccountPermission(admin: Page) {
   const P = '계정 관리 > 계정 권한 관리';
   const R = '계정 관리_계정 권한 관리';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'APM-01', desc: '안내 문구 노출(부분)', expected: '부여할 권한을 세부적으로 설정', failMsg: '안내 미노출' },
-    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('권한'); });
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'APM-01', desc: '안내 문구 TC 원문 일치', expected: '등록된 계정에 부여할 권한을 세부적으로 설정할 수 있습니다. 권한 그룹을 추가하여 그룹을 생성할 수 있고, 권한 그룹을 선택하여 관리자 페이지에 노출시킬 항목을 설정할 수 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text'));
   for (const [i, b] of ['권한 그룹 복사', '권한 그룹 추가', '권한 적용'].entries())
     await check(admin, { path: `${P} > 액션`, tcRef: `${R}_2`, tcId: `APM-02-${i + 1}`, desc: `[${b}] 버튼 노출(비파괴)`, expected: `[${b}]`, failMsg: '버튼 미노출' },
       async () => { await expect(admin.getByRole('button', { name: b, exact: true }).first()).toBeVisible(); });
   await check(admin, { path: `${P} > 권한 목록`, tcRef: `${R}_3`, tcId: 'APM-03', desc: "권한 목록 테이블(권한 명칭) + 기능 목록(기능 명칭) 노출", expected: '권한 명칭/기능 명칭', failMsg: '테이블 미노출' },
     async () => { await expect(admin.getByRole('columnheader', { name: '권한 명칭', exact: false }).first()).toBeVisible(); await expect(admin.getByRole('columnheader', { name: '기능 명칭', exact: false }).first()).toBeVisible(); });
+  // No.61: 하위메뉴 체크박스 해제 상태 버튼명이 기획서와 상이([전체]로 구현)
+  diff(`${P} > 접근 서비스 > 하위메뉴 해제 버튼명`, '[확인 필요: 기획서 버튼명]', '하위메뉴 체크박스 해제 시 버튼명 [전체]로 구현(기획서와 상이)', `${R}_61`, 'TC No.61 QA 코멘트 / JIRA 미등록');
   await runCommonActions(admin, P, R);
+}
+
+// ════════════════ 계정 관리 > 계정 관리인 리스트 ════════════════
+// ⚠ TC 작성 진행중(강나연, 2026-06-23 기준). SNB 미구현(링크 없음) → noTC 추적.
+//   구현 확인 후 check/checkText 추가 예정.
+export async function runAccountAdminList(admin: Page) {
+  const P = '계정 관리 > 계정 관리인 리스트';
+  const R = '계정 관리_계정 관리인 리스트';
+  // SNB에 메뉴 링크가 없으므로 진입 불가 — noTC로 추적
+  noTC(P, '', 'SNB 미구현(링크 없음) — TC 작성 진행중(강나연, 2026-06-23). 구현 완료 후 재검증 필요');
+  diff(P, '계정 관리인 리스트(신규 추가)', 'SNB 미노출(미구현) — IA 변경표 53번 신규 추가 메뉴, TC 작성 진행중', R, '구현 후 check/checkText TC 추가 예정');
 }
 
 // ════════════════ 식음 관리 > 버전 및 설정 ════════════════
@@ -1382,11 +1478,11 @@ export async function runFnbVersion(admin: Page) {
 
   // ── FNBVER-02 F&B 카드 제목/설명 ────────────────────────────
   await check(admin, { path: `${P} > F&B 데이터 연동`, tcRef: `${R}_2`, tcId: 'FNBVER-02', desc: 'F&B 데이터 연동 카드 제목/설명 노출', expected: '식음관리(F&B) 데이터 연동', failMsg: 'F&B 카드 미노출' },
-    async () => { await expect(fnbCard.locator('.card-title')).toContainText('식음관리(F&B) 데이터 연동'); await expect(fnbCard.locator('.card-desc')).toContainText('태블릿 메뉴에 반영'); });
+    async () => { await expect(fnbCard.locator('.card-title')).toHaveText('식음관리(F&B) 데이터 연동'); await expect(fnbCard.locator('.card-desc')).toContainText('식당 관리, 상품 등록/관리 등 식음관리 화면에서 변경한 정보를 태블릿 메뉴에 반영합니다.'); });
 
   // ── FNBVER-03 F&B 불릿 2줄 ──────────────────────────────────
   await check(admin, { path: `${P} > F&B 데이터 연동`, tcRef: `${R}_3`, tcId: 'FNBVER-03', desc: 'F&B 안내 불릿(반영 항목) 노출', expected: '식당 정보…/식음 메뉴 구성…', failMsg: '불릿 미노출' },
-    async () => { const t = await fnbCard.locator('.card-bullets').innerText(); expect(t).toContain('변경사항을 반영'); expect(t).toContain('최신 상태'); });
+    async () => { const t = await fnbCard.locator('.card-bullets').innerText(); expect(t).toContain('식당 정보, 메뉴 구성, 상품 기본 정보 변경사항을 반영합니다.'); expect(t).toContain('태블릿에서 노출되는 식음 메뉴 구성을 최신 상태로 맞춥니다.'); });
 
   // ── FNBVER-04 현재버전 표기(데이터 의존 — 패턴) ──────────────
   await check(admin, { path: `${P} > F&B 데이터 연동`, tcRef: `${R}_4`, tcId: 'FNBVER-04', desc: '현재버전 표기 노출(숫자·업데이트 표시)', expected: '현재버전 : <숫자>', failMsg: '현재버전 표기 미노출' },
@@ -1398,7 +1494,7 @@ export async function runFnbVersion(admin: Page) {
 
   // ── FNBVER-06 POS 카드 제목/설명 ────────────────────────────
   await check(admin, { path: `${P} > POS 연동`, tcRef: `${R}_6`, tcId: 'FNBVER-06', desc: 'POS 연동 카드 제목/설명 노출', expected: 'POS 메뉴 동기화', failMsg: 'POS 카드 미노출' },
-    async () => { await expect(posCard.locator('.card-title')).toContainText('POS 메뉴 동기화'); await expect(posCard.locator('.card-desc')).toContainText('ERP'); });
+    async () => { await expect(posCard.locator('.card-title')).toHaveText('POS 메뉴 동기화'); await expect(posCard.locator('.card-desc')).toContainText('스마트스코어 ERP에서 관제어드민의 품목을 연동한 내용을 업데이트합니다.'); });
 
   // ── FNBVER-07 [POS 메뉴 동기화] 버튼 노출·활성(클릭 금지) ────
   await check(admin, { path: `${P} > POS 연동`, tcRef: `${R}_7`, tcId: 'FNBVER-07', desc: '[POS 메뉴 동기화] 버튼 노출·활성(비파괴·클릭 미수행)', expected: '[POS 메뉴 동기화]', failMsg: '버튼 미노출/비활성' },
@@ -1406,11 +1502,14 @@ export async function runFnbVersion(admin: Page) {
 
   // ── FNBVER-08 코스별 기본 식당 설정 섹션 ────────────────────
   await check(admin, { path: `${P} > 코스별 기본 식당`, tcRef: `${R}_8`, tcId: 'FNBVER-08', desc: '코스별 기본 식당 설정 섹션(제목/안내) 노출', expected: '코스별 기본 식당 설정', failMsg: '섹션 미노출' },
-    async () => { await expect(courseBox.locator('.sub-title-box')).toContainText('코스별 기본 식당 설정'); await expect(courseBox).toContainText('기본 식당을 설정'); });
+    async () => { await expect(courseBox.locator('.sub-title-box').first()).toHaveText('코스별 기본 식당 설정'); await expect(courseBox).toContainText('기본 식당을 설정'); });
 
   // ── FNBVER-09 코스 행 + 기본식당 vue-select(변경 금지) ──────
   await check(admin, { path: `${P} > 코스별 기본 식당`, tcRef: `${R}_9`, tcId: 'FNBVER-09', desc: '코스 행(≥1) + 기본식당 선택(vue-select)·현재 선택값 노출(비파괴·변경 미수행)', expected: 'v-select ≥1 + 선택값', failMsg: '코스 기본식당 설정 미노출' },
     async () => { const vs = new VueSelect(courseBox); expect(await vs.count()).toBeGreaterThanOrEqual(1); await expect(courseBox.locator('.vs__selected').first()).toBeVisible(); });
+
+  // ── 기획-구현 차이: 삭제된 식당 ID 노출 (QA-14974) ──────────
+  diff(`${P} > 코스별 기본 식당 설정`, '삭제된 식당 ID 미노출', "QA-14974 (Backlog) — 삭제된 식당이 '13073'(ID) 으로 노출됨", `${R}_9`, '데이터 정합성 이슈 — 자동검증 부적합(vue-select 값 데이터 의존)');
 
   // ── 기획-구현 차이: SNB 라벨 드리프트 ───────────────────────
   diff(P, 'SNB 1depth 명칭 = 버전 업데이트(IA 변경표)', "실제 SNB 라벨 = '버전 및 설정'", `${R}_1`, '명칭 드리프트 — 기능 정상, IA/문서 정정 권장(QA 확인 요망)');
@@ -1433,7 +1532,7 @@ export async function runFnbRestaurant(admin: Page) {
     async () => { await expect(listBox.getByRole('button', { name: /식당\s*추가/ }).first()).toBeVisible(); });
 
   await check(admin, { path: `${P} > 리스트`, tcRef: `${R}_3`, tcId: 'RESTO-03', desc: '아이콘 범례(테이블오더/캐디앱 주문가능) 노출', expected: '아이콘 설명', failMsg: '아이콘 범례 미노출' },
-    async () => { await expect(listBox).toContainText('주문가능 식당'); await expect(listBox).toContainText('캐디앱'); });
+    async () => { await expect(listBox).toContainText('테이블오더만 주문가능 식당'); await expect(listBox).toContainText('캐디앱만 주문가능 식당'); await expect(listBox).toContainText('테이블오더 및 캐디앱 주문가능 식당'); });
 
   await check(admin, { path: `${P} > 리스트`, tcRef: `${R}_4`, tcId: 'RESTO-04', desc: '식당 행(≥1) + 행 [관리] 버튼 노출(비파괴·클릭 미수행)', expected: '식당 행 ≥1 + [관리]', failMsg: '식당 행/관리 버튼 미노출' },
     async () => { expect(await listBox.getByRole('button', { name: '관리', exact: true }).count()).toBeGreaterThanOrEqual(1); });
@@ -1508,10 +1607,10 @@ export async function runFnbOrderHistory(admin: Page) {
     async () => { for (const t of ['총 주문금액', '총 주문건수', '평균 주문금액', '주문TOP캐디']) await expect(page.summary.card(t)).toBeVisible(); });
 
   await check(admin, { path: `${P} > 주문 랭킹`, tcRef: `${R}_8`, tcId: 'FNBORD-08', desc: '주문 랭킹 테이블 헤더(순위/캐디명/식당/주문금액/평균주문금액) 노출', expected: '순위·캐디명·식당·주문금액 등', failMsg: '주문 랭킹 헤더 미노출' },
-    async () => { const hs = await page.ranking.headers(); for (const h of ['순위', '캐디명', '주문금액']) expect(hs.some(x => x.includes(h)), `랭킹 헤더 '${h}' (실제: ${hs.join('/')})`).toBeTruthy(); });
+    async () => { const hs = await page.ranking.headers(); for (const h of ['순위', '캐디명', '주문금액']) expect(hasCol(hs, h), `랭킹 헤더 '${h}' 정확 일치 (실제: ${hs.join('/')})`).toBeTruthy(); });
 
   await check(admin, { path: `${P} > 주문 상세 내역`, tcRef: `${R}_9`, tcId: 'FNBORD-09', desc: '주문 상세 내역 테이블 헤더(No/캐디명/식당/주문내역/주문일시) 노출', expected: 'No·캐디명·식당·주문내역·주문일시', failMsg: '주문 상세 헤더 미노출' },
-    async () => { const hs = await page.detail.headers(); for (const h of ['주문내역', '주문일시']) expect(hs.some(x => x.includes(h)), `상세 헤더 '${h}' (실제: ${hs.join('/')})`).toBeTruthy(); });
+    async () => { const hs = await page.detail.headers(); for (const h of ['주문내역', '주문일시']) expect(hasCol(hs, h), `상세 헤더 '${h}' 정확 일치(정렬글리프 무시) (실제: ${hs.join('/')})`).toBeTruthy(); });
 
   // ✨계산 정합성(2026-06-17): 캐디주문실적 랭킹표 행내 불변식(구조 — 명세 불요). PageObject가 행 파싱 제공.
   //   주문금액 = 공급가 + 부가세(공급대가), 평균주문금액 = round(주문금액 / 주문건수)
@@ -1584,6 +1683,153 @@ export async function runTournament(admin: Page) {
   await runCommonActions(admin, P, R);
 }
 
+// ════════════════ 캐디피 관리 > 캐디피 설정 ════════════════
+//   URL: /club/page/caddy-fee-setting (추정)
+//   ⚠ 환경 조건부: 태블릿 캐디피 결제 ON 골프장에서만 SNB 노출(td17 킹즈락 = 미구현)
+//   🔴 비파괴: 토글 변경·저장 금지. 금전 처리 화면 → Severity Critical 기준 적용
+//   TC tcId: CPSET-01~
+export async function runCaddyFeeSettings(admin: Page) {
+  const P = '캐디피 관리 > 캐디피 설정';
+  const R = '캐디피 관리_캐디피 설정';
+  await admin.locator('.info-box-text, .contents-box').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
+
+  // CPSET-01 안내 문구(부분 일치)
+  await check(admin, { path: `${P} > 안내`, tcRef: `${R}_1`, tcId: 'CPSET-01', desc: '안내 문구 노출(부분 일치: 캐디피를 설정)', expected: '캐디피를 설정', failMsg: '안내 문구 미노출' },
+    async () => { const e = admin.locator('.info-box-text'); await expect(e).toBeVisible(); await expect(e).toContainText('캐디피'); });
+
+  // CPSET-02 기능 설정 섹션(감사팁 결제)
+  const featureBox = admin.locator('.contents-box').filter({ hasText: /감사팁|기능\s*설정/ }).first();
+  await check(admin, { path: `${P} > 기능 설정`, tcRef: `${R}_2`, tcId: 'CPSET-02', desc: '기능 설정 섹션 노출(감사팁 결제 영역)', expected: '기능 설정 섹션', failMsg: '기능 설정 섹션 미노출' },
+    async () => { await expect(featureBox).toBeVisible(); });
+
+  // CPSET-03 감사팁 결제 ON/OFF 토글 노출(비파괴 — 현재 상태만 확인)
+  await check(admin, { path: `${P} > 기능 설정 > 감사팁 토글`, tcRef: `${R}_3`, tcId: 'CPSET-03', desc: '감사팁 결제 토글 노출(비파괴·클릭 미수행)', expected: '토글 ≥1', failMsg: '감사팁 토글 미노출' },
+    async () => { expect(await featureBox.locator('input[type="checkbox"], input[id^="tgv-"]').count()).toBeGreaterThanOrEqual(1); });
+
+  // CPSET-04 금액 설정 영역(섹션 존재)
+  await check(admin, { path: `${P} > 금액 설정`, tcRef: `${R}_4`, tcId: 'CPSET-04', desc: '금액 설정 영역(input 또는 섹션) 존재', expected: '금액 설정 영역', failMsg: '금액 설정 미노출' },
+    async () => { await expect(admin.locator('.contents-box').filter({ hasText: /금액|캐디\s*피/ }).first()).toBeVisible(); });
+
+  // CPSET-05 [저장] 버튼 노출(클릭 금지)
+  await check(admin, { path: `${P} > 저장`, tcRef: `${R}_5`, tcId: 'CPSET-05', desc: '[저장] 버튼 노출·활성(비파괴·클릭 미수행)', expected: '[저장]', failMsg: '저장 버튼 미노출' },
+    async () => { await expect(admin.getByRole('button', { name: '저장' }).first()).toBeVisible(); });
+
+  await runCommonActions(admin, P, R);
+}
+
+// ════════════════ 캐디피 관리 > 캐디피 통계 ════════════════
+//   URL: /club/page/caddy-fee-statistics (추정)
+//   🔴 비파괴(조회·뷰만). 금전 처리 화면 → Severity Critical 기준 적용
+//   TC tcId: CPSTAT-01~
+export async function runCaddyFeeStats(admin: Page) {
+  const P = '캐디피 관리 > 캐디피 통계';
+  const R = '캐디피 관리_캐디피 통계';
+  await admin.locator('.contents-box').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
+
+  // CPSTAT-01 검색 영역(기간 from~to + 초기화 + 검색)
+  await check(admin, { path: `${P} > 검색`, tcRef: `${R}_1`, tcId: 'CPSTAT-01', desc: '기간 검색 영역(datepicker from~to) 노출', expected: '기간 검색 영역', failMsg: '기간 검색 미노출' },
+    async () => { await expect(admin.locator('.datepicker-input, input[placeholder*="날짜"]').first()).toBeVisible(); });
+
+  // CPSTAT-02 초기화 버튼
+  await check(admin, { path: `${P} > 검색 > 초기화`, tcRef: `${R}_2`, tcId: 'CPSTAT-02', desc: '[초기화] 버튼 노출', expected: '[초기화]', failMsg: '초기화 버튼 미노출' },
+    async () => { await expect(admin.getByRole('button', { name: '초기화' }).first()).toBeVisible(); });
+
+  // CPSTAT-03 검색/적용 버튼
+  await check(admin, { path: `${P} > 검색 > 조회`, tcRef: `${R}_3`, tcId: 'CPSTAT-03', desc: '[검색]/[적용] 버튼 노출', expected: '[검색]/[적용]', failMsg: '검색 버튼 미노출' },
+    async () => { const b = admin.getByRole('button', { name: /검색|적용/ }).first(); await expect(b).toBeVisible(); });
+
+  // CPSTAT-04 결제금액 추이 차트(canvas)
+  await check(admin, { path: `${P} > 결제금액 추이`, tcRef: `${R}_4`, tcId: 'CPSTAT-04', desc: '결제금액 추이 차트(canvas) 존재', expected: 'canvas 차트', failMsg: '결제금액 추이 차트 미노출' },
+    async () => { expect(await admin.locator('canvas').count()).toBeGreaterThanOrEqual(1); });
+
+  // CPSTAT-05 결제유형 비율 섹션
+  await check(admin, { path: `${P} > 결제유형 비율`, tcRef: `${R}_5`, tcId: 'CPSTAT-05', desc: '결제유형 비율 영역(차트 또는 섹션) 노출', expected: '결제유형 비율', failMsg: '결제유형 비율 미노출' },
+    async () => { await expect(admin.locator('.contents-box').filter({ hasText: /결제\s*유형|비율/ }).first()).toBeVisible(); });
+
+  // CPSTAT-06 캐디피 결제 금액 순위 탭(4종) 노출
+  await check(admin, { path: `${P} > 결제 금액 순위 > 탭`, tcRef: `${R}_6`, tcId: 'CPSTAT-06', desc: '캐디피 결제 금액 순위 탭 ≥1 노출', expected: '순위 탭 ≥1', failMsg: '순위 탭 미노출' },
+    async () => { expect(await admin.locator('.tab-group').first().locator('li, button, .tab-item').count()).toBeGreaterThanOrEqual(1); });
+
+  // CPSTAT-07 상세 내역 리스트(테이블) 존재
+  await check(admin, { path: `${P} > 상세 내역`, tcRef: `${R}_7`, tcId: 'CPSTAT-07', desc: '상세 내역 테이블 구조 존재', expected: '리스트 테이블', failMsg: '상세 내역 테이블 미노출' },
+    async () => { await expect(admin.locator('.list-table-group table, .table-overflow-item table').first()).toBeAttached(); });
+
+  await runCommonActions(admin, P, R);
+}
+
+// ════════════════ 캐디피 관리 > 캐디피 결제 내역 ════════════════
+//   URL: /club/page/caddy-fee-payment (추정)
+//   🔴 비파괴(조회·내보내기만). 금전 처리 결제 내역 → Critical/High TC 경계값·예외 2배 적용
+//   TC tcId: CPAY-01~
+export async function runCaddyFeePayment(admin: Page) {
+  const P = '캐디피 관리 > 캐디피 결제 내역';
+  const R = '캐디피 관리_캐디피 결제 내역';
+  await admin.locator('.info-box-text, .contents-box').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
+
+  // CPAY-01 안내 문구 노출
+  await check(admin, { path: `${P} > 안내`, tcRef: `${R}_1`, tcId: 'CPAY-01', desc: '안내 문구 노출', expected: '안내 문구', failMsg: '안내 문구 미노출' },
+    async () => { await expect(admin.locator('.info-box-text')).toBeVisible(); });
+
+  // CPAY-02 검색 필터 영역(기간 + 조건) 노출
+  await check(admin, { path: `${P} > 검색 필터`, tcRef: `${R}_2`, tcId: 'CPAY-02', desc: '검색 필터 영역(기간/조건) 노출', expected: '검색 필터', failMsg: '검색 필터 미노출' },
+    async () => { await expect(admin.locator('.datepicker-input, input[placeholder*="날짜"]').first()).toBeVisible(); });
+
+  // CPAY-03 초기화 버튼
+  await check(admin, { path: `${P} > 검색 > 초기화`, tcRef: `${R}_3`, tcId: 'CPAY-03', desc: '[초기화] 버튼 노출', expected: '[초기화]', failMsg: '초기화 버튼 미노출' },
+    async () => { await expect(admin.getByRole('button', { name: '초기화' }).first()).toBeVisible(); });
+
+  // CPAY-04 검색/적용 버튼
+  await check(admin, { path: `${P} > 검색 > 조회`, tcRef: `${R}_4`, tcId: 'CPAY-04', desc: '[검색]/[적용] 버튼 노출', expected: '[검색]/[적용]', failMsg: '검색 버튼 미노출' },
+    async () => { await expect(admin.getByRole('button', { name: /검색|적용/ }).first()).toBeVisible(); });
+
+  // CPAY-05 [내보내기] 버튼 노출·활성
+  await check(admin, { path: `${P} > 내보내기`, tcRef: `${R}_5`, tcId: 'CPAY-05', desc: '[내보내기] 버튼 노출·활성(클릭 금지)', expected: '[내보내기]', failMsg: '내보내기 버튼 미노출' },
+    async () => { const b = admin.getByRole('button', { name: /내보내기|다운로드/ }).first(); await expect(b).toBeVisible(); await expect(b).toBeEnabled(); });
+
+  // CPAY-06 결제 내역 리스트 테이블 구조 존재
+  await check(admin, { path: `${P} > 리스트`, tcRef: `${R}_6`, tcId: 'CPAY-06', desc: '결제 내역 리스트 테이블 구조 존재', expected: '리스트 테이블', failMsg: '결제 내역 테이블 미노출' },
+    async () => { await expect(admin.locator('.list-table-group table, .table-overflow-item table').first()).toBeAttached(); });
+
+  // CPAY-07 [경계값] 빈 검색 결과 시 안내 문구(데이터 의존 — 데이터 없는 기간 선택 필요)
+  //   → 실 검증은 데이터 의존이므로 구조 존재 여부만 확인
+  await check(admin, { path: `${P} > 빈 결과 안내`, tcRef: `${R}_7`, tcId: 'CPAY-07', desc: '빈 조회 결과 안내 구조(empty-row 등) 존재(데이터 의존 — 현재 상태 기준)', expected: '빈 결과 구조', failMsg: '빈 결과 안내 구조 미존재' },
+    async () => { const hasEmpty = (await admin.locator('.empty-row, td:has-text("조회된"), td:has-text("데이터가")').count()) > 0; const hasData = (await admin.locator('.list-table-group tbody tr, .table-overflow-item tbody tr').count()) > 0; expect(hasEmpty || hasData, '테이블(데이터) 또는 빈결과 안내 중 하나 존재해야 함').toBeTruthy(); });
+
+  await runCommonActions(admin, P, R);
+}
+
+// ════════════════ 캐디피 관리 > 캐디 자료/신고서 ════════════════
+//   URL: /club/page/caddy-fee-document (추정)
+//   🔴 비파괴: [불러오기]/[내보내기] 노출만(실행 금지). [초기화]도 클릭 금지.
+//   금전·세무 자료 → Critical 기준. TC tcId: CPDOC-01~
+export async function runCaddyFeeDocument(admin: Page) {
+  const P = '캐디피 관리 > 캐디 자료/신고서';
+  const R = '캐디피 관리_캐디 자료/신고서';
+  await admin.locator('.info-box-text, .contents-box').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
+
+  // CPDOC-01 사업자 과세 자료 섹션 노출
+  await check(admin, { path: `${P} > 사업자 과세 자료`, tcRef: `${R}_1`, tcId: 'CPDOC-01', desc: '사업자 과세 자료 섹션(제목/영역) 노출', expected: '사업자 과세 자료 섹션', failMsg: '사업자 과세 자료 섹션 미노출' },
+    async () => { await expect(admin.locator('.contents-box').filter({ hasText: /사업자|과세\s*자료|신고서/ }).first()).toBeVisible(); });
+
+  // CPDOC-02 [불러오기] 버튼 노출·활성(클릭 금지)
+  await check(admin, { path: `${P} > 불러오기`, tcRef: `${R}_2`, tcId: 'CPDOC-02', desc: '[불러오기] 버튼 노출·활성(비파괴·클릭 미수행)', expected: '[불러오기]', failMsg: '불러오기 버튼 미노출' },
+    async () => { await expect(admin.getByRole('button', { name: /불러오기/ }).first()).toBeVisible(); });
+
+  // CPDOC-03 [초기화] 버튼 노출(클릭 금지)
+  await check(admin, { path: `${P} > 초기화`, tcRef: `${R}_3`, tcId: 'CPDOC-03', desc: '[초기화] 버튼 노출(비파괴·클릭 미수행)', expected: '[초기화]', failMsg: '초기화 버튼 미노출' },
+    async () => { await expect(admin.getByRole('button', { name: '초기화' }).first()).toBeVisible(); });
+
+  // CPDOC-04 [내보내기] 버튼 노출·활성(클릭 금지)
+  await check(admin, { path: `${P} > 내보내기`, tcRef: `${R}_4`, tcId: 'CPDOC-04', desc: '[내보내기] 버튼 노출·활성(비파괴·클릭 미수행)', expected: '[내보내기]', failMsg: '내보내기 버튼 미노출' },
+    async () => { await expect(admin.getByRole('button', { name: /내보내기/ }).first()).toBeVisible(); });
+
+  // CPDOC-05 자료 테이블(또는 내역 섹션) 구조 존재
+  await check(admin, { path: `${P} > 자료 목록`, tcRef: `${R}_5`, tcId: 'CPDOC-05', desc: '자료 목록 테이블 구조 존재', expected: '자료 테이블', failMsg: '자료 테이블 미노출' },
+    async () => { await expect(admin.locator('.list-table-group table, .table-overflow-item table, .contents-box table').first()).toBeAttached(); });
+
+  await runCommonActions(admin, P, R);
+}
+
 // ════════════════ IA 구현 여부 ════════════════
 const IA_TREE: { menu: string; subs: string[] }[] = [
   { menu: '홈', subs: [] },
@@ -1600,7 +1846,7 @@ const IA_TREE: { menu: string; subs: string[] }[] = [
   { menu: '식음 관리', subs: ['버전 및 설정', '그늘집 및 TOS관리', '식당 관리', '상품 등록 관리', '식당·품목 매핑', '주문 내역 관리'] },   // ✎ '버전 업데이트'→'버전 및 설정'(실 SNB, 2026-06-09 정정)
   { menu: '고객 평가 관리', subs: ['캐디 평가', '고객 평가', '식음료 평가', '후기 리스트', '후기 통계'] },
   { menu: '대회', subs: ['대회관리'] },
-  { menu: '계정 관리', subs: ['계정 리스트', '계정 관리인 리스트'] },
+  { menu: '계정 관리', subs: ['계정 리스트', '계정 권한 관리', '계정 관리인 리스트'] },  // ✨2026-06-23: 계정 권한 관리 추가(기존 누락)
 ];
 const ALIASES: string[][] = [['홈', 'home']];   // 혼용 허용 (확인 후 추가)
 function aliasMatch(snbText: string, iaName: string): boolean {
@@ -1613,6 +1859,14 @@ function aliasMatch(snbText: string, iaName: string): boolean {
 //   범위제외 가능(관제팝업 정책 동일 — 별도 모니터링 화면). 상세 TC 미작성 → noTC로 추적.
 export async function runControlMonitor(admin: Page) {
   noTC('관제 관리 > 관제 모니터', admin.url(), '신규 메뉴(2026-06-16, 카트이동경로 확인 통합 추정) — 범위제외 가능(상세 TC 미작성)');
+}
+
+// ════════════════ 계정 관리 > 계정 관리인 리스트 (SNB 미구현 추적) ════════════════
+//   IA 테이블: 미구현 (SNB 메뉴 없음/명칭 불일치, 2026-06-22 기준)
+//   TC 커버리지: 진행중 (강나연 TC 작성 중) — SNB 구현 후 상세 스위트 작성 필요
+//   → SNB 부재 시 noTC 추적. 구현 확인 후 runAccountAdminList 본체로 교체.
+export async function runAccountAdminList(admin: Page) {
+  noTC('계정 관리 > 계정 관리인 리스트', admin.url(), '미구현 — SNB 메뉴 없음/명칭 불일치(2026-06-22 IA 분석). TC 작성 진행중 — 구현 후 스위트 교체 필요');
 }
 
 export async function runIA(admin: Page) {

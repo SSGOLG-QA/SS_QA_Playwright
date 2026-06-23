@@ -1,5 +1,8 @@
 import { test, expect } from '@playwright/test';
 
+const SS_USERNAME = process.env.SS_USERNAME ?? (() => { throw new Error('SS_USERNAME 환경변수가 설정되지 않았습니다. .env 파일을 확인하세요.'); })();
+const SS_PASSWORD = process.env.SS_PASSWORD ?? (() => { throw new Error('SS_PASSWORD 환경변수가 설정되지 않았습니다. .env 파일을 확인하세요.'); })();
+
 // ──────────────────────────────────────────────────────────────
 //  TC-CLOUD-001: SmartScore Cloud 로그인
 //  대상: https://sv1td4.smartscore.kr/ko/login
@@ -43,14 +46,14 @@ test('TC-CLOUD-001: 사이트 접속 > 클럽 검색 및 선택 > 로그인', as
   // ⚠️ <label>과 <input>에 for/id 연결 없음 → getByLabel() 불가, placeholder 사용
   const idInput = page.getByPlaceholder('아이디를 입력해주세요');
   await expect(idInput).toBeVisible();
-  await idInput.fill('shin02160');
+  await idInput.fill(SS_USERNAME);
 
   // ──────────────────────────────────────────
   // STEP 5. 비밀번호 입력
   // ──────────────────────────────────────────
   const passwordInput = page.getByPlaceholder('비밀번호를 입력해주세요');
   await expect(passwordInput).toBeVisible();
-  await passwordInput.fill('Jys0918S!');
+  await passwordInput.fill(SS_PASSWORD);
 
   // ──────────────────────────────────────────
   // STEP 6. 중복 로그인 안내 팝업 핸들러 등록

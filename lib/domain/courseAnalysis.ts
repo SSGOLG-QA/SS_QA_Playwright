@@ -1,5 +1,5 @@
 import { DataGrid } from '../components/DataGrid';
-import { Invariant } from './calcChecks';
+import type { Invariant } from './formula';
 
 // ────────────────────────────────────────────────────────────────
 //  Domain Oracle — 코스 분석(course-analysis-detail) 홀별 분석표

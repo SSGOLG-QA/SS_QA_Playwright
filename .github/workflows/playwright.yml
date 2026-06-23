@@ -1,0 +1,126 @@
+name: Playwright Tests
+
+on:
+  # PR 생성/업데이트 시 자동 실행
+  pull_request:
+    branches: [main, master, develop]
+  # main 브랜치 push 시 실행
+  push:
+    branches: [main, master]
+  # 매일 오전 9시(KST = UTC+9) 정기 실행
+  schedule:
+    - cron: '0 0 * * 1-5'   # UTC 00:00 = KST 09:00, 월~금
+  # 수동 실행 (Actions 탭에서 직접 트리거)
+  workflow_dispatch:
+    inputs:
+      test_scope:
+        description: '실행할 테스트 범위'
+        required: false
+        default: 'all-suite'
+        type: choice
+        options:
+          - all-suite
+          - api-contract
+          - lang
+          - full
+
+jobs:
+  test:
+    name: Playwright UI 검증
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      # ── 1. 코드 체크아웃 ────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Node.js 설정 ─────────────────────────────────────────
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # ── 3. 의존성 설치 ──────────────────────────────────────────
+      - name: Install dependencies
+        run: npm ci
+
+      # ── 4. Playwright 브라우저 설치 (Chromium만) ────────────────
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      # ── 5. TypeScript 타입 검사 ─────────────────────────────────
+      - name: TypeScript typecheck
+        run: npm run typecheck
+
+      # ── 6. 로그인 세션 복원 ─────────────────────────────────────
+      #    로컬에서 생성한 admin.json을 base64로 인코딩하여 Secret에 저장
+      #    등록 방법: scripts/encode-session.ps1 실행 후 출력값을
+      #    GitHub > Settings > Secrets > PLAYWRIGHT_SESSION 에 붙여넣기
+      - name: Restore auth session
+        run: |
+          mkdir -p auth/.auth
+          echo "${{ secrets.PLAYWRIGHT_SESSION }}" | base64 -d > auth/.auth/admin.json
+          echo "세션 파일 복원 완료: $(wc -c < auth/.auth/admin.json) bytes"
+
+      # ── 7. 테스트 실행 ──────────────────────────────────────────
+      - name: Run Playwright tests
+        env:
+          CI: true
+          SS_USERNAME: ${{ secrets.SS_USERNAME }}
+          SS_PASSWORD: ${{ secrets.SS_PASSWORD }}
+        run: |
+          SCOPE="${{ github.event.inputs.test_scope || 'all-suite' }}"
+          echo "실행 범위: $SCOPE"
+          case "$SCOPE" in
+            all-suite)
+              npx playwright test --project=admin-chromium Admin/all-suite.spec.ts --no-deps
+              ;;
+            api-contract)
+              npx playwright test --project=admin-chromium Admin/api-contract.spec.ts --no-deps
+              ;;
+            lang)
+              npx playwright test --project=admin-chromium Admin/lang-check-all.spec.ts --no-deps
+              ;;
+            full)
+              npx playwright test --project=admin-chromium --no-deps --workers=1
+              ;;
+            *)
+              npx playwright test --project=admin-chromium Admin/all-suite.spec.ts --no-deps
+              ;;
+          esac
+
+      # ── 8. HTML 리포트 업로드 ───────────────────────────────────
+      - name: Upload Playwright HTML report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ github.run_number }}
+          path: playwright-report/
+          retention-days: 30
+
+      # ── 9. Excel 리포트 업로드 ──────────────────────────────────
+      - name: Upload Excel reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: excel-reports-${{ github.run_number }}
+          path: reports/
+          retention-days: 30
+
+      # ── 10. 실패 트레이스 업로드 ────────────────────────────────
+      - name: Upload test traces (on failure)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: traces-${{ github.run_number }}
+          path: test-results/
+          retention-days: 7
+
+      # ── 11. 세션 만료 감지 안내 ─────────────────────────────────
+      - name: Check for session expiry
+        if: failure()
+        run: |
+          echo "::warning::테스트 실패 시 세션 만료 가능성을 확인하세요."
+          echo "::warning::로컬에서 npm run auth 실행 후 scripts/encode-session.ps1로 Secret을 갱신하세요."

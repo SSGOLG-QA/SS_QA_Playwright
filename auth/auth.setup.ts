@@ -105,24 +105,25 @@ async function captureAccount(page: Page, context: BrowserContext, idx: number) 
   let adminPage: Page;
   if (CI_AUTO_LOGIN) {
     // window.open → location.href 리다이렉트로 강제 (헤드리스 팝업 차단 우회)
-    const beforeUrl = page.url();
-    await page.evaluate(() => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (window as any).open = (url: string) => { window.location.href = url; return null; };
-    });
-    await golfCard.getByRole('button', { name: '어드민 가기' }).click();
     adminPage = page;
 
-    // URL이 대시보드에서 벗어날 때까지 대기 (commit: load 이벤트 불필요)
-    await page.waitForURL(url => url !== beforeUrl, { timeout: 30_000, waitUntil: 'commit' })
-      .catch(() => {});
-    console.log(`\n[auth.setup] 버튼 클릭 후 URL: ${page.url()}\n`);
+    // ① 버튼 클릭으로 새 탭 캡처 시도 (CI에서는 보통 차단됨)
+    const newTabPromise = context.waitForEvent('page', { timeout: 5_000 }).catch(() => null);
+    await golfCard.getByRole('button', { name: '어드민 가기' }).click();
+    const newTab = await newTabPromise;
 
-    // /club/ 에 아직 없으면 추가 대기 (인증 리다이렉트 체인 완료까지)
-    if (!page.url().includes('/club/')) {
+    if (newTab) {
+      // 새 탭이 열린 경우 — 해당 탭에서 /club/ 대기
+      adminPage = newTab;
       await adminPage.waitForURL(/\/club\//, { timeout: 30_000, waitUntil: 'commit' });
+      console.log(`\n[auth.setup] 새 탭 진입: ${adminPage.url()}\n`);
+    } else {
+      // ② 새 탭 없음 — 클라우드 세션으로 어드민 직접 goto (SSO 공유 여부 확인)
+      const adminHome = `https://${SUBDOMAIN}.smartscore.kr/club/page/home`;
+      console.log(`\n[auth.setup] 버튼 진입 불가 — 직접 goto: ${adminHome}\n`);
+      await page.goto(adminHome, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      console.log(`\n[auth.setup] goto 후 URL: ${page.url()}\n`);
     }
-    console.log(`\n[auth.setup] 현재 탭에서 어드민 진입 완료: ${page.url()}\n`);
   } else {
     // 로컬 headed: 새 탭으로 열림
     const newPagePromise = context.waitForEvent('page', { timeout: 15_000 }).catch(() => null);

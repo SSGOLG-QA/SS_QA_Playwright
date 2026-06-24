@@ -101,10 +101,21 @@ async function captureAccount(page: Page, context: BrowserContext, idx: number) 
   await expect(golfCard).toBeVisible({ timeout: 10_000 });
 
   // ── STEP 3. 경기관제 [어드민 가기] → 어드민 진입 ──────
-  const newPagePromise = context.waitForEvent('page', { timeout: 15_000 }).catch(() => null);
+  //  CI 헤드리스: 팝업 차단으로 새 탭 대신 현재 탭에서 이동할 수 있음 → 양쪽 모두 처리
+  const newPagePromise = context.waitForEvent('page', { timeout: 8_000 }).catch(() => null);
   await golfCard.getByRole('button', { name: '어드민 가기' }).click();
   const newPage = await newPagePromise;
-  const adminPage: Page = newPage ?? page;
+
+  let adminPage: Page;
+  if (newPage) {
+    // 새 탭이 열린 경우 (로컬 headed 모드)
+    adminPage = newPage;
+  } else {
+    // 현재 탭에서 이동한 경우 (CI 헤드리스)
+    adminPage = page;
+    console.log('\n[auth.setup] 새 탭 없음 — 현재 탭에서 어드민 진입 대기\n');
+    await adminPage.waitForURL(/\/club\//, { timeout: 30_000 });
+  }
 
   // 어드민 진입 시 팝업 처리
   await adminPage.addLocatorHandler(
@@ -119,8 +130,6 @@ async function captureAccount(page: Page, context: BrowserContext, idx: number) 
   );
 
   // ── STEP 4. 어드민 홈 도달 확인 후 세션 저장 ──────────
-  //   헤더 타이틀 텍스트(td17 리뉴얼로 변동 가능)에 의존하지 않고
-  //   "어드민 URL(/club/) + SNB(대메뉴) 노출"을 도달 신호로 사용 (세션 캡처용 게이트)
   await adminPage.waitForLoadState('domcontentloaded', { timeout: 20_000 });
   await expect(adminPage).toHaveURL(/\/club\//, { timeout: 20_000 });
   await expect(adminPage.locator('.depth-1-title').first()).toBeVisible({ timeout: 20_000 });

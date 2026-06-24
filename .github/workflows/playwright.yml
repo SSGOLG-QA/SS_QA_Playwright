@@ -54,6 +54,16 @@ jobs:
       - name: TypeScript typecheck
         run: npm run typecheck
 
+      # ── 6-a. 대상 서버 접근 가능 여부 사전 확인 ────────────────────
+      - name: Network connectivity check
+        run: |
+          echo "=== sv1td4.smartscore.kr (클라우드 로그인) ==="
+          curl -s -o /dev/null -w "HTTP %{http_code}  time=%{time_total}s\n" --max-time 10 https://sv1td4.smartscore.kr/ko/login || echo "UNREACHABLE"
+          echo "=== td17.smartscore.kr (어드민) ==="
+          curl -s -o /dev/null -w "HTTP %{http_code}  time=%{time_total}s\n" --max-time 10 https://td17.smartscore.kr/club/page/home || echo "UNREACHABLE"
+          echo "=== DNS 조회 ==="
+          nslookup td17.smartscore.kr || true
+
       # ── 6. CI 자동 로그인 (auth.setup.ts)  ──────────────────────
       #    CI=true + SS_USERNAME/SS_PASSWORD 환경변수가 있으면
       #    auth.setup.ts 가 자동으로 로그인 폼을 채워 admin.json을 생성한다.

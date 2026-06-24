@@ -101,20 +101,24 @@ async function captureAccount(page: Page, context: BrowserContext, idx: number) 
   await expect(golfCard).toBeVisible({ timeout: 10_000 });
 
   // ── STEP 3. 경기관제 [어드민 가기] → 어드민 진입 ──────
-  //  CI 헤드리스: 팝업 차단으로 새 탭 대신 현재 탭에서 이동할 수 있음 → 양쪽 모두 처리
-  const newPagePromise = context.waitForEvent('page', { timeout: 8_000 }).catch(() => null);
-  await golfCard.getByRole('button', { name: '어드민 가기' }).click();
-  const newPage = await newPagePromise;
-
+  //  CI 헤드리스: window.open() 팝업이 차단되므로 현재 탭 이동으로 오버라이드
   let adminPage: Page;
-  if (newPage) {
-    // 새 탭이 열린 경우 (로컬 headed 모드)
-    adminPage = newPage;
-  } else {
-    // 현재 탭에서 이동한 경우 (CI 헤드리스)
+  if (CI_AUTO_LOGIN) {
+    // window.open → location.href 리다이렉트로 강제 (헤드리스 팝업 차단 우회)
+    await page.evaluate(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).open = (url: string) => { window.location.href = url; return null; };
+    });
+    await golfCard.getByRole('button', { name: '어드민 가기' }).click();
     adminPage = page;
-    console.log('\n[auth.setup] 새 탭 없음 — 현재 탭에서 어드민 진입 대기\n');
+    console.log('\n[auth.setup] 현재 탭에서 어드민 진입 대기 (CI 모드)\n');
     await adminPage.waitForURL(/\/club\//, { timeout: 30_000 });
+  } else {
+    // 로컬 headed: 새 탭으로 열림
+    const newPagePromise = context.waitForEvent('page', { timeout: 15_000 }).catch(() => null);
+    await golfCard.getByRole('button', { name: '어드민 가기' }).click();
+    const newPage = await newPagePromise;
+    adminPage = newPage ?? page;
   }
 
   // 어드민 진입 시 팝업 처리

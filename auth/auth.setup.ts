@@ -105,14 +105,24 @@ async function captureAccount(page: Page, context: BrowserContext, idx: number) 
   let adminPage: Page;
   if (CI_AUTO_LOGIN) {
     // window.open → location.href 리다이렉트로 강제 (헤드리스 팝업 차단 우회)
+    const beforeUrl = page.url();
     await page.evaluate(() => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).open = (url: string) => { window.location.href = url; return null; };
     });
     await golfCard.getByRole('button', { name: '어드민 가기' }).click();
     adminPage = page;
-    console.log('\n[auth.setup] 현재 탭에서 어드민 진입 대기 (CI 모드)\n');
-    await adminPage.waitForURL(/\/club\//, { timeout: 30_000 });
+
+    // URL이 대시보드에서 벗어날 때까지 대기 (commit: load 이벤트 불필요)
+    await page.waitForURL(url => url !== beforeUrl, { timeout: 30_000, waitUntil: 'commit' })
+      .catch(() => {});
+    console.log(`\n[auth.setup] 버튼 클릭 후 URL: ${page.url()}\n`);
+
+    // /club/ 에 아직 없으면 추가 대기 (인증 리다이렉트 체인 완료까지)
+    if (!page.url().includes('/club/')) {
+      await adminPage.waitForURL(/\/club\//, { timeout: 30_000, waitUntil: 'commit' });
+    }
+    console.log(`\n[auth.setup] 현재 탭에서 어드민 진입 완료: ${page.url()}\n`);
   } else {
     // 로컬 headed: 새 탭으로 열림
     const newPagePromise = context.waitForEvent('page', { timeout: 15_000 }).catch(() => null);

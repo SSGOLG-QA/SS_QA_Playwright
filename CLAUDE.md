@@ -15,7 +15,7 @@
 ### npm scripts (권장 진입점, 2026-06-18 정비)
 ```bash
 npm run auth         # 0) 최초/만료 시 인증 세션 생성 (headed 수동 로그인, 최대 3분) → auth/.auth/admin.json
-npm run typecheck    #    tsc --noEmit (스펙 컴파일·타입검증)
+npm run typecheck    #    tsc --noEmit -p tsconfig.typecheck.json (lib/Admin/auth/scripts 전수 타입검증, 2026-06-26 확대)
 npm run test         # = test:all (전체테스트 단일 문서)
 npm run test:all     # 전 대메뉴 순회 → reports/전체테스트_report_*.xlsx
 npm run test:admin   # 개별 스펙: npm run test:admin -- Admin/icon-mgmt.spec.ts
@@ -95,6 +95,9 @@ npm run report       # 최근 HTML 리포트 열기
 ## 진행 상황 (2026-06 기준)
 **완료**
 - 홈(`runHome`), 라운드관리 7종(`runRoundMgmt`), 홀별정산(`runHoleCalc`), 카트관리(`runCartMgmt`)
+- **라운드관리 > 단체 라운드**: `locators/admin-round-group.md` + `runGroupRound`/`runGroupRoundPopups` + `Admin/group-round.spec.ts` — **검증 완료(✨2026-06-29 팝업 정합성 확대, PASS 23/23)**. URL `/club/page/round-group`. 과거 범위제외(고도화 별도)였으나 **구조 기반 + 읽기전용 딥 인터랙션 + 팝업 데이터 정합성**으로 전환. GRND-01~10: 안내문구·상단액션(시상내역편집/관리자웹뷰/URL복사 노출만)·검색(단체팀명+datepicker)·다운로드버튼·테이블·행≥1·행액션(등록/설정/보기/복사 노출만). ✅ **읽기전용 딥 인터랙션**: GRND-08 [보기] 팝업/새탭 DOM 노출→`Modal.closeNonDestructive` / GRND-09 [관리자 웹뷰] 새 탭 랜딩→닫기(데이터 의존). 🔴 등록·설정·복사·그룹편집/핸디관리·시상내역 편집(데이터 변경/고도화 별도)은 **노출만**(td7 그룹편집은 그룹 삭제 confirm 보유=파괴적, 클릭 금지). ⚠ **차이**: [랭킹다운]/[스코어다운]은 **단체 미선택 시 클릭 무동작**(선택 게이트) → GRND-10은 활성만 검증·`diff` 추적. all-suite는 `runRoundMgmt` 7단계로 자동 포함(팝업 정합성 포함).
+  - ✨ **스코어/결과집계 팝업 데이터 정합성(GRND-11~18, 2026-06-29)**: td8 [스코어]·td10 [결과집계/출력] 클릭 → **같은 컨텍스트 새 탭 풀페이지**(모달 아님, `window.open`)로 랜딩. **비파괴**(새 탭 읽기만→닫기, 팝업 내 [수정하기]/[스코어 수정]/[상세 스코어 추가]/[인쇄] 클릭 금지). 구현 `runGroupRoundPopups` + 순수 불변식 `lib/domain/groupRound.ts`(`groupScoreInvariants`/`rankOrderInvariants`/`teamAvgInvariants`/`inferPar`). ① **스코어 팝업**(`/club/RoundGroupScore/{id}`, 스코어카드 Player·전반·후반·합계·오버타수): **합계=전반+후반** / **합계−오버타수=Par(전 플레이어 일정, 킹즈락 72)** / 합계≥0(GRND-13). ② **결과집계 팝업**(`/club/RoundGroupRank/{id}`, 순위표 순위·성별·이름·스코어 + 시상내역 + Team Average): **순위 1..N 연속**·스코어 단조(상위=저타수)(GRND-15) / **Team Average 전체·남자·여자 평균=mean(스코어)**(소수1자리, GRND-16) / **시상 최우수상=최저스코어=1위**(GRND-17) / **교차정합 결과집계 스코어=스코어팝업 합계(이름 조인)**(GRND-18). 데이터 의존(라운드종료 행 우선·없으면 SKIP). 진단 프로브 `Admin/_probe-group-round-newtab.spec.ts`.
+  - ⚠️ **드리프트(2026-06-29)**: 단체 리스트 테이블에 **'태블릿리더보드'(ON/OFF) 컬럼 신설** → **13→14컬럼**(GRND-05 HEADERS·셀 인덱스 매핑 AS-IS 반영+`diff` 추적). 셀 인덱스: 스코어=td8 / 진행상황=td9(상태텍스트·버튼없음) / 결과집계출력=td10.
 - **관제관리 > 아이콘 관리**: `locators/admin-icon-mgmt.md` + `runIconMgmt` + `Admin/icon-mgmt.spec.ts` — **검증 완료(2026-06-04, PASS 14/14, 기획-구현 차이 2건)**
 - **관제관리 > 라이브채팅 공지 조회**: `locators/admin-live-chat-notice.md` + `runLiveChatNotice` + `Admin/live-chat-notice.spec.ts` — **검증 완료(2026-06-04, PASS 6/6, 차이 1건: 공지내용 검색 필드 라벨 '출력률' 오표기)**
 - **관제관리 > 카트 이동경로 확인**: `locators/admin-cart-trace.md` + `runCartTrace` + `Admin/cart-trace.spec.ts` — ⚠️ **메뉴 제거됨(2026-06-16 드리프트)**. 6/4 검증 완료(PASS 15/15)였으나 현재 SNB에서 '카트이동경로 확인' 사라짐(`관제 모니터`로 통합 추정). `cart-trace.spec.ts`는 적응형(메뉴 present 시 기존 검증 수행, absent 시 `diff`+`skip`)으로 전환·`runCartTrace` 보존. all-suite STEP 제거, IA가 '미구현' 추적. QA 확인 요망(기능 이전/제거 여부).
@@ -125,7 +128,7 @@ npm run report       # 최근 HTML 리포트 열기
   - **언어 드롭다운**: 헤더 `.title` 트리거 + `.slot-item`(8개 언어). `switchLanguage`로 전환(후 Escape). 스펙은 `LANGS=영어,일본어` env로 일부 언어만 실행 가능.
   - **false positive 방지**: ① 스캔 영역(메뉴/버튼/탭/테이블헤더/안내문구/섹션제목/폼라벨/placeholder + 확장분), 사용자 데이터(tbody 텍스트·.notice-content·.message-box) 배제. ② 번역 카테고리는 **한국어 baseline에 한글 있는 슬롯만** 대상. ③ KO↔FG 슬롯 미매칭 시 skip. ④ 글자잘림은 **leaf 텍스트만**(자식 레이아웃 오탐 차단). **전역 SNB/레이아웃은 홈서 1회 귀속**(seen 중복 제거, 기록된 FAIL만 카운트). 교차검증: 글자잘림·인코딩 전 언어 오탐 0, CJK가 혼재 오탐 안 냄 확인.
   - ✨ **스캔 zone 확장(2026-06-09, 누락 컴포넌트 보강)**: 초기 9영역이 tbody 전체 제외·요약카드/드롭다운 미포함으로 다수 누락 → `keepInData` zone 추가(데이터 영역도 스캔하되 시스템 요소만): **행버튼**(`tbody/.list-table-group button` — 삭제·보내기·스코어·클럽체크·확인서류)·**요약카드 라벨**(`.summary-card__label`/`__days` — 값 `__value`는 제외 → 총 스스회원 내장객·조회기간 기준 합계·일평균 등)·**드롭다운값**(`.vs__selected` — 코스 전체). 교차검증: 핀포지션/전체라운드/내장통계에서 시스템 텍스트 검출↑, 사용자 데이터(강태구·31명) **오염 0건**. 슬롯수 예: 전체라운드 50→80.
-  - ⏭ **클릭 팝업 검증(feasibility 확인됨, 구현 예정)**: 행 버튼([스코어]/[클럽체크] 등) 클릭 시 팝업은 **같은 페이지 `.modal-group` 오버레이**(z-index 101, 예 `sc-scorecard-pop`)로 열림(새 탭 아님) → DOM 스캔 가능. 구현 접근: 한국어로 버튼 위치(nth) 식별 → 언어 전환 → 동일 버튼 클릭 → `.modal-group` 한글노출 스캔 → 닫기(비파괴 view 팝업). 스코어카드 가로/세로 전환은 팝업 내 토글 클릭 후 재스캔. (삭제 confirm은 취소로 비파괴)
+  - ✨ **클릭 팝업 검증(P2 완료 — 2026-06-24)**: 행 버튼([스코어]/[클럽체크] 등) 클릭 시 팝업은 **같은 페이지 `.modal-group` 오버레이**(z-index 101, 예 `sc-scorecard-pop`)로 열림(새 탭 아님) → DOM 스캔 가능. 구현 접근: 한국어로 버튼 위치(nth) 식별 → 언어 전환 → 동일 버튼 클릭 → `.modal-group` 한글노출 스캔 → 닫기(비파괴 view 팝업). 스코어카드 가로/세로 전환은 팝업 내 토글 클릭 후 재스캔. (삭제 confirm은 취소로 비파괴)
   - **주요 검출(비영어 공통)**: 대회 화면 테이블헤더 16종 미번역 / SNB 대메뉴 `식음관리 & 테이블오더`·메뉴(소) 공란(내장 통계·라운드 설정 — 스크린샷 빈칸) / 안내문구 전문 / 버튼(검색·보기·신규 등록·URL복사) / placeholder. 부수: 요약카드 **i18n 키 누출 `ui.2971`** 관찰.
   - **메뉴 목록**: `langCheck.ts`의 `MENU_LIST`(IA_TREE 기반, 관제팝업·단체라운드 제외). 미구현(캐디피·식음 일부·식음료 평가) 자동 SKIP. 실행: `npx playwright test --project=admin-chromium Admin/lang-check-all.spec.ts --no-deps`.
   - ✨ **`lang-check-unified` 다수 메뉴 진입 실패 수정(2026-06-10)**: `Admin/lang-check-unified.spec.ts`(통합 단일 파일 — 모든 언어 순회) 실행 시 SKIP 47개(연쇄)→7개(정상 미구현)로 개선. 원인: `closeModalNonDestructive` 전략②.5가 스코어카드 팝업 내 [이전홀] 오클릭 → 언어 원복 차단 → SNB 영어화 → 한국어 메뉴명 탐색 전부 실패. 수정 후 결과: 영어 PASS 1,738 / FAIL 73 / SKIP 7(정당, 10.7분).
@@ -139,7 +142,7 @@ npm run report       # 최근 HTML 리포트 열기
 
 **범위제외(⛔)** — `locators/admin-snb-renewal.md` 기준
 - **관제팝업**: 별도 `window.open` 모니터링 창, IA 범위제외 → 자동화 안 함 (해당 분석 JSON은 홈 오캡처여서 삭제됨)
-- **단체라운드**: 단체팀 고도화 별도 프로젝트
+- **단체라운드**: ✅ **검증 완료(2026-06-26)로 전환** — 과거 '단체팀 고도화 별도 프로젝트'로 범위제외였으나 현 구현을 **구조 기반 + 읽기전용 딥 인터랙션**으로 검증함(아래 완료 항목 참조). 단체팀 고도화(등록·설정·복사·그룹편집/핸디관리·결과집계/출력) 자체는 여전히 별도 프로젝트 → 노출·활성만 검증.
 
 **관제관리 잔여 메모(2026-06-04 리뉴얼 기준 SNB)** — 관제 모니터(신규, 구 관제팝업?·범위제외 가능) / 메시지 기록 조회(구 "메시지 기기 조회")
 - **메시지 기록 조회**(`/club/page/control-message-history`): ✅ **콘텐츠 구현 확인(2026-06-08)** — 과거 빈 화면이었으나 안내문구("센터와 태블릿 간의 메시지 기록을 조회…")·조회일 datepicker·검색어 input·초기화/적용·대화창(.message-box, To.{대상자}) 구현됨. `runMessageHistory`+`Admin/message-history.spec.ts` 작성(MSGHIST-01~06, PASS 7/0). ⚠ SNB 라벨은 **'메시지 기록 조회'**(IA 변경표의 '기기 조회' 표기와 달리 라이브=기록 조회) → `IA_TREE` 정정함.
@@ -156,6 +159,7 @@ npm run report       # 최근 HTML 리포트 열기
 - ⚠️ **헤더 GNB 타이틀 변경(2026-06-04 리뉴얼 배포)**: `경기관제` → **`관제 어드민`**. `openAdmin`(adminHelpers)·`auth.setup`은 헤더 텍스트 대신 **URL(`/club/`)+SNB(`.depth-1-title`)** 로 도달 판정. ✅ `runHome` No.1-①도 `관제 어드민`으로 정정 완료.
 - ✅ **라운드관리 리뉴얼 드리프트 정정(2026-06-04)**: 내장 통계 검색버튼 `조회`→`적용`(No.18-②) · 내보내기 버튼 `엑셀파일 다운로드`→`내보내기`(No.1-③/No.17/No.50) · 내장 현황 `도움말` 버튼 제거(No.1-② 부재 확인+diff) · 전체라운드 컬럼 `중대재해 확인서`/`추가 확인서`(공백) · 내장 통계 No.33/45/50은 **데이터 의존 → 0건 시 SKIP** · No.26(1년 초과 알럿)은 데이트피커 달력전용+알림 자동핸들러로 **SKIP**.
 - 인증 세션(`auth/.auth/admin.json`)은 수일 내 만료 → `--no-deps` 실행이 로그인 페이지로 빠지면 `--project=setup --headed`로 수동 재로그인.
+  - ✅ **`auth.setup.ts` 정리단계 버그 수정(2026-06-26)**: `captureAccount` 말미 `if (newPage && ...)`가 **블록 스코프 `const newPage`(로컬 headed else 분기 내)를 함수 스코프에서 참조** → 세션 저장(STEP4) 직후 `ReferenceError: newPage is not defined`로 `npm run auth`가 'failed'로 종료(단, **세션 파일은 이미 저장됨** = 실인증 성공). 함수 스코프 `openedTab: Page|null`로 추적(CI 새탭/로컬 새탭 모두 대입)하도록 수정. esbuild 런타임 전사라 `tsc`가 못 잡던 잠복 버그.
 - ⚠️ **알림 팝업 자동 [확인]**: `openAdmin`이 `.modal-footer`의 [확인]을 자동 클릭해 알림 닫음(취소/아니요/닫기 동반 confirm은 비파괴 보호로 건드리지 않음). → **알림 출현 자체를 검증하는 TC는 자동 닫힘과 충돌** → SKIP 처리(예: 내장 통계 1년 초과 No.26).
 - ℹ️ **`gotoMenu` 자동 RAW 스캔**: 진입 성공 화면마다 `checkRawCode`(오타/미가공코드)를 자동 기록(`tcId:'RAW'`). 전 대메뉴 일괄 적용 — 별도 호출 불필요(홈만 gotoMenu 미경유라 runHome에서 명시). `gotoMenu(...,{scanRawCode:false})`로 끌 수 있음. 정합성(`checkRowCountVsTotal`)은 리스트+총건수 화면에 명시 적용.
 - ℹ️ **파괴 테스트(옵트인)**: `Playwright_New/destructive.ts` — `ALLOW_DESTRUCTIVE=1` + 호스트(td17)/클럽(킹즈락) 화이트리스트 충족 시에만 실행, 기본 SKIP. `withFixture(setup,body,teardown)`로 원복. td17=개발/테스트, 킹즈락=비실데이터(확정). 케이스: ①카트 사용중지→확인→재개 ②홀별정산 사유 저장(토글ON 조건부) ③**진행시간 표준설정 입력변경→저장→초기화(Default 채움)→저장**(2026-06-08, teardown서 원본 9홀값 복원+저장, 각 단계 정합성·저장영속·초기화=Default 검증). 실행: `ALLOW_DESTRUCTIVE=1 npx playwright test --config=Playwright_New/playwright.config.ts -g "표준설정"`.
@@ -168,7 +172,101 @@ npm run report       # 최근 HTML 리포트 열기
 - ⚠️ **UI 변경 드리프트(2026-06-16, all-suite 전수 재검출 → AS-IS 반영)**: 6/4 검증 이후 발생한 구현 변경 9건 검출(PASS 559→567, FAIL 10→0). **검출법**: all-suite 라이브 실행 → 개별/직렬(`--workers=1`) 재실행으로 진입 플레이크 제거 → 프로브(`Admin/_probe-drift.spec.ts`→`analysis/_drift_probe.json`)로 현재 실제값 덤프. **(A) 구조 변경(기능 제거)**: ① **관제 관리 > 카트이동경로 확인 메뉴 제거**(SNB에서 사라짐, `관제 모니터`로 통합 추정) → `cart-trace.spec.ts` 적응형 전환(present 시 검증·absent 시 `diff`+`skip`, 가짜 진입 FAIL 방지), all-suite STEPS에서 제거, IA가 '미구현' 추적. ② **배토 기록 조회 `작업 경로` 컬럼·행 `[보기]` 버튼 제거**(4컬럼: No./캐디/시작시간/종료시간) → BREC-03(4컬럼)/BREC-04(부재 확인)/BREC-05(제거 skip)+`diff`. **(B) 라벨·맞춤법 변경(AS-IS로 기대값 갱신)**: 라운드 통계 안내문구 `데이타→데이터` / 캐디리스트 `관제적용→관제 적용` / 홀맵구역 `구역관리→구역 관리` / 핀포지션 컬럼 `핀포지션→핀 포지션` / 코스분석 컬럼 `퍼팅수→퍼트수` / 후기통계 컬럼 `등록후기수→등록후기 수` / 주문내역 검색버튼 `검색→적용`(+diff). → **공백/맞춤법 정비가 주 패턴**(06-05 `홀이벤트→홀 이벤트`, `숨김처리`와 동일). 라벨 변경 가능 요소는 정규식·부분일치, 컬럼/버튼은 라이브 프로브로 실제값 확인 후 AS-IS 반영.
 - ℹ️ **'진입' 플레이크**: 연속/개별 실행 시 일부 spec의 첫 `gotoMenu`가 openAdmin 직후 SPA 네비 레이스로 간헐 실패(특히 `account.spec`). 재실행 시 통과 — 스크립트 값 오류 아님. 단독 재실행으로 확정. all-suite는 해당 메뉴가 시퀀스 중간이라 진입 안정적 → 개별 첫메뉴 플레이크 확정용으로 all-suite 교차 활용.
 - ℹ️ **리포트 구조(2026-06-08 개편)**: **전체 테스트** = `Admin/all-suite.spec.ts`(전 대메뉴 순회 → `writeReport('전체테스트')`) → **단일 문서, 탭=대메뉴명**(`canonMenu`로 '관제관리'/'관제 관리' 등 공백변동 통합). **개별 테스트** = 각 `Admin/<메뉴>.spec.ts`가 개별 문서(현행 유지). **요약 시트 = 테스트 현황 대시보드**(진행률/PASS·Fail Rate + 대메뉴별 전체/수행/PASS/FAIL/N/A(SKIP)/PASS율 + Total, [이슈 현황]=결함(FAIL)+기획-구현 차이). 색상·항목은 `reporter.ts` writeReport에서 조정.
-- TypeScript 단독 미설치 → 타입검증은 `npx playwright test <spec> --list`(컴파일 겸함)로.
+- TypeScript 단독 미설치 → 타입검증은 `npm run typecheck`(아래) 또는 `npx playwright test <spec> --list`로. ⚠ **`--list`는 esbuild transpile-only → 미임포트/undefined 식별자(예: `Cannot find name`)를 못 잡음**(런타임에만 노출). 진짜 타입 게이트는 `npm run typecheck`.
+  - ✅ **typecheck 커버리지 확대(2026-06-26)**: 기존 `tsconfig.json`의 `include`가 **`scripts/**/*.ts`만** → `npm run typecheck`가 `lib/`·`Admin/`·`auth/`를 **전혀 검사 안 함**(미임포트 `RoundStatsPage`가 런타임까지 잠복한 원인). **`tsconfig.typecheck.json`** 신설(extends 베이스 + `noEmit` + include `scripts/lib/Admin/auth` + `playwright.config.ts`, 스크래치 `Admin/_*.spec.ts` 제외)하고 `typecheck` 스크립트를 이걸로 교체. ⚠ **베이스 `tsconfig.json`은 그대로**(emit 빌드 `dashboard`/`ia:confluence`/`drift:diff`/`audit:assert`가 `tsc --project tsconfig.json`로 scripts만 빌드 → 영향 없음). 확대 시 검출된 선재 버그 일괄 수정: ① `lib/suites.ts` `RoundStatsPage` 미임포트(내장 통계 calc 런타임 크래시) ② `Admin/lang-check-toast.spec.ts` `navigateMenu/settle` 미임포트(ALLOW_DESTRUCTIVE 시 ReferenceError) ③ `Admin/lang-modal.spec.ts`·`lang-defect-report.spec.ts` `wb.insertWorksheet`(exceljs 미존재 메서드 → 런타임 크래시) → `addWorksheet`(요약 시트 먼저 생성이라 순서 동일) ④ `lib/langCheck.ts` Slot 타입(clip/ell)·`he.value` ⑤ `lib/suites.ts` `.at(-1)`(ES2019 lib 미포함) → 인덱스 접근.
 - `openAdmin`은 새 탭 타이밍 의존 회피 위해 `/club/` URL 폴링(최대 2회 클릭). 로그인/공지 팝업은 `addLocatorHandler`로 자동 처리.
 - 결과 테이블 vs 검색폼은 **별도 `.contents-box`** — 테이블은 `.list-table-group`/`.table-overflow-item table`로 스코프.
 - 안내문구 검증(`checkText`)은 **TC 원문 전체 일치**(공백 단일화만) → 띄어쓰기/문구 차이도 FAIL로 검출.
+
+## P2-A Write-path E2E (완료 — 2026-06-24)
+- **스펙**: `Admin/write-path.spec.ts` — 상위 10개 쓰기 플로우 E2E
+- **실행**: `$env:ALLOW_DESTRUCTIVE="1"; npx playwright test --project=admin-chromium Admin/write-path.spec.ts --no-deps --headed`
+- **보호**: `isDestructiveAllowed` 3중 가드(ALLOW_DESTRUCTIVE=1 + td17 호스트 + 킹즈락 클럽). 미충족 시 전체 SKIP.
+- **teardown**: 각 플로우 `withFixture`로 사전 잔여 정리 + 사후 마커행 전수 삭제(`E2EWRITE-WP0N`). 실패와 무관하게 항상 실행.
+- **플로우 10종**:
+  | # | 화면 | 액션 | 검증 |
+  |---|------|------|------|
+  | WP-01 | 코스 운영 관리 > 골프장 소식 | 등록 → 목록 확인 → 삭제 | 목록 반영 + 토스트 |
+  | WP-02 | 태블릿 운영 관리 > 메시지 관리 | 등록 → 목록 확인 → 삭제 | 목록 반영 + 토스트 |
+  | WP-03 | 태블릿 운영 관리 > 홀 이벤트 관리 | 등록 → 목록 확인 → 삭제 | 목록 반영 + 토스트 |
+  | WP-04 | 코스 운영 관리 > 그린 스피드 | 값 입력 → 저장 | 저장 토스트 |
+  | WP-05 | 코스 운영 관리 > 핀 포지션 관리 | 라디오 클릭 → 전체 적용 | 적용 토스트 |
+  | WP-06 | 경기 진행 관리 > 진행시간 표준 설정 | 값 입력 → 저장 → 원복 | 저장 토스트 |
+  | WP-07 | 태블릿 운영 관리 > 태블릿 기능 설정 | 토글 → 저장 → 원복 | 저장 토스트 + 원복 확인 |
+  | WP-08 | 배토 관리 > 배토 기록 조회 | 등록 → 목록 확인 → 삭제 | 목록 반영 |
+  | WP-09 | 대회 > 대회관리 | 대회 등록 → 목록 확인 → 삭제 | 목록 반영 |
+  | WP-10 | 계정 관리 > 계정 리스트 | 계정 등록 → 목록 확인 → 삭제 | 목록 반영 |
+- **패턴**: 메뉴 진입 → `isVisible` 방어 체크 → `withToastObserver` 토스트 캡처 → `record(PASS/FAIL)` → teardown 마커행 삭제.
+- **산출물**: `reports/write-path_report_*.xlsx`
+
+## P2-D 계산 불변식 (완료 — 2026-06-24)
+- **스펙**: `Admin/calc-invariants.spec.ts` — 5개 메뉴 계산 정합성 단일 패스
+- **실행**: `npx playwright test --project=admin-chromium Admin/calc-invariants.spec.ts --no-deps --headed`
+- **산출물**: `reports/calc-invariants_report_*.xlsx`
+- **대상 메뉴**:
+  | # | 메뉴 | 불변식 | 도메인 파일 |
+  |---|------|--------|------------|
+  | 1 | 라운드관리 > 내장 현황 | 총=남+여, SS비율 공식 추론, 출력률 추론 | `domain/visitStatus.ts` |
+  | 2 | 라운드관리 > 내장 통계 | 전체=남+여, 연령합≤전체, 수치≥0 | `domain/roundStats.ts` (신규) |
+  | 3 | 코스 운영 관리 > 코스 분석 | 안착률·적중률∈[0,100], 퍼트수·스코어≥0 | `domain/courseAnalysis.ts` |
+  | 4 | 고객 평가 관리 > 후기 통계 | 건수·평점≥0, '전체'평점=5항목 평균 추론 | `domain/reviewStats.ts` |
+  | 5 | 식음 관리 > 주문 내역 관리 | 주문금액=공급가+부가세, 평균=round(금액/건수) | `FnbOrderPage.ts` RankRow |
+- **독립 러너**: `runCourseAnalysisCalc`, `runReviewStatsCalc`, `runFnbOrderHistoryCalc`, `runRoundStatsCalc` (suites.ts 끝에 추가)
+- **패턴**: gotoMenu → run*Calc → verifyInvariants + lockOrSkipFormula → 데이터 없음 시 SKIP(가짜 FAIL 방지)
+
+## P3-B 단언 민감도 정식 스위트 승격 (완료 — 2026-06-24)
+- **배경**: PoC(1화면 3케이스) → 정식 스위트(4화면 5케이스 A~E, 최대 20건 측정)
+- **엔진 분리**: `lib/assertionSens.ts` — SensCase/Verdict 타입 + evaluateSensCases/recordVerdicts/케이스 팩토리(caseA~E) + DOM 헬퍼(tagInfoText/tagColumnHeader/currentScreenLabel)
+- **스펙**: `Admin/assertion-sensitivity.spec.ts` — "PoC" 라벨 제거, 4개 화면 루프
+- **러너**: `runAssertionSensitivity(admin, screen)` — suites.ts 추가(all-suite 제외 — 메타 검증)
+- **산출물**: `reports/단언민감도_report_*.xlsx`
+- **케이스**:
+  | ID | 패턴 | 기대 판정 | 목적 |
+  |----|------|----------|------|
+  | A | checkText 전문 일치 | 민감 | 전문 일치가 변조를 잡는다는 입증 |
+  | B | body.includes 부분 일치 | 둔감 | 부분 일치의 취약점 입증 |
+  | C | count ≥ 1 느슨한 단언 | 둔감 | 느슨한 count의 취약점 입증 |
+  | D | toBeVisible 존재 단언 | 민감 | 요소 숨김을 잡는다는 입증 |
+  | E | columnheader 정확 일치 | 민감 | 컬럼 헤더 변조를 잡는다는 입증 |
+- **대상 화면**: 관제관리>라이브채팅 공지 조회 / 코스운영>코스분석 / 고객평가>후기통계 / 캐디관리>캐디리스트
+
+## P3-D 이력 트렌드 대시보드 (완료 — 2026-06-24)
+- **목적**: 테스트 실행 이력을 SQLite에 누적 → 정적 HTML 대시보드로 PASS/FAIL 트렌드 시각화
+- **DB**: `reports/history.db` (SQLite, `node:sqlite` 내장 모듈 — 외부 의존 없음, Node v24 stable)
+- **스키마**:
+  - `runs`: id / title / ts(ISO) / total / pass / fail / skip / pass_rate
+  - `run_menus`: run_id / menu / total / pass / fail / skip
+- **통합**: `reporter.ts`의 `writeReport()` 말미에 `appendRun()` 자동 호출 (try/catch — 실패해도 Excel 생성 불영향)
+- **파일**:
+  - `lib/historyDb.ts` — `appendRun`, `loadTitles`, `loadRuns`, `loadRunMenus`
+  - `scripts/generateDashboard.ts` — 정적 HTML 생성기
+- **대시보드 구성** (`reports/dashboard.html`):
+  - 스위트별 탭 (전체테스트 / lang-check-영어 / calc-invariants 등)
+  - 요약 카드 6종 (최근 실행 시각 · 전체 · PASS · FAIL · SKIP · PASS율)
+  - 트렌드 라인 차트: PASS/FAIL/PASS율(%) 축 2개 (Chart.js 4 CDN, 2회 이상 실행 시)
+  - 실행 이력 테이블 (최근 30회, 역순)
+  - 최근 실행 대메뉴별 현황 테이블
+- **실행**:
+  ```bash
+  npm run dashboard    # tsc 컴파일 → dist/scripts/generateDashboard.js 실행 → reports/dashboard.html
+  ```
+- **워크플로**: 테스트 후 자동 기록 → 필요 시 `npm run dashboard` 으로 HTML 갱신
+- **색상 기준**: PASS율 ≥90% → 녹색 / ≥70% → 주황 / <70% → 빨간
+
+## P3-C 나머지 메뉴 로케이터 문서화 (완료 — 2026-06-24)
+- **목적**: `lib/suites.ts` run*() 역문서화 — 기존 19개 `locators/admin-*.md` 외 문서 없는 메뉴 그룹 일괄 작성
+- **방식**: Workflow 병렬 에이전트(9그룹) → 각 그룹이 suites.ts 해당 line-range 읽기 → 마크다운 생성
+- **생성 파일 9종**:
+  | 파일 | 대메뉴 | 소메뉴 수 | suites.ts 범위 |
+  |------|--------|-----------|---------------|
+  | `locators/admin-control-mgmt-extra.md` | 관제 관리 (추가) | 2종 (관제모니터·메시지기록조회) | 470–560, 1862 |
+  | `locators/admin-time-progress.md` | 경기 진행 관리 | 4종 (표준설정·실시간·조회·통계) | 693–800 |
+  | `locators/admin-caddie.md` | 캐디 관리 | 3종 (리스트·등록관리·실적) | 891–970 |
+  | `locators/admin-beto.md` | 배토 관리 | 2종 (기록조회·통계) | 971–1134 |
+  | `locators/admin-holemap.md` | 홀맵 관리 | 4종 (구역·카트패스·티샷·미리보기) | 1135–1211 |
+  | `locators/admin-course-ops.md` | 코스 운영 관리 | 6종 (핀포지션관리·이력·분석/코스분석/그린스피드/골프장소식) | 1212–1310 |
+  | `locators/admin-customer-eval.md` | 고객 평가 관리 | 4종 (고객평가·캐디평가·후기리스트·후기통계) | 1311–1395 |
+  | `locators/admin-account.md` | 계정 관리 | 3종 (계정리스트·권한관리·계정관리인리스트) | 1397–1467 |
+  | `locators/admin-caddie-fee.md` | 캐디피 관리 | 4종 (설정·통계·결제내역·캐디자료/신고서) | 1693–1861 |
+- **공통 헤더**: 분석일 2026-06-24 / 비파괴 원칙 / 동적 ID 금지 주의 / 컨테이너 스코프 패턴
+- **형식**: 소메뉴별 섹션 → URL · 안내문구 · 요소/Locator/TC ID/비고 테이블 → TypeScript 코드 스니펫

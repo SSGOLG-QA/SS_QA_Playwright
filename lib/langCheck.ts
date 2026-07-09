@@ -286,7 +286,7 @@ export async function captureSlots(admin: Page): Promise<Slot[]> {
       }
       return parts.join('>');
     };
-    const slots: { key: string; zone: string; text: string }[] = [];
+    const slots: { key: string; zone: string; text: string; clip: boolean; ell: boolean }[] = [];
     const seenKey = new Set<string>();
     for (const z of zones) {
       const nodes = Array.from(document.querySelectorAll(z.sel));
@@ -698,7 +698,8 @@ async function scanDropdownsInLang(admin: Page, lang: Lang, screen: string, seen
   }
 }
 
-// 현재 열린 최상위 모달의 구조적 텍스트(제목·버튼·라벨·confirm문구) 수집. tbody 사용자데이터는 제외.
+// 현재 열린 최상위 모달의 구조적 텍스트(제목·버튼·라벨·confirm문구·placeholder) 수집. tbody 사용자데이터는 제외.
+//  P2-B 확장: input/textarea placeholder + label + .vs__placeholder 추가 — 폼 모달 i18n 누락 보완.
 async function captureModal(admin: Page): Promise<{ found: boolean; isAlarm?: boolean; title?: string; texts?: string[] }> {
   return await admin.evaluate(() => {
     const roots = Array.from(document.querySelectorAll('.modal-group, .modal-box, .modal-content, [class*="-pop"]'))
@@ -713,15 +714,25 @@ async function captureModal(admin: Page): Promise<{ found: boolean; isAlarm?: bo
       out.push(fullText);   // 알림/confirm: 짧은 전문(시스템 문구)
     } else {
       // 큰 팝업: 구조적 시스템 텍스트만(제목/버튼/라벨/컬럼명) — tbody 데이터 제외
-      const sysSel = 'h1,h2,h3,h4,.modal-title,.pop-title,[class*="title"],button,[role="button"],a[class*="btn"],.label,.form-label,thead th,.sub-title,.col-name,dt';
+      const sysSel = 'h1,h2,h3,h4,.modal-title,.pop-title,[class*="title"],button,[role="button"],a[class*="btn"],.label,.form-label,thead th,.sub-title,.col-name,dt,label';
       for (const el of Array.from(pick.querySelectorAll(sysSel))) {
         if (el.closest('tbody')) continue;
         const t = (el as HTMLElement).innerText?.replace(/\s+/g, ' ').trim();
         if (t && t.length <= 60) out.push(t);
       }
+      // P2-B: 입력 폼 placeholder(input/textarea/vue-select) — 기존 sysSel 미포착 분야
+      for (const el of Array.from(pick.querySelectorAll('input[placeholder], textarea[placeholder]'))) {
+        const ph = (el.getAttribute('placeholder') || '').trim();
+        if (ph && ph.length <= 60) out.push(ph);
+      }
+      // vue-select 검색 input placeholder(.vs__search) — 드롭다운 레이블(예: "코스를 선택하세요")
+      for (const el of Array.from(pick.querySelectorAll('.vs__search[placeholder], input.vs__search[placeholder]'))) {
+        const ph = (el.getAttribute('placeholder') || '').trim();
+        if (ph && ph.length <= 60) out.push(ph);
+      }
     }
     const title = (pick.querySelector('h1,h2,h3,h4,.modal-title,.pop-title') as HTMLElement)?.innerText?.replace(/\s+/g, ' ').trim() || '';
-    return { found: true, isAlarm, title, texts: [...new Set(out)].slice(0, 40) };
+    return { found: true, isAlarm, title, texts: [...new Set(out)].slice(0, 50) };
   });
 }
 
@@ -938,7 +949,7 @@ async function findRadioTriggers(admin: Page): Promise<RadioTrigger[]> {
       if (bRect.width === 0 && bRect.height === 0 && !hasLabel) return;
       const id = inp.id;
       const labelEl = id ? document.querySelector(`label[for="${id}"]`) as HTMLElement | null : null;
-      const label = (labelEl?.innerText || '').replace(/\s+/g, ' ').trim() || inp.value || '';
+      const label = (labelEl?.innerText || '').replace(/\s+/g, ' ').trim() || he.value || '';
       result.push({ ri, label, groupName });
     });
     const groups = [...new Set(result.map(r => r.groupName))].slice(0, 4);
@@ -1063,9 +1074,10 @@ export async function runLangCheckDynamic(admin: Page, lang: Lang, allowDestruct
 }
 
 // 전체 메뉴 순회(단일 언어). openAdmin 직후(한국어·홈 랜딩) 호출.
+//  P2: 정적 슬롯 비교 + 행 버튼 팝업 내 i18n 검증(SAFE_POPUP_BTNS) — 비파괴.
 export async function runLangCheckAll(admin: Page, lang: Lang) {
   const seen = new Set<string>();
-  // ① 홈(랜딩) — 전역 SNB/레이아웃 결함이 여기로 1회 귀속됨
+  // ① 홈(랜딩) — 전역 SNB/레이아웃 결함이 여기로 1회 귀속됨(팝업 트리거 없음)
   await scanScreen(admin, lang, '홈', '언어검증_홈', seen);
   // ② 전 대메뉴 × 하위 메뉴
   for (const { menu, subs } of MENU_LIST) {
@@ -1073,7 +1085,34 @@ export async function runLangCheckAll(admin: Page, lang: Lang) {
       const screen = `${menu} > ${sub}`;
       const entry = await enterMenuChecked(admin, menu, sub);   // #1~#5: 자가치유 + 미구현/진입실패/렌더 구분
       if (!entry.ok) { recordEntryFailure(screen, menu, lang, '번역 검증', entry); continue; }
-      await scanScreen(admin, lang, screen, `언어검증_${menu}`, seen);
+
+      // KO 모드: 정적 슬롯 캡처 + 팝업 트리거 위치 식별(전환 후 버튼 텍스트가 번역되므로 한국어 nth로 미리 식별)
+      const ko = await captureSlots(admin);
+      const skipDynamic = DYNAMIC_SKIP_SCREENS.some(s => screen.includes(s));
+      const popupTriggers = skipDynamic ? [] : await findPopupTriggers(admin, false).catch(() => []);
+
+      // 언어 전환
+      const base: CheckMeta = { path: `${screen} > 언어검증`, tcRef: `언어검증_${menu}`, tcId: `LANG-${lang.ko}`, desc: `${lang.ko}(${lang.label}) 모드 — UI 표기 검증` };
+      const switched = await switchLanguage(admin, lang.label);
+      if (!switched) { skip(base, `${lang.label} 전환 실패`); await ensureKorean(admin); continue; }
+      const shot = await capture(admin, { ...base, path: `${screen}_${lang.ko}` });
+
+      // 외국어 모드 화면 백지 확인 → 결함이면 FAIL 기록 후 다음 메뉴로
+      if (await failForeignBlank(admin, lang, screen, `언어검증_${menu}`, `LANG-${lang.ko}`, '모드 — 화면 미노출 점검', shot)) {
+        await ensureKorean(admin);
+        continue;
+      }
+
+      // 정적 슬롯 비교(KO baseline ↔ 외국어 대조)
+      const fg = await captureSlots(admin);
+      applySlotComparison(ko, fg, lang, screen, `언어검증_${menu}`, shot, seen);
+
+      // P2: 행 버튼 팝업 i18n 검증 — 한국어 nth 위치로 클릭 → .modal-group 스캔 → 비파괴 닫기
+      if (!skipDynamic && popupTriggers.length > 0) {
+        await scanPopupTriggers(admin, lang, screen, seen, shot, popupTriggers);
+      }
+
+      await ensureKorean(admin);   // #2: 다음 메뉴 한글 네비 위해 원복(검증·재시도 — cascade 차단)
     }
   }
   await ensureKorean(admin); // 비파괴 최종 원복(#2: 검증·재시도)
@@ -1128,6 +1167,67 @@ export async function runLangCheckUnified(admin: Page, lang: Lang, allowDestruct
       }
 
       await ensureKorean(admin);   // #2: 다음 메뉴 한글 네비 위해 원복(검증·재시도 — cascade 차단)
+    }
+  }
+  await ensureKorean(admin);
+}
+
+// ════════════════════════════════════════════════════════════
+//  P2-B: 팝업/모달 전용 다국어 검증 (단일 언어)
+//  - 정적 슬롯 비교·드롭다운·라디오 없음 — 팝업 트리거에만 집중(빠른 실행)
+//  - captureModal 확장분(placeholder·label) 포함 — 폼 모달 i18n 누락 포착
+//  - 트리거 없는 화면: SKIP 기록(결함 아님)
+//  - 부분 실행: LANGMODAL_MENUS=라운드관리,내장현황 env로 범위 한정
+// ════════════════════════════════════════════════════════════
+export async function runLangCheckModal(admin: Page, lang: Lang) {
+  const seen = new Set<string>();
+  const filt = (process.env.LANGMODAL_MENUS || '').split(',').map(s => s.replace(/\s+/g, '')).filter(Boolean);
+  const want = (menu: string, sub: string) =>
+    !filt.length || filt.some(f => menu.replace(/\s+/g, '').includes(f) || sub.replace(/\s+/g, '').includes(f));
+
+  for (const { menu, subs } of MENU_LIST) {
+    for (const sub of subs) {
+      if (!want(menu, sub)) continue;
+      const screen = `${menu} > ${sub}`;
+      const tcRef = `언어검증_팝업_${menu}`;
+      const tcId = `LANGPOP-${lang.ko}`;
+
+      const entry = await enterMenuChecked(admin, menu, sub);
+      if (!entry.ok) {
+        const m: CheckMeta = { path: `${screen} > 팝업검증`, tcRef, tcId, desc: `${lang.ko} 팝업 i18n`, failMsg: entry.reason };
+        if (entry.defect) record(m, 'FAIL', { error: entry.reason, detail: `${lang.ko} 진입 실패 — ${entry.reason}` });
+        else skip(m, entry.reason);
+        continue;
+      }
+
+      if (DYNAMIC_SKIP_SCREENS.some(s => screen.includes(s))) {
+        skip({ path: `${screen} > 팝업검증`, tcRef, tcId, desc: `${lang.ko} 팝업 i18n` }, '가변 데이터 화면(DYNAMIC_SKIP_SCREENS) — SKIP');
+        continue;
+      }
+
+      // KO 모드에서 팝업 트리거 위치 식별 — 전환 전 수행(버튼 텍스트 번역 전 위치 고정)
+      const popupTriggers = await findPopupTriggers(admin, false).catch(() => []);
+      if (!popupTriggers.length) {
+        skip({ path: `${screen} > 팝업검증`, tcRef, tcId, desc: `${lang.ko} 팝업 i18n` }, '팝업 트리거 없음 — SKIP');
+        await ensureKorean(admin);
+        continue;
+      }
+
+      const switched = await switchLanguage(admin, lang.label);
+      if (!switched) {
+        skip({ path: `${screen} > 팝업검증`, tcRef, tcId, desc: `${lang.ko} 팝업 i18n` }, `${lang.label} 전환 실패`);
+        await ensureKorean(admin);
+        continue;
+      }
+      const shot = await capture(admin, { path: `${screen}_팝업_${lang.ko}`, tcRef, tcId, desc: `${lang.ko} 팝업 i18n` });
+
+      if (await failForeignBlank(admin, lang, screen, tcRef, tcId, '팝업 — 화면 미노출 점검', shot)) {
+        await ensureKorean(admin);
+        continue;
+      }
+
+      await scanPopupTriggers(admin, lang, screen, seen, shot, popupTriggers);
+      await ensureKorean(admin);
     }
   }
   await ensureKorean(admin);

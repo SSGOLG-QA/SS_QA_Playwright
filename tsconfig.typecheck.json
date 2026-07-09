@@ -1,0 +1,22 @@
+{
+  // 타입검증 전용 — emit 없음. 핵심 자동화 코드(lib/Admin/auth/scripts)를 전수 type-check.
+  //   ⚠ 빌드(emit)는 tsconfig.json(scripts만) 사용 — dashboard/ia:confluence/drift:diff/audit:assert는 영향 없음.
+  //   Playwright_New(자체 config)·test(tsconfig.unit.json)는 제외.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": [
+    "scripts/**/*.ts",
+    "lib/**/*.ts",
+    "Admin/**/*.ts",
+    "auth/**/*.ts",
+    "playwright.config.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "dist-unit",
+    "Admin/_*.spec.ts"
+  ]
+}

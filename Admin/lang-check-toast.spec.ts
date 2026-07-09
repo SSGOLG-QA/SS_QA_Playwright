@@ -2,6 +2,7 @@ import { test } from '../lib/fixtures';
 import { isDestructiveAllowed, withFixture } from '../Playwright_New/destructive';
 import { writeReport, resetResults, resetDiff, resetNoTC, resetReview, skip } from '../lib/reporter';
 import { TARGET_LANGS, KOREAN, switchLanguage, withToastObserver, classifyToastText } from '../lib/langCheck';
+import { navigateMenu, settle } from '../lib/adminHelpers';
 
 // ──────────────────────────────────────────────────────────────
 //  토스트·에러 메시지 언어 검증 — 공식 지원 언어 전체

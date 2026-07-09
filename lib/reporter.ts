@@ -3,6 +3,7 @@ import ExcelJS from 'exceljs';
 import fs from 'fs';
 import path from 'path';
 import { navigateMenu, settle } from './adminHelpers';
+import { appendRun } from './historyDb';
 
 // ──────────────────────────────────────────────────────────────
 //  테스트 결과 수집 + Fail 시 스크린샷 + 엑셀 리포트
@@ -660,6 +661,12 @@ export async function writeReport(title = 'report'): Promise<string> {
   const out = path.join(REPORT_DIR, `${title}_report_${stamp}.xlsx`);
   await wb.xlsx.writeFile(out);
   console.log(`\n[report] 엑셀 생성: ${out}  (시트 ${menus.length}개 / PASS ${pass} / FAIL ${fail} / SKIP ${skipped})\n`);
+
+  // P3-D: 이력 DB 기록 (실패해도 엑셀 생성에 영향 없음)
+  try { appendRun(title, results, groups); } catch (e: any) {
+    console.warn(`[history] DB 기록 실패 (무시): ${e?.message || e}`);
+  }
+
   return out;
 }
 
@@ -717,6 +724,6 @@ export async function writeIAReport(title = 'ia-coverage'): Promise<string> {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const out = path.join(REPORT_DIR, `${title}_report_${stamp}.xlsx`);
   await wb.xlsx.writeFile(out);
-  console.log(`\n[IA report] 엑셀 생성: ${out}  (구현 ${impl} / 미구현 ${notImpl} / 진입불가 ${noEntry})\n`);
+  console.log(`\n[IA report] \uC5D1\uC140 \uC0DD\uC131: ${out}  (\uAD6C\uD604 ${impl} / \uBBF8\uAD6C\uD604 ${notImpl} / \uC9C4\uC785\uBD88\uAC00 ${noEntry})\n`);
   return out;
 }

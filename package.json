@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "auth": "playwright test --project=setup --headed",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
     "test": "playwright test --project=admin-chromium Admin/all-suite.spec.ts --no-deps",
     "test:all": "playwright test --project=admin-chromium Admin/all-suite.spec.ts --no-deps",
     "test:admin": "playwright test --project=admin-chromium --no-deps",
@@ -19,7 +19,8 @@
     "audit:assert": "tsc --project tsconfig.json && node dist/scripts/assertionAudit.js",
     "test:unit": "tsc -p tsconfig.unit.json && node --test dist-unit/test/domain.test.js",
     "mutation": "stryker run",
-    "report": "playwright show-report"
+    "report": "playwright show-report",
+    "dashboard": "tsc --project tsconfig.json && node dist/scripts/generateDashboard.js"
   },
   "keywords": [],
   "author": "",

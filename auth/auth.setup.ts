@@ -103,6 +103,8 @@ async function captureAccount(page: Page, context: BrowserContext, idx: number) 
   // ── STEP 3. 경기관제 [어드민 가기] → 어드민 진입 ──────
   //  CI 헤드리스: window.open() 팝업이 차단되므로 현재 탭 이동으로 오버라이드
   let adminPage: Page;
+  // 어드민이 새 탭으로 열린 경우 추적(계정 사이 정리용). 같은 탭 진입(goto)이면 null 유지.
+  let openedTab: Page | null = null;
   if (CI_AUTO_LOGIN) {
     // window.open → location.href 리다이렉트로 강제 (헤드리스 팝업 차단 우회)
     adminPage = page;
@@ -115,6 +117,7 @@ async function captureAccount(page: Page, context: BrowserContext, idx: number) 
     if (newTab) {
       // 새 탭이 열린 경우 — 해당 탭에서 /club/ 대기
       adminPage = newTab;
+      openedTab = newTab;
       await adminPage.waitForURL(/\/club\//, { timeout: 30_000, waitUntil: 'commit' });
       console.log(`\n[auth.setup] 새 탭 진입: ${adminPage.url()}\n`);
     } else {
@@ -130,6 +133,7 @@ async function captureAccount(page: Page, context: BrowserContext, idx: number) 
     await golfCard.getByRole('button', { name: '어드민 가기' }).click();
     const newPage = await newPagePromise;
     adminPage = newPage ?? page;
+    if (newPage && newPage !== page) openedTab = newPage;
   }
 
   // 어드민 진입 시 팝업 처리
@@ -155,7 +159,7 @@ async function captureAccount(page: Page, context: BrowserContext, idx: number) 
   console.log(`\n[auth.setup] ${label} 세션 저장 완료 → ${out}\n`);
 
   // 다음 계정 진입을 위해 새 탭(어드민)은 닫는다 (마지막 계정에서는 보존)
-  if (newPage && newPage !== page && idx < ACCOUNT_COUNT - 1) await newPage.close().catch(() => {});
+  if (openedTab && idx < ACCOUNT_COUNT - 1) await openedTab.close().catch(() => {});
 }
 
 setup('authenticate', async ({ page, context }) => {

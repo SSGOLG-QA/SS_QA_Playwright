@@ -1,20 +1,26 @@
-import { expect, Page } from '@playwright/test';
+import { expect, Page, Locator } from '@playwright/test';
 import { check, checkText, skip, gotoMenu, noTC, recordIA, diff, checkRawCode, checkRowCountVsTotal } from './reporter';
 import { runCommonActions } from './commonActions';
+import { navigateMenu } from './adminHelpers';
 import { DataGrid } from './components/DataGrid';
 import { VueSelect } from './components/VueSelect';
 import { SummaryCards } from './components/SummaryCards';
+import { Modal } from './components/Modal';
 import { FnbOrderPage } from './pages/FnbOrderPage';
 import { VisitStatusPage } from './pages/VisitStatusPage';
 import { AccountListPage } from './pages/AccountListPage';
 import { CaddieListPage } from './pages/CaddieListPage';
 import { CourseAnalysisPage } from './pages/CourseAnalysisPage';
 import { ReviewStatsPage } from './pages/ReviewStatsPage';
+import { RoundStatsPage } from './pages/RoundStatsPage';
 import { HolemapZonePage } from './pages/HolemapZonePage';
 import { courseInvariants } from './domain/courseAnalysis';
 import { reviewInvariants, OVERALL_RATING_CANDIDATES } from './domain/reviewStats';
 import { verifyInvariants, lockOrSkipFormula } from './domain/calcChecks';
 import { parseVisitRow, visitInvariants, SS_RATIO_CANDIDATES, PRINT_RATE_CANDIDATES, VisitRow } from './domain/visitStatus';
+import { parseRoundStatsRow, roundStatsInvariants } from './domain/roundStats';
+import { GroupScoreRow, GroupRankRow, groupScoreInvariants, rankOrderInvariants, teamAvgInvariants, inferPar } from './domain/groupRound';
+import { evaluateSensCases, recordVerdicts, currentScreenLabel, caseA, caseB, caseC, caseD, caseE } from './assertionSens';
 
 // 컬럼헤더 정확 일치 헬퍼 — 부분일치(.includes)의 부분문자열 충돌('주문금액'⊂'평균주문금액', '홀'⊂'다음 홀 방향')을
 //   제거하되, 정렬 글리프(▼▲↑↓)·공백 변동엔 강건. 컬럼 '이름'만 정확 비교(정렬 상태 무관).
@@ -127,6 +133,8 @@ export async function runRoundMgmt(admin: Page) {
     for (const [i, c] of ['날짜', '총 내장객', '내장객 남', '내장객 여', '유효 내장객', '기존 SS회원', '신규 SS회원', '일일 SS회원', 'SS회원 비율', '출력 횟수', '출력률'].entries())
       await check(admin, { path: '라운드관리 > 내장 현황 > 테이블', tcRef: '라운드 관리_005', tcId: `No.5-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `컬럼 '${c}'`, failMsg: '컬럼 미노출' }, async () => { await expect(t.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
     await check(admin, { path: '라운드관리 > 내장 현황 > 테이블 > 내보내기', tcRef: '라운드 관리_017', tcId: 'No.17', desc: '[내보내기] 클릭 시 다운로드 발생', expected: 'download', failMsg: '다운로드 미발생' }, async () => { const d = dl(); await btn(admin, '내보내기').click(); expect(await d).not.toBeNull(); });
+    // TC No.8 — 2차 QA FAIL (QA-14844): 총 내장객 수 계산 오류 — 성별/나이 미입력 회원 카운팅 누락
+    diff('라운드관리 > 내장 현황 > 테이블 > 총 내장객', '성별/나이 미입력 회원 포함 총 내장객 정확 계산', '성별/나이 없는 회원이 총 내장객 수에서 누락됨', '라운드 관리_008', 'QA-14844 / TC No.8 2차 FAIL — 데이터 계산 오류, 수동 확인 필요');
     // ✨계산 정합성(2026-06-17): 행 원시값↔파생값(총=남+여·SS비율·출력률) 재계산 검증
     await runVisitStatusCalc(admin);
   }
@@ -196,8 +204,291 @@ export async function runRoundMgmt(admin: Page) {
   if (await gotoMenu(admin, M, '카트관리', { path: '라운드관리 > 카트관리', tcRef: '카트관리_1', tcId: '진입', desc: '카트관리 진입', failMsg: '메뉴 진입 불가' }))
     await runCartMgmt(admin);
 
-  // 7. SNB 존재 / TC 미존재 → 이슈
-  if (await gotoMenu(admin, M, '단체라운드', { path: '라운드관리 > 단체라운드', tcRef: '-', tcId: '진입', desc: '단체라운드 진입', failMsg: '메뉴 진입 불가' })) noTC('라운드관리 > 단체라운드', admin.url(), '범위제외(단체팀 고도화 별도) + 상세 TC 미작성');
+  // 7. 단체 라운드 — 구조 기반 + 읽기전용 딥 인터랙션(드라이브 상세 TC 미작성)
+  //    과거 '범위제외(고도화 별도) + noTC'였으나, 현 구현 구조를 비파괴로 검증(runGroupRound).
+  if (await gotoMenu(admin, M, '단체라운드', { path: '라운드관리 > 단체 라운드', tcRef: '라운드 관리_단체 라운드', tcId: '진입', desc: '단체 라운드 진입', failMsg: '메뉴 진입 불가' }))
+    await runGroupRound(admin);
+}
+
+// ════════════════ 라운드관리 > 단체 라운드 (구조 기반 + 읽기전용 딥 인터랙션) ════════════════
+//   URL: /club/page/round-group. 드라이브 상세 TC 미작성 → 구조 기반(GRND-01~). IA: 라운드관리 하위.
+//   🔴 비파괴: 등록·설정·복사·그룹편집/핸디관리·결과집계/출력·시상내역 편집 = 데이터 변경/단체팀 고도화(별도 프로젝트)
+//      → 노출·활성만 검증(클릭 금지).
+//   ✅ 읽기전용 딥 인터랙션(기존 패턴 재사용): [보기] 팝업 DOM 노출→비파괴 닫기(P2 click-popup) /
+//      [관리자 웹뷰] 새 탭 랜딩→닫기(TRT-11) / [랭킹다운]·[스코어다운] 다운로드 발생(TRT-09/No.50) /
+//      데이트피커 실조회(runCommonActions checkDateSearch). 데이터 의존분은 0건 SKIP(가짜 FAIL 방지).
+//   TC tcId: GRND-01~10
+export async function runGroupRound(admin: Page) {
+  const P = '라운드관리 > 단체 라운드';
+  const R = '라운드 관리_단체 라운드';
+  await admin.locator('.contents-box').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
+  const infoBox = admin.locator('.contents-box').filter({ hasText: /단체라운드를\s*지원/ }).first();
+  const tableBox = admin.locator('.contents-box').filter({ has: admin.getByRole('columnheader', { name: '단체명', exact: false }) }).first();
+
+  // ── GRND-01 안내문구 핵심구(부분 일치) ─────────────────────
+  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'GRND-01', desc: '안내문구 핵심구 노출(부분 일치)', expected: '단체라운드를 지원 / 2팀 이상 / 동일한 단체팀명', failMsg: '안내문구 미노출' },
+    async () => { await expect(infoBox).toContainText('단체라운드'); await expect(infoBox).toContainText('2팀 이상'); await expect(infoBox).toContainText('단체팀명'); });
+
+  // ── GRND-02 상단 액션([시상내역 편집]/[관리자 웹뷰]/[URL복사]) 노출 (비파괴·클릭 금지) ──
+  await check(admin, { path: `${P} > 상단 액션`, tcRef: `${R}_2`, tcId: 'GRND-02', desc: '[골프장 공통 시상내역 편집]/[관리자 웹뷰]/[URL복사] 노출(비파괴·클릭 미수행)', expected: '시상내역 편집·관리자 웹뷰·URL복사', failMsg: '상단 버튼 미노출' },
+    async () => {
+      await expect(admin.getByRole('button', { name: '골프장 공통 시상내역 편집' }).first()).toBeVisible();
+      await expect(admin.getByRole('button', { name: '관리자 웹뷰' }).first()).toBeVisible();
+      await expect(admin.getByRole('button', { name: 'URL복사' }).first()).toBeVisible();
+    });
+
+  // ── GRND-03 검색(단체팀명 input + 날짜선택 datepicker + [조회]) 노출 ──
+  await check(admin, { path: `${P} > 검색`, tcRef: `${R}_3`, tcId: 'GRND-03', desc: "검색어(ph '단체팀명') + 날짜선택 datepicker + [조회] 노출", expected: '단체팀명 + 날짜선택 + [조회]', failMsg: '검색 영역 미노출' },
+    async () => {
+      await expect(admin.getByPlaceholder('단체팀명')).toBeVisible();
+      await expect(admin.locator('.datepicker-input').first()).toBeVisible();
+      await expect(admin.getByRole('button', { name: '조회', exact: true }).first()).toBeVisible();
+    });
+  // ── QA-15014 단체명 검색 결과없음 안내 문구 미노출(Backlog) ─────────
+  diff(P, '단체명 검색 결과 0건 시 "검색 결과가 없습니다" 등 안내 문구 노출', '결과 0건 시 빈 테이블만 표시되고 결과없음 문구 미노출(QA-15014)', `${R}_3`, 'JIRA QA-15014 Backlog — 검색 결과 없음 상태 UI 미구현');
+
+  // ── GRND-04 다운로드 버튼([랭킹다운]/[스코어다운]) 노출 ─────
+  await check(admin, { path: `${P} > 다운로드`, tcRef: `${R}_4`, tcId: 'GRND-04', desc: '[랭킹다운]/[스코어다운] 버튼 노출', expected: '랭킹다운·스코어다운', failMsg: '다운로드 버튼 미노출' },
+    async () => { await expect(admin.getByRole('button', { name: '랭킹다운' }).first()).toBeVisible(); await expect(admin.getByRole('button', { name: '스코어다운' }).first()).toBeVisible(); });
+
+  // ── GRND-05 단체 테이블 헤더 14컬럼(공백/줄바꿈/정렬글리프 강건 hasCol) ──
+  //   ✨드리프트(2026-06-29): '태블릿리더보드'(ON/OFF) 컬럼 추가 → 13→14컬럼(아래 diff 추적).
+  const HEADERS = ['날짜', '단체명', '행사명', '태블릿리더보드', '첫팀 티업', '막팀 티업', '팀수/인원수', '그룹편집/핸디관리', '스코어', '진행상황', '결과집계/출력', '리더보드 웹뷰', '리더보드 웹뷰 접속 ID', '행사 관리자 접속 인증키'];
+  await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_5`, tcId: 'GRND-05', desc: '단체 테이블 헤더 14컬럼 전수 노출', expected: HEADERS.join('·'), failMsg: '테이블 헤더 미노출' },
+    async () => { const heads = await tableBox.getByRole('columnheader').allInnerTexts(); for (const h of HEADERS) expect(hasCol(heads, h), `컬럼 '${h}' 미노출`).toBeTruthy(); });
+  diff(P, '단체 리스트 테이블 13컬럼(2026-06-26 분석)', "'태블릿리더보드'(ON/OFF) 컬럼 신설 → 14컬럼으로 확장(AS-IS 반영)", `${R}_5`, '드리프트: 신규 컬럼 추가 — 기능 정상, 현 구현 유지');
+
+  // ── GRND-06 단체 행 ≥1 (데이터 의존·고정 count 금지) ────────
+  const rowN = await tableBox.locator('tbody tr').count().catch(() => 0);
+  if (rowN > 0)
+    await check(admin, { path: `${P} > 테이블 > 행`, tcRef: `${R}_6`, tcId: 'GRND-06', desc: '단체 행(≥1) 노출(데이터 의존)', expected: '단체 행 ≥1', failMsg: '단체 행 미노출' },
+      async () => { expect(await tableBox.locator('tbody tr').count()).toBeGreaterThanOrEqual(1); });
+  else
+    skip({ path: `${P} > 테이블 > 행`, tcRef: `${R}_6`, tcId: 'GRND-06', desc: '단체 행(≥1) 노출' }, '등록된 단체 라운드 없음(데이터 없음)');
+
+  // ── GRND-07 행 액션([등록]/[설정]/[보기]/[복사]) 노출 (비파괴·클릭 금지) ──
+  if (rowN > 0)
+    await check(admin, { path: `${P} > 테이블 > 행 액션`, tcRef: `${R}_7`, tcId: 'GRND-07', desc: '행 액션([등록]/[설정]/[보기]/[복사]) 노출(비파괴·클릭 미수행)', expected: '등록·설정·보기·복사 ≥1', failMsg: '행 액션 미노출' },
+      async () => { const tb = tableBox.locator('tbody'); for (const b of ['보기', '설정']) expect(await tb.getByRole('button', { name: b, exact: true }).count(), `[${b}] 미노출`).toBeGreaterThanOrEqual(1); });
+  else
+    skip({ path: `${P} > 테이블 > 행 액션`, tcRef: `${R}_7`, tcId: 'GRND-07', desc: '행 액션 노출' }, '등록된 단체 라운드 없음(데이터 없음)');
+
+  // ── GRND-08 [보기] 읽기전용 팝업 노출→비파괴 닫기 (모달/새 탭 모두 대응) ──
+  const viewBtn = tableBox.locator('tbody').getByRole('button', { name: '보기', exact: true }).first();
+  if (rowN > 0 && await viewBtn.isVisible({ timeout: 2000 }).catch(() => false))
+    await check(admin, { path: `${P} > [보기] 팝업`, tcRef: `${R}_8`, tcId: 'GRND-08', desc: '[보기] 클릭 시 읽기전용 팝업/새 탭 노출 → 비파괴 닫기', expected: '팝업 또는 새 탭 오픈', failMsg: '팝업 미오픈' },
+      async () => {
+        const modal = new Modal(admin);
+        const before = admin.context().pages().length;
+        await viewBtn.click();
+        await admin.waitForTimeout(900);
+        const opened = await modal.isOpen();
+        const newPage = admin.context().pages().length > before;
+        expect(opened || newPage, '[보기] 클릭 후 팝업/새 탭 미발생').toBeTruthy();
+        if (newPage) { const ps = admin.context().pages(); const np = ps[ps.length - 1]; await np?.close().catch(() => {}); }
+        else await modal.closeNonDestructive();
+      });
+  else
+    skip({ path: `${P} > [보기] 팝업`, tcRef: `${R}_8`, tcId: 'GRND-08', desc: '[보기] 읽기전용 팝업 노출' }, '데이터 없음 또는 [보기] 미노출');
+
+  // ── GRND-09 [관리자 웹뷰] 새 탭 랜딩 → 닫기 (TRT-11 패턴·데이터 의존) ──
+  if (rowN > 0) {
+    let pop: Page | null = null;
+    try { [pop] = await Promise.all([admin.context().waitForEvent('page', { timeout: 8000 }), admin.getByRole('button', { name: '관리자 웹뷰' }).first().click()]); } catch { pop = null; }
+    if (pop) {
+      await check(admin, { path: `${P} > 관리자 웹뷰`, tcRef: `${R}_9`, tcId: 'GRND-09', desc: '[관리자 웹뷰] 클릭 시 새 탭 화면 랜딩(읽기전용)', expected: '새 탭 오픈·로드', failMsg: '새 탭 미오픈' },
+        async () => { await (pop as Page).waitForLoadState('domcontentloaded', { timeout: 8000 }).catch(() => {}); expect((pop as Page).url(), '새 탭 URL').toMatch(/^https?:/); });
+      await pop.close().catch(() => {});
+    } else {
+      skip({ path: `${P} > 관리자 웹뷰`, tcRef: `${R}_9`, tcId: 'GRND-09', desc: '[관리자 웹뷰] 새 탭 랜딩' }, '새 탭 미발생(데이터/환경 의존 — window.open 차단 가능)');
+    }
+  } else {
+    skip({ path: `${P} > 관리자 웹뷰`, tcRef: `${R}_9`, tcId: 'GRND-09', desc: '[관리자 웹뷰] 새 탭 랜딩' }, '데이터 없음(단체 0건)');
+  }
+
+  // ── GRND-10 [랭킹다운] 활성 + 선택 게이트 동작(AS-IS) ──────
+  //   probe(2026-06-26): 단체 미선택 상태에서 [랭킹다운] 클릭 = 무동작(다운로드/모달/새탭/알럿 전무) →
+  //   '선택 게이트' 버튼(단체 선택 후에만 다운로드). 클릭 즉시 다운로드 단언은 가짜 FAIL → 활성만 검증 + diff 추적.
+  await check(admin, { path: `${P} > 랭킹다운`, tcRef: `${R}_10`, tcId: 'GRND-10', desc: '[랭킹다운] 버튼 노출·활성(클릭 가능 상태)', expected: '[랭킹다운] enabled', failMsg: '버튼 미노출/비활성' },
+    async () => { const b = admin.getByRole('button', { name: '랭킹다운' }).first(); await expect(b).toBeVisible(); await expect(b).toBeEnabled(); });
+  diff(P, '[랭킹다운]/[스코어다운] 클릭 시 즉시 다운로드(현 라운드/단체 기준)', '단체 미선택 상태 클릭 = 무동작(다운로드/모달/새탭/알럿 전무) — 단체 선택 후에만 동작하는 선택 게이트로 관찰', `${R}_10`, '다운로드 실동작은 단체 선택 의존 → 수동/별도 검증(GRND-10은 활성만 검증)');
+  // ── QA-15009 날짜 미선택 시 알럿 문구 상이 ──────────────────────────
+  diff(P, '[랭킹다운]/[스코어다운] 날짜 미선택 클릭 시 올바른 알럿 문구 노출', '날짜 선택 전 클릭 시 알럿 발생하나 문구가 기획과 상이(QA-15009)', `${R}_10`, 'JIRA QA-15009 Backlog — 알럿 문구 수정 대기');
+  // ── QA-15012/15013/15015 그룹편집/핸디관리 — 범위외 이슈 ───────────
+  diff(P, '그룹편집/핸디관리 — 안내문구 정상·이름검색 제공·편집상태 초기화', 'QA-15012(안내문구 당구장 표시 2개)·QA-15013(이름검색 영역 미제공)·QA-15015(핸디수정 후 재진입 시 편집상태 유지) Backlog — 단체팀 고도화(별도 프로젝트) 범위 제외라 노출만 검증', `${R}_0`, 'JIRA QA-15012/15013/15015 Backlog — 범위외(단체팀 고도화 별도 프로젝트)');
+
+  // ── GRND-11~18 [스코어]/[결과집계·출력] 팝업 노출 + 데이터 정합성(점수·순위·평균) ──
+  await runGroupRoundPopups(admin, tableBox, rowN);
+
+  // ── 기획-구현 차이/범위 추적 ────────────────────────────────
+  diff(P, '단체 라운드 전 기능 자동화(등록·설정·복사·그룹편집/핸디관리·결과집계/출력·시상내역 편집 포함)', '데이터 변경/단체팀 고도화(별도 프로젝트) 동작은 노출·활성만 검증(비파괴) — [보기]/웹뷰/다운로드만 읽기전용 딥 인터랙션 수행', `${R}_0`, '범위 경계: 단체팀 고도화는 별도 프로젝트 — 본 스위트는 구조+읽기전용 검증');
+
+  await runCommonActions(admin, P, R);
+}
+
+// ════════════════ 단체 라운드 - 스코어/결과집계 팝업 + 데이터 정합성 ════════════════
+//   td8 [스코어] → 새 탭 /club/RoundGroupScore/{id}  (Player·전반·후반·합계·오버타수)
+//   td10 [결과집계·출력] → 새 탭 /club/RoundGroupRank/{id} (순위·성별·이름·스코어 + 시상 + Team Average)
+//   ⚠ 비파괴: 새 탭 열어 읽기만, 닫기. [수정하기]/[스코어 수정]/[인쇄] 등 절대 클릭 안 함.
+//   ⚠ 데이터 의존: 라운드종료 행 우선, 없으면 SKIP(가짜 FAIL 방지). td9(진행상황) 텍스트로 상태 판별.
+const _gNum = (s: string) => { const m = String(s).replace(/,/g, '').match(/-?\d+(\.\d+)?/); return m ? Number(m[0]) : NaN; };
+
+async function _openColTab(admin: Page, row: Locator, tdIdx: number): Promise<Page | null> {
+  const btn = row.locator('td').nth(tdIdx).getByRole('button', { name: '보기', exact: true }).first();
+  if (!(await btn.isVisible({ timeout: 2000 }).catch(() => false))) return null;
+  let pop: Page | null = null;
+  try { [pop] = await Promise.all([admin.context().waitForEvent('page', { timeout: 9000 }), btn.click()]); } catch { pop = null; }
+  if (pop) { await pop.waitForLoadState('networkidle', { timeout: 12000 }).catch(() => {}); await pop.waitForTimeout(1200); }
+  return pop;
+}
+
+async function _extractScore(pg: Page): Promise<GroupScoreRow[]> {
+  return pg.evaluate(() => {
+    const num = (s: string) => { const m = String(s).replace(/,/g, '').match(/-?\d+(\.\d+)?/); return m ? Number(m[0]) : NaN; };
+    const t = Array.from(document.querySelectorAll('table')).find(tb => /합계/.test(tb.querySelector('thead')?.textContent || '')) || document.querySelector('table');
+    if (!t) return [] as any[];
+    const heads = Array.from(t.querySelectorAll('thead th, thead td')).map(h => (h as HTMLElement).innerText.trim().replace(/\s+/g, ''));
+    const iF = heads.indexOf('전반'), iB = heads.indexOf('후반'), iT = heads.indexOf('합계'), iO = heads.findIndex(h => /오버/.test(h));
+    return Array.from(t.querySelectorAll('tbody tr')).map(tr => {
+      const c = Array.from(tr.querySelectorAll('td,th')).map(x => (x as HTMLElement).innerText.trim());
+      return { name: c[0] || '', front: num(c[iF]), back: num(c[iB]), total: num(c[iT]), over: num(c[iO]) };
+    }).filter((r: any) => r.name && Number.isFinite(r.total));
+  });
+}
+
+async function _extractRank(pg: Page): Promise<{ rows: GroupRankRow[]; avg: { all: number; male: number; female: number }; topAward: number; url: string }> {
+  return pg.evaluate(() => {
+    const num = (s: string) => { const m = String(s).replace(/,/g, '').match(/-?\d+(\.\d+)?/); return m ? Number(m[0]) : NaN; };
+    const tables = Array.from(document.querySelectorAll('table'));
+    const t = tables.find(tb => /순위/.test(tb.querySelector('thead')?.textContent || '')) || tables[0];
+    const rows = t ? Array.from(t.querySelectorAll('tbody tr')).map(tr => {
+      const c = Array.from(tr.querySelectorAll('td,th')).map(x => (x as HTMLElement).innerText.trim());
+      const g = c.findIndex((v, i) => i < 4 && (/^[MF]$/i.test(v) || /^[남여]$/.test(v)));
+      return {
+        rank: num(c[0]), gender: g >= 0 ? c[g] : '',
+        name: g >= 0 ? (c[g + 1] || '') : (c[1] || ''),
+        score: g >= 0 ? num(c[g + 2]) : NaN,
+      };
+    }).filter((r: any) => Number.isFinite(r.rank)) : [];
+    const body = (document.body.innerText || '').replace(/\s+/g, ' ');
+    const g1 = (re: RegExp) => { const m = body.match(re); return m ? Number(m[1]) : NaN; };
+    const avg = { all: g1(/전체\s*스코어\s*평균\s*([\d.]+)/), male: g1(/남자\s*스코어\s*평균\s*([\d.]+)/), female: g1(/여자\s*스코어\s*평균\s*([\d.]+)/) };
+    const am = body.match(/최우수상\s+\S+\s+(\d+)/);
+    return { rows, avg, topAward: am ? Number(am[1]) : NaN, url: location.href };
+  });
+}
+
+export async function runGroupRoundPopups(admin: Page, tableBox: Locator, rowN: number) {
+  const P = '라운드관리 > 단체 라운드';
+  const R = '라운드 관리_단체 라운드';
+  const skipAll = (note: string) => {
+    for (const [id, d] of [['GRND-11', '[스코어] 팝업 노출'], ['GRND-12', '[결과집계·출력] 팝업 노출'], ['GRND-13', '스코어 정합성(합계·Par)'], ['GRND-15', '순위 정합성'], ['GRND-16', 'Team Average 정합성'], ['GRND-17', '시상=최저스코어'], ['GRND-18', '교차정합(순위↔스코어)']] as const)
+      skip({ path: `${P} > 팝업`, tcRef: `${R}_${id}`, tcId: id, desc: d }, note);
+  };
+  if (rowN === 0) { skipAll('등록된 단체 라운드 없음(데이터 없음)'); return; }
+
+  // 대상 행: 라운드종료(완비) 우선 → 없으면 td8 [보기] 보유 첫 행
+  const rows = tableBox.locator('tbody tr');
+  const n = Math.min(await rows.count(), 20);
+  let target = -1, fallback = -1;
+  for (let r = 0; r < n; r++) {
+    const hasView = await rows.nth(r).locator('td').nth(8).getByRole('button', { name: '보기', exact: true }).first().isVisible().catch(() => false);
+    if (!hasView) continue;
+    if (fallback < 0) fallback = r;
+    const st = (await rows.nth(r).locator('td').nth(9).innerText().catch(() => '')).replace(/\s/g, '');
+    if (st === '라운드종료') { target = r; break; }
+  }
+  if (target < 0) target = fallback;
+  if (target < 0) { skipAll('[스코어] 보기 버튼 보유 행 없음'); return; }
+  const row = rows.nth(target);
+
+  // ── GRND-11 [스코어] 팝업(새 탭) 노출 + 스코어카드 추출 ──────────
+  let scoreRows: GroupScoreRow[] = [];
+  let hasNullM = false; // QA-15011 회귀 감지 — "nullm" 텍스트 노출 여부
+  const sp = await _openColTab(admin, row, 8);
+  if (sp) {
+    const sUrl = sp.url();
+    scoreRows = await _extractScore(sp).catch(() => [] as GroupScoreRow[]);
+    // QA-15011: 스코어 팝업 내 "nullm" 텍스트(null + "m" 단위 렌더 버그) 스캔
+    hasNullM = await sp.locator('body').innerText().then(t => /\bnullm\b/i.test(t)).catch(() => false);
+    await sp.close().catch(() => {});
+    await check(admin, { path: `${P} > [스코어] 팝업`, tcRef: `${R}_GRND-11`, tcId: 'GRND-11', desc: '[스코어] 클릭 → 단체 스코어 새 탭 랜딩(스코어카드 노출)', expected: '/RoundGroupScore/ + 스코어카드 행≥1', failMsg: '스코어 팝업 미노출/빈 스코어카드' },
+      async () => { expect(sUrl, '스코어 팝업 URL').toContain('RoundGroupScore'); expect(scoreRows.length, '스코어카드 행 수').toBeGreaterThanOrEqual(1); },
+      { getActual: async () => `${sUrl.split('/club/')[1] || sUrl} · 행 ${scoreRows.length}` });
+  } else {
+    skip({ path: `${P} > [스코어] 팝업`, tcRef: `${R}_GRND-11`, tcId: 'GRND-11', desc: '[스코어] 팝업 노출' }, '새 탭 미발생(window.open 차단/데이터 의존)');
+  }
+
+  // ── GRND-13 스코어 정합성: 합계=전반+후반 · 합계−오버=Par(일정) · 합계≥0 ──
+  if (scoreRows.length) {
+    const par = inferPar(scoreRows);
+    await verifyInvariants(admin, `${P} > 스코어 정합성`, `${R}_SC`, 'GRND-13', scoreRows, r => groupScoreInvariants(r, par));
+  } else {
+    skip({ path: `${P} > 스코어 정합성`, tcRef: `${R}_GRND-13`, tcId: 'GRND-13', desc: '스코어 정합성(합계·Par)' }, '스코어카드 데이터 없음');
+  }
+  // ── GRND-13b "nullm" 텍스트 미노출(QA-15011 회귀 감지) ──────────────
+  //   롱기/니어 값 없는 플레이어 필드에 null + "m" 단위가 합산된 "nullm" 문자열 렌더 버그.
+  //   _extractScore는 NaN 행을 필터해 불변식 사각지대 → 원본 DOM에서 직접 감지.
+  if (sp) {
+    await check(admin, { path: `${P} > 스코어 팝업 nullm 검출`, tcRef: `${R}_GRND-13b`, tcId: 'GRND-13b', desc: '스코어 팝업 "nullm" 텍스트 미노출(QA-15011 회귀 감지)', expected: '"nullm" 미검출', failMsg: '"nullm" 텍스트 감지됨 — null+m 렌더 버그(QA-15011)' },
+      async () => { expect(hasNullM, '"nullm" 노출: QA-15011 미수정 상태').toBe(false); });
+  } else {
+    skip({ path: `${P} > 스코어 팝업 nullm 검출`, tcRef: `${R}_GRND-13b`, tcId: 'GRND-13b', desc: '"nullm" 미노출 검증' }, '스코어 팝업 미오픈(데이터 의존)');
+  }
+
+  // ── GRND-12 [결과집계·출력] 팝업(새 탭) 노출 + 순위/평균 추출 ────
+  type RankResult = { rows: GroupRankRow[]; avg: { all: number; male: number; female: number }; topAward: number; url: string };
+  let rank: RankResult | null = null;
+  const rp = await _openColTab(admin, row, 10);
+  if (rp) {
+    const rUrl = rp.url();
+    rank = await _extractRank(rp).catch(() => null);
+    await rp.close().catch(() => {});
+    const rr = rank;
+    await check(admin, { path: `${P} > [결과집계] 팝업`, tcRef: `${R}_GRND-12`, tcId: 'GRND-12', desc: '[결과집계·출력] 클릭 → 순위/시상 새 탭 랜딩(순위표 노출)', expected: '/RoundGroupRank/ + 순위 행≥1', failMsg: '결과집계 팝업 미노출/빈 순위표' },
+      async () => { expect(rUrl, '결과집계 팝업 URL').toContain('RoundGroupRank'); expect(rr ? rr.rows.length : 0, '순위 행 수').toBeGreaterThanOrEqual(1); },
+      { getActual: async () => rr ? `행 ${rr.rows.length} · 전체평균 ${rr.avg.all}` : '' });
+  } else {
+    skip({ path: `${P} > [결과집계] 팝업`, tcRef: `${R}_GRND-12`, tcId: 'GRND-12', desc: '[결과집계·출력] 팝업 노출' }, '새 탭 미발생(window.open 차단/데이터 의존)');
+  }
+
+  if (rank && rank.rows.length) {
+    const rk: RankResult = rank;
+    // ── GRND-15 순위 정합성: 1..N 연속 · 스코어 단조(상위=저타수) ──
+    //   ⚠ QA-15017: 4,5등 순위 역순 노출 버그(Backlog) — rankOrderInvariants가 FAIL로 자동 감지.
+    await verifyInvariants(admin, `${P} > 순위 정합성`, `${R}_RK`, 'GRND-15', [rk.rows], () => rankOrderInvariants(rk.rows));
+    diff(P, '결과집계 순위표 — 전 순위 단조 정렬(상위=저타수)', '4,5등 순위 역순 노출(QA-15017) — GRND-15 rankOrderInvariants 불변식이 자동 감지(FAIL 시 미수정 상태)', `${R}_RK`, 'JIRA QA-15017 Backlog — GRND-15로 회귀 감지 중');
+    // ── GRND-16 Team Average 정합성: 전체/남자/여자 평균 = mean(스코어) ──
+    const avgInv = teamAvgInvariants(rk.rows, rk.avg);
+    if (avgInv.length)
+      await verifyInvariants(admin, `${P} > Team Average 정합성`, `${R}_AVG`, 'GRND-16', [rk.rows], () => avgInv);
+    else
+      skip({ path: `${P} > Team Average 정합성`, tcRef: `${R}_GRND-16`, tcId: 'GRND-16', desc: 'Team Average 정합성' }, '평균 표시값 미검출');
+    // ── GRND-17 시상(최우수상) 점수 = 최저 스코어 = 1위 스코어 ──
+    const scores = rk.rows.map(r => r.score).filter(Number.isFinite);
+    if (Number.isFinite(rk.topAward) && scores.length)
+      await check(admin, { path: `${P} > 시상 정합성`, tcRef: `${R}_GRND-17`, tcId: 'GRND-17', desc: '최우수상 점수 = 최저 스코어(1위)', expected: `최우수상=${Math.min(...scores)}`, failMsg: '최우수상≠최저스코어' },
+        async () => { expect(rk.topAward, `최우수상 ${rk.topAward} vs 최저 ${Math.min(...scores)}`).toBe(Math.min(...scores)); });
+    else
+      skip({ path: `${P} > 시상 정합성`, tcRef: `${R}_GRND-17`, tcId: 'GRND-17', desc: '최우수상=최저스코어' }, '시상 점수 미검출');
+    // ── GRND-18 교차정합: 결과집계 스코어 = 스코어 팝업 합계(이름 조인) ──
+    if (scoreRows.length) {
+      const byName = new Map(scoreRows.map(s => [s.name, s.total]));
+      const joined = rk.rows.filter(r => byName.has(r.name) && Number.isFinite(r.score));
+      if (joined.length)
+        await check(admin, { path: `${P} > 교차정합`, tcRef: `${R}_GRND-18`, tcId: 'GRND-18', desc: '결과집계 스코어 = 스코어 팝업 합계(이름 조인)', expected: '전 플레이어 일치', failMsg: '두 팝업 스코어 불일치' },
+          async () => { const bad = joined.filter(r => byName.get(r.name) !== r.score).map(r => `${r.name}: 순위${r.score}≠스코어${byName.get(r.name)}`); expect(bad, bad.join(' | ')).toHaveLength(0); });
+      else
+        skip({ path: `${P} > 교차정합`, tcRef: `${R}_GRND-18`, tcId: 'GRND-18', desc: '교차정합(순위↔스코어)' }, '이름 조인 가능 행 없음');
+    } else {
+      skip({ path: `${P} > 교차정합`, tcRef: `${R}_GRND-18`, tcId: 'GRND-18', desc: '교차정합(순위↔스코어)' }, '스코어 팝업 데이터 없음');
+    }
+    // ── QA-15022/15023/15025 결과집계 팝업 추가 이슈 ────────────────────
+    diff(P, '결과집계 팝업 — 신페리오 HD 필드 빈 값·인쇄 출력 정상·상세 스코어 추가 정상 렌더', 'QA-15022(신(더블)페리오 HD 필드에 점수 노출)·QA-15023(인쇄 출력물 틀어짐·높음)·QA-15025(상세 스코어 추가 시 박스 형태) Backlog — 팝업 내부 비파괴 범위 제한으로 직접 검증 불가', `${R}_GRND-12`, 'JIRA QA-15022/15023/15025 Backlog — 수동 검증 대상');
+  } else {
+    for (const [id, d] of [['GRND-15', '순위 정합성'], ['GRND-16', 'Team Average 정합성'], ['GRND-17', '시상=최저스코어'], ['GRND-18', '교차정합(순위↔스코어)']] as const)
+      skip({ path: `${P} > 결과집계 정합성`, tcRef: `${R}_${id}`, tcId: id, desc: d }, '순위표 데이터 없음');
+  }
 }
 
 // ════════════════ 카트관리 - IA No.7 (구조 기반 TC) ════════════════
@@ -1356,6 +1647,8 @@ export async function runReviewList(admin: Page) {
   // 답변내용 입력하라는 토스트 발생(의견 미등록). 의견 등록은 파괴적 동작 → 비파괴 원칙상 스킵.
   skip({ path: `${P} > 골프장 의견 등록 팝업 > 의견등록`, tcRef: `${R}_84`, tcId: 'RVL-84', desc: '필수값 입력 후 [의견등록] → 등록 완료 및 답변상태 변경' },
     '1차 QA FAIL (QA-14889): 답변내용 입력 요구 토스트 발생(등록 미완료) — 파괴적 동작, 비파괴 원칙');
+  // TC No.63 — 2차 QA FAIL (QA-14997): 숨김처리 팝업에서 1500자 초과 입력 시 오류 발생
+  diff(`${P} > 후기 목록 > 숨김처리 팝업`, '숨김처리 팝업 입력 정상 동작 (1500자 이하)', '1500자 초과 입력 시 오류 발생 — 확인 팝업 비정상 동작', `${R}_63`, 'QA-14997 / TC No.63 2차 FAIL — 파괴적 동작(숨김처리 팝업 입력) 자동화 범위 제외, 수동 확인 필요');
   await runCommonActions(admin, P, R);
 }
 
@@ -1377,6 +1670,8 @@ export async function runReviewStats(admin: Page) {
       async () => { await expect(admin.getByRole('columnheader', { name: c, exact: true }).first()).toBeVisible(); });
   await check(admin, { path: `${P} > 차트`, tcRef: `${R}_4`, tcId: 'RVS-04', desc: '후기 통계 차트(svg) 노출(≥1)', expected: 'svg ≥1', failMsg: '차트 미노출' },
     async () => { expect(await admin.locator('svg').count()).toBeGreaterThanOrEqual(1); });
+  // TC No.106 — 2차 QA FAIL (QA-14991): 그래프 영역 옵션 드롭다운 선택 시 UI 이슈 발생
+  diff(`${P} > 그래프 영역 > 옵션 드롭다운`, '옵션 선택 후 해당 항목 그래프 정상 표시', 'UI 이슈 발생 — 옵션 드롭다운 선택 시 그래프 비정상 동작', `${R}_106`, 'QA-14991 / TC No.106 2차 FAIL — 그래프 인터랙션 자동화 범위 제외, 수동 확인 필요');
   // ✨계산 정합성: 통계표 — 건수/평점 ≥0 + '전체' 평점이 5항목 평균인지 자동 추론(L3 ReviewStatsPage)
   const rvsPage = new ReviewStatsPage(admin);
   if (!(await rvsPage.isEmpty().catch(() => true))) {
@@ -1398,7 +1693,8 @@ export async function runAccountList(admin: Page) {
   // L3 PageObject — 계정 리스트(검색 + 테이블 DataGrid)
   const page = new AccountListPage(admin);
   await page.ready();
-  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'ACL-01', desc: '안내 문구 TC 원문 일치', expected: '골프장에 등록된 계정들을 관리할 수 있습니다. 계정의 활성/중지, 패스워드 변경. 로그아웃 등 계정 상태에 대한 변경이 가능합니다.', failMsg: 'UI 불일치(안내 문구)' },
+  // ✨2026-06-24: QA-14999 수정 완료 반영 — '패스워드 변경. 로그아웃' → '패스워드 변경, 로그아웃' (마침표→콤마)
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'ACL-01', desc: '안내 문구 TC 원문 일치', expected: '골프장에 등록된 계정들을 관리할 수 있습니다. 계정의 활성/중지, 패스워드 변경, 로그아웃 등 계정 상태에 대한 변경이 가능합니다.', failMsg: 'UI 불일치(안내 문구)' },
     page.info());
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'ACL-02', desc: '검색(이름 input + vue-select) + [적용](비파괴)', expected: '검색 영역', failMsg: '검색 미노출' },
     async () => { await expect(page.nameSearch()).toBeVisible(); await expect(page.applyBtn().first()).toBeVisible(); });
@@ -1771,6 +2067,7 @@ export async function runCaddyFeePayment(admin: Page) {
     async () => { await expect(admin.locator('.info-box-text')).toBeVisible(); });
 
   // CPAY-02 검색 필터 영역(기간 + 조건) 노출
+
   await check(admin, { path: `${P} > 검색 필터`, tcRef: `${R}_2`, tcId: 'CPAY-02', desc: '검색 필터 영역(기간/조건) 노출', expected: '검색 필터', failMsg: '검색 필터 미노출' },
     async () => { await expect(admin.locator('.datepicker-input, input[placeholder*="날짜"]').first()).toBeVisible(); });
 
@@ -1782,114 +2079,184 @@ export async function runCaddyFeePayment(admin: Page) {
   await check(admin, { path: `${P} > 검색 > 조회`, tcRef: `${R}_4`, tcId: 'CPAY-04', desc: '[검색]/[적용] 버튼 노출', expected: '[검색]/[적용]', failMsg: '검색 버튼 미노출' },
     async () => { await expect(admin.getByRole('button', { name: /검색|적용/ }).first()).toBeVisible(); });
 
-  // CPAY-05 [내보내기] 버튼 노출·활성
-  await check(admin, { path: `${P} > 내보내기`, tcRef: `${R}_5`, tcId: 'CPAY-05', desc: '[내보내기] 버튼 노출·활성(클릭 금지)', expected: '[내보내기]', failMsg: '내보내기 버튼 미노출' },
+  // CPAY-05 [내보내기] 버튼 노출·활성(클릭 금지)
+  await check(admin, { path: `${P} > 내보내기`, tcRef: `${R}_5`, tcId: 'CPAY-05', desc: '[내보내기]/[다운로드] 버튼 노출·활성(비파괴·클릭 미수행)', expected: '[내보내기] enabled', failMsg: '내보내기 버튼 미노출/비활성' },
     async () => { const b = admin.getByRole('button', { name: /내보내기|다운로드/ }).first(); await expect(b).toBeVisible(); await expect(b).toBeEnabled(); });
 
-  // CPAY-06 결제 내역 리스트 테이블 구조 존재
-  await check(admin, { path: `${P} > 리스트`, tcRef: `${R}_6`, tcId: 'CPAY-06', desc: '결제 내역 리스트 테이블 구조 존재', expected: '리스트 테이블', failMsg: '결제 내역 테이블 미노출' },
+  // CPAY-06 결제 내역 테이블 존재
+  await check(admin, { path: `${P} > 결제 내역 테이블`, tcRef: `${R}_6`, tcId: 'CPAY-06', desc: '결제 내역 테이블 구조 존재', expected: '리스트 테이블', failMsg: '결제 내역 테이블 미노출' },
     async () => { await expect(admin.locator('.list-table-group table, .table-overflow-item table').first()).toBeAttached(); });
 
-  // CPAY-07 [경계값] 빈 검색 결과 시 안내 문구(데이터 의존 — 데이터 없는 기간 선택 필요)
-  //   → 실 검증은 데이터 의존이므로 구조 존재 여부만 확인
-  await check(admin, { path: `${P} > 빈 결과 안내`, tcRef: `${R}_7`, tcId: 'CPAY-07', desc: '빈 조회 결과 안내 구조(empty-row 등) 존재(데이터 의존 — 현재 상태 기준)', expected: '빈 결과 구조', failMsg: '빈 결과 안내 구조 미존재' },
-    async () => { const hasEmpty = (await admin.locator('.empty-row, td:has-text("조회된"), td:has-text("데이터가")').count()) > 0; const hasData = (await admin.locator('.list-table-group tbody tr, .table-overflow-item tbody tr').count()) > 0; expect(hasEmpty || hasData, '테이블(데이터) 또는 빈결과 안내 중 하나 존재해야 함').toBeTruthy(); });
+  // CPAY-07 빈 결과 안내 OR 데이터 행 존재(데이터 의존·경계값)
+  await check(admin, { path: `${P} > 테이블 > 데이터`, tcRef: `${R}_7`, tcId: 'CPAY-07', desc: '빈 결과 안내 문구 OR 데이터 행 중 하나 존재(데이터 의존)', expected: '빈결과 안내 또는 데이터 행 ≥1', failMsg: '테이블 내용 미노출' },
+    async () => {
+      const hasEmpty = await admin.locator('.empty-row, td:has-text("조회된"), td:has-text("데이터가")').count() > 0;
+      const hasData = await admin.locator('.list-table-group tbody tr, .table-overflow-item tbody tr').count() > 0;
+      expect(hasEmpty || hasData, '빈결과 안내 또는 데이터 행 중 하나 존재해야 함').toBeTruthy();
+    });
 
   await runCommonActions(admin, P, R);
 }
 
 // ════════════════ 캐디피 관리 > 캐디 자료/신고서 ════════════════
 //   URL: /club/page/caddy-fee-document (추정)
-//   🔴 비파괴: [불러오기]/[내보내기] 노출만(실행 금지). [초기화]도 클릭 금지.
-//   금전·세무 자료 → Critical 기준. TC tcId: CPDOC-01~
+//   🔴 비파괴([불러오기]/[내보내기] 노출만·실행 금지. [초기화]도 클릭 금지). 금전·세무 자료 → Critical 기준.
+//   TC tcId: CPDOC-01~
 export async function runCaddyFeeDocument(admin: Page) {
   const P = '캐디피 관리 > 캐디 자료/신고서';
-  const R = '캐디피 관리_캐디 자료/신고서';
+  const R = '캐디피 관리_캐디 자료';
   await admin.locator('.info-box-text, .contents-box').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
 
   // CPDOC-01 사업자 과세 자료 섹션 노출
-  await check(admin, { path: `${P} > 사업자 과세 자료`, tcRef: `${R}_1`, tcId: 'CPDOC-01', desc: '사업자 과세 자료 섹션(제목/영역) 노출', expected: '사업자 과세 자료 섹션', failMsg: '사업자 과세 자료 섹션 미노출' },
+  await check(admin, { path: `${P} > 과세 자료`, tcRef: `${R}_1`, tcId: 'CPDOC-01', desc: '사업자 과세 자료(신고서) 섹션 노출', expected: '과세 자료 섹션', failMsg: '과세 자료 섹션 미노출' },
     async () => { await expect(admin.locator('.contents-box').filter({ hasText: /사업자|과세\s*자료|신고서/ }).first()).toBeVisible(); });
 
-  // CPDOC-02 [불러오기] 버튼 노출·활성(클릭 금지)
-  await check(admin, { path: `${P} > 불러오기`, tcRef: `${R}_2`, tcId: 'CPDOC-02', desc: '[불러오기] 버튼 노출·활성(비파괴·클릭 미수행)', expected: '[불러오기]', failMsg: '불러오기 버튼 미노출' },
+  // CPDOC-02 [불러오기] 버튼 노출(클릭 금지)
+  await check(admin, { path: `${P} > 불러오기`, tcRef: `${R}_2`, tcId: 'CPDOC-02', desc: '[불러오기] 버튼 노출(비파괴·클릭 미수행)', expected: '[불러오기]', failMsg: '불러오기 버튼 미노출' },
     async () => { await expect(admin.getByRole('button', { name: /불러오기/ }).first()).toBeVisible(); });
 
-  // CPDOC-03 [초기화] 버튼 노출(클릭 금지)
-  await check(admin, { path: `${P} > 초기화`, tcRef: `${R}_3`, tcId: 'CPDOC-03', desc: '[초기화] 버튼 노출(비파괴·클릭 미수행)', expected: '[초기화]', failMsg: '초기화 버튼 미노출' },
+  // CPDOC-03 [초기화] 버튼 노출(클릭 금지 — 세무 데이터 초기화 위험)
+  await check(admin, { path: `${P} > 초기화`, tcRef: `${R}_3`, tcId: 'CPDOC-03', desc: '[초기화] 버튼 노출(비파괴·클릭 절대 금지)', expected: '[초기화]', failMsg: '초기화 버튼 미노출' },
     async () => { await expect(admin.getByRole('button', { name: '초기화' }).first()).toBeVisible(); });
 
-  // CPDOC-04 [내보내기] 버튼 노출·활성(클릭 금지)
-  await check(admin, { path: `${P} > 내보내기`, tcRef: `${R}_4`, tcId: 'CPDOC-04', desc: '[내보내기] 버튼 노출·활성(비파괴·클릭 미수행)', expected: '[내보내기]', failMsg: '내보내기 버튼 미노출' },
+  // CPDOC-04 [내보내기] 버튼 노출(클릭 금지)
+  await check(admin, { path: `${P} > 내보내기`, tcRef: `${R}_4`, tcId: 'CPDOC-04', desc: '[내보내기] 버튼 노출(비파괴·클릭 미수행)', expected: '[내보내기]', failMsg: '내보내기 버튼 미노출' },
     async () => { await expect(admin.getByRole('button', { name: /내보내기/ }).first()).toBeVisible(); });
 
-  // CPDOC-05 자료 테이블(또는 내역 섹션) 구조 존재
-  await check(admin, { path: `${P} > 자료 목록`, tcRef: `${R}_5`, tcId: 'CPDOC-05', desc: '자료 목록 테이블 구조 존재', expected: '자료 테이블', failMsg: '자료 테이블 미노출' },
+  // CPDOC-05 자료 목록 테이블 존재
+  await check(admin, { path: `${P} > 자료 테이블`, tcRef: `${R}_5`, tcId: 'CPDOC-05', desc: '자료 목록 테이블 구조 존재', expected: '자료 테이블', failMsg: '자료 목록 테이블 미노출' },
     async () => { await expect(admin.locator('.list-table-group table, .table-overflow-item table, .contents-box table').first()).toBeAttached(); });
 
   await runCommonActions(admin, P, R);
 }
 
-// ════════════════ IA 구현 여부 ════════════════
-const IA_TREE: { menu: string; subs: string[] }[] = [
-  { menu: '홈', subs: [] },
-  { menu: '라운드관리', subs: ['내장 현황', '내장 통계', '전체 라운드', '단체 라운드', '라운드 설정', '카트 관리', '홀별 정산 관리'] },
-  // ✨드리프트(2026-06-16): '관제 모니터' 신규 SNB 진입 확인(카트이동경로 확인 통합 추정) → IA_TREE 추가. '카트이동경로 확인'은 제거 추적 유지(미구현).
-  { menu: '관제 관리', subs: ['관제 모니터', '메시지 기록 조회', '라이브채팅 공지 조회', '아이콘 관리', '카트이동경로 확인'] },
-  { menu: '태블릿 운영 관리', subs: ['태블릿 기능 설정', '메시지 관리', '홀 이벤트 관리'] },
-  { menu: '홀맵 관리', subs: ['홀맵 구역 설정', '카트패스 진입여부 설정', '티샷 유의 거리 설정', '홀맵 미리보기'] },
-  { menu: '코스 운영 관리', subs: ['핀 포지션 관리', '핀 포지션 변경이력', '핀 포지션 분석', '코스 분석', '그린 스피드', '골프장 소식'] },
-  { menu: '경기 진행 관리', subs: ['진행시간 표준 설정', '진행시간 실시간', '진행시간 조회', '진행시간 통계'] },
-  { menu: '캐디 관리', subs: ['캐디 리스트', '캐디 등록 관리', '캐디 실적'] },
-  { menu: '캐디피 관리', subs: ['캐디피 설정', '캐디피 통계', '캐디피 결제 내역', '캐디 자료/신고서'] },
-  { menu: '배토 관리', subs: ['배토 기록 조회', '배토 통계'] },
-  { menu: '식음 관리', subs: ['버전 및 설정', '그늘집 및 TOS관리', '식당 관리', '상품 등록 관리', '식당·품목 매핑', '주문 내역 관리'] },   // ✎ '버전 업데이트'→'버전 및 설정'(실 SNB, 2026-06-09 정정)
-  { menu: '고객 평가 관리', subs: ['캐디 평가', '고객 평가', '식음료 평가', '후기 리스트', '후기 통계'] },
-  { menu: '대회', subs: ['대회관리'] },
-  { menu: '계정 관리', subs: ['계정 리스트', '계정 권한 관리', '계정 관리인 리스트'] },  // ✨2026-06-23: 계정 권한 관리 추가(기존 누락)
-];
-const ALIASES: string[][] = [['홈', 'home']];   // 혼용 허용 (확인 후 추가)
-function aliasMatch(snbText: string, iaName: string): boolean {
-  const a = norm(snbText).toLowerCase(), b = norm(iaName).toLowerCase();
-  return a.includes(b) || b.includes(a) || ALIASES.some(g => g.includes(a) && g.includes(b));
-}
-
-// ════════════════ 관제 관리 > 관제 모니터 (SNB有/TC無 추적) ════════════════
-//   ✨드리프트(2026-06-16): SNB에 '관제 모니터' 신규 메뉴 확인. 카트이동경로 확인이 통합된 것으로 추정.
-//   범위제외 가능(관제팝업 정책 동일 — 별도 모니터링 화면). 상세 TC 미작성 → noTC로 추적.
+// ════════════════ 관제 관리 > 관제 모니터 ════════════════
+//   URL: /club/page/control-monitor (추정)
+//   ⚠ 신규 SNB 메뉴(드리프트 2026-06-16) — 상세 TC 미작성. 범위제외 가능(구 관제팝업 통합 추정).
+//   → noTC 기록 + diff 추적만 수행(비파괴·검증 없음)
 export async function runControlMonitor(admin: Page) {
-  noTC('관제 관리 > 관제 모니터', admin.url(), '신규 메뉴(2026-06-16, 카트이동경로 확인 통합 추정) — 범위제외 가능(상세 TC 미작성)');
+  const P = '관제 관리 > 관제 모니터';
+  noTC(P, '', '관제 모니터 TC 미작성 — SNB有·범위제외 가능(드리프트 2026-06-16)');
+  void admin; // unused param — noTC 전용 함수
+  diff(P, '관제 모니터 TC 및 자동화 검증', '드리프트(2026-06-16): SNB 신규 메뉴 등장(구 카트이동경로 통합 추정) — 상세 TC 미작성·범위제외 가능', '관제관리_관제모니터', 'SNB有·TC無 — 추가 TC 작성 또는 범위제외 결정 필요');
 }
 
-// ════════════════ 계정 관리 > 계정 관리인 리스트 (SNB 미구현 추적) ════════════════
-//   IA 테이블: 미구현 (SNB 메뉴 없음/명칭 불일치, 2026-06-22 기준)
-//   TC 커버리지: 진행중 (강나연 TC 작성 중) — SNB 구현 후 상세 스위트 작성 필요
-//   → SNB 부재 시 noTC 추적. 구현 확인 후 runAccountAdminList 본체로 교체.
-export async function runAccountAdminList(admin: Page) {
-  noTC('계정 관리 > 계정 관리인 리스트', admin.url(), '미구현 — SNB 메뉴 없음/명칭 불일치(2026-06-22 IA 분석). TC 작성 진행중 — 구현 후 스위트 교체 필요');
+// ════════════════ 계산 불변식: 내장 통계 ════════════════
+export async function runRoundStatsCalc(admin: Page) {
+  const P = '라운드관리 > 내장 통계 > 정합성';
+  const R = '내장통계_CALC';
+  const page = new RoundStatsPage(admin);
+  await page.ready();
+  if (await page.isEmpty()) { skip({ path: P, tcRef: R, tcId: 'RS-CALC', desc: '내장 통계 계산 정합성' }, '데이터 없음(행 0건)'); return; }
+  const recs = await page.table.records();
+  const rows = recs.map(parseRoundStatsRow);
+  await verifyInvariants(admin, P, R, 'RS-CALC', rows, roundStatsInvariants);
 }
+
+// ════════════════ 계산 불변식: 코스 분석 ════════════════
+export async function runCourseAnalysisCalc(admin: Page) {
+  const P = '코스 운영 관리 > 코스 분석 > 정합성';
+  const R = '코스_CALC';
+  const page = new CourseAnalysisPage(admin);
+  if (await page.isEmpty()) { skip({ path: P, tcRef: R, tcId: 'CA-CALC', desc: '코스 분석 계산 정합성' }, '데이터 없음(행 0건)'); return; }
+  const rows = await page.rows();
+  await verifyInvariants(admin, P, R, 'CA-CALC', rows, courseInvariants);
+}
+
+// ════════════════ 계산 불변식: 후기 통계 ════════════════
+export async function runReviewStatsCalc(admin: Page) {
+  const P = '고객 평가 관리 > 후기 통계 > 정합성';
+  const R = '후기통계_CALC';
+  const page = new ReviewStatsPage(admin);
+  if (await page.isEmpty()) { skip({ path: P, tcRef: R, tcId: 'RV-CALC', desc: '후기 통계 계산 정합성' }, '데이터 없음(행 0건)'); return; }
+  const rows = await page.rows();
+  await verifyInvariants(admin, P, R, 'RV-CALC', rows, reviewInvariants);
+  await lockOrSkipFormula(admin, P, R, 'RV-RATIO', "'전체' 평점 = 평균(코스·그린·서비스·진행·식음료)", rows, r => r.overall, OVERALL_RATING_CANDIDATES);
+}
+
+// ════════════════ 계산 불변식: 식음 주문 내역 ════════════════
+export async function runFnbOrderHistoryCalc(admin: Page) {
+  const P = '식음 관리 > 주문 내역 관리 > 정합성';
+  const R = '식음_CALC';
+  const page = new FnbOrderPage(admin);
+  await page.ready();
+  const rows = await page.rankingRows();
+  if (!rows.length) { skip({ path: P, tcRef: R, tcId: 'FO-CALC', desc: '식음 주문 불변식' }, '랭킹 데이터 없음(데이터 의존)'); return; }
+  // 주문금액 = 공급가 + 부가세
+  await verifyInvariants(admin, P, R, 'FO-CALC', rows, r => {
+    const ok = Number.isFinite(r.supply) && Number.isFinite(r.vat) && Number.isFinite(r.amount)
+      ? [{ name: '주문금액 = 공급가 + 부가세', ok: r.supply + r.vat === r.amount, detail: `${r.name}: ${r.supply}+${r.vat}=${r.supply + r.vat} vs ${r.amount}` }]
+      : [];
+    if (Number.isFinite(r.cnt) && r.cnt > 0 && Number.isFinite(r.amount) && Number.isFinite(r.avg))
+      ok.push({ name: '평균 = round(금액/건수)', ok: Math.round(r.amount / r.cnt) === r.avg, detail: `${r.name}: round(${r.amount}/${r.cnt})=${Math.round(r.amount / r.cnt)} vs ${r.avg}` });
+    return ok;
+  });
+}
+
+// ════════════════ IA 구현여부 — 전 SNB 메뉴 순회 ════════════════
+//   IA_TREE: 변경표 기준 전 메뉴(구현/미구현 모두). navigateMenu 성공 = 구현, 실패 = 미구현.
+const IA_TREE: [string, string, string?][] = [
+  // [대메뉴, 소메뉴, note?]
+  ['라운드 관리', '내장 현황'],
+  ['라운드 관리', '내장 통계'],
+  ['라운드 관리', '전체 라운드'],
+  ['라운드 관리', '라운드 설정'],
+  ['라운드 관리', '홀별 정산 관리'],
+  ['라운드 관리', '카트 관리'],
+  ['라운드 관리', '단체 라운드'],
+  ['관제 관리', '관제 모니터', 'SNB有·TC無(범위제외 가능)'],
+  ['관제 관리', '아이콘 관리'],
+  ['관제 관리', '라이브채팅 공지 조회'],
+  ['관제 관리', '카트이동경로 확인', '드리프트(2026-06-16): SNB 제거(관제 모니터 통합 추정)'],
+  ['관제 관리', '메시지 기록 조회'],
+  ['태블릿 운영 관리', '태블릿 기능 설정'],
+  ['태블릿 운영 관리', '메시지 관리'],
+  ['태블릿 운영 관리', '홀 이벤트 관리'],
+  ['홀맵 관리', '홀맵 구역 설정'],
+  ['홀맵 관리', '카트패스 진입여부 설정'],
+  ['홀맵 관리', '티샷 유의 거리 설정'],
+  ['홀맵 관리', '홀맵 미리보기'],
+  ['코스 운영 관리', '핀 포지션 관리'],
+  ['코스 운영 관리', '핀 포지션 변경이력'],
+  ['코스 운영 관리', '핀 포지션 분석'],
+  ['코스 운영 관리', '코스 분석'],
+  ['코스 운영 관리', '그린 스피드'],
+  ['코스 운영 관리', '골프장 소식'],
+  ['경기 진행 관리', '진행시간 표준 설정'],
+  ['경기 진행 관리', '진행시간 실시간'],
+  ['경기 진행 관리', '진행시간 조회'],
+  ['경기 진행 관리', '진행시간 통계'],
+  ['캐디 관리', '캐디 리스트'],
+  ['캐디 관리', '캐디 등록 관리'],
+  ['캐디 관리', '캐디 실적'],
+  ['캐디피 관리', '캐디피 설정', '환경 조건부(태블릿 캐디피 결제 ON)'],
+  ['캐디피 관리', '캐디피 통계', '환경 조건부'],
+  ['캐디피 관리', '캐디피 결제 내역', '환경 조건부'],
+  ['캐디피 관리', '캐디 자료/신고서', '환경 조건부'],
+  ['배토 관리', '배토 기록 조회'],
+  ['배토 관리', '배토 통계'],
+  ['식음 관리', '버전 및 설정'],
+  ['식음 관리', '식당 관리'],
+  ['식음 관리', '상품 등록 관리'],
+  ['식음 관리', '주문 내역 관리'],
+  ['식음 관리', '그늘집 및 TOS관리', 'IA 변경표 포함·SNB 부재(미구현)'],
+  ['식음 관리', '식당 및 품목 매핑', 'IA 변경표 포함·SNB 부재(미구현)'],
+  ['고객 평가 관리', '고객 평가'],
+  ['고객 평가 관리', '캐디 평가'],
+  ['고객 평가 관리', '후기 리스트'],
+  ['고객 평가 관리', '후기 통계'],
+  ['고객 평가 관리', '식음료 평가', 'SNB 부재(미구현)'],
+  ['계정 관리', '계정 리스트'],
+  ['계정 관리', '계정 권한 관리'],
+  ['계정 관리', '계정 관리인 리스트', 'SNB 부재(미구현)'],
+  ['캐디피 관리', '캐디피 캐디자료/신고서', '환경 조건부·별칭'],
+  ['대회', '대회관리'],
+];
 
 export async function runIA(admin: Page) {
-  for (const { menu, subs } of IA_TREE) {
-    const parents = admin.locator('.depth-1-title');
-    const pc = await parents.count();
-    let pFound = false;
-    for (let i = 0; i < pc; i++) if (aliasMatch(await parents.nth(i).innerText().catch(() => ''), menu)) { pFound = true; await parents.nth(i).click().catch(() => {}); break; }
-    if (subs.length === 0) { recordIA(menu, '', pFound ? '구현' : '미구현', pFound ? admin.url() : '', pFound ? '대메뉴 존재' : 'SNB 대메뉴 없음'); continue; }
-    if (!pFound) { for (const sub of subs) recordIA(menu, sub, '미구현', '', 'SNB 대메뉴 없음/명칭 불일치'); continue; }
-    for (const sub of subs) {
-      try {
-        const links = admin.locator('.depth-2 a'); const n = await links.count(); let link = null;
-        for (let i = 0; i < n; i++) if (norm(await links.nth(i).innerText().catch(() => '')).includes(norm(sub))) { link = links.nth(i); break; }
-        if (!link) { recordIA(menu, sub, '미구현', '', 'SNB 메뉴 없음/명칭 불일치'); continue; }
-        if (!(await link.isVisible().catch(() => false))) { for (let i = 0; i < pc; i++) if (aliasMatch(await parents.nth(i).innerText().catch(() => ''), menu)) { await parents.nth(i).click().catch(() => {}); break; } await link.waitFor({ state: 'visible', timeout: 4_000 }).catch(() => {}); }
-        const before = admin.url(); await link.click().catch(() => {});
-        await admin.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {}); await admin.waitForTimeout(600);
-        const url = admin.url();
-        if (/\/club\//.test(url) && url !== before) recordIA(menu, sub, '구현', url, '진입 성공');
-        else if (/\/club\//.test(url)) recordIA(menu, sub, '구현', url, '진입(URL 동일)');
-        else recordIA(menu, sub, '진입불가', url, '클릭 후 미진입');
-      } catch (e: any) { recordIA(menu, sub, '진입불가', '', String(e?.message || e).slice(0, 80)); }
-    }
+  for (const [menu, sub, note] of IA_TREE) {
+    const ok = await navigateMenu(admin, menu, sub).catch(() => false);
+    const url = ok ? admin.url() : '';
+    recordIA(menu, sub, ok ? '구현' : '미구현', url, note ?? '');
   }
 }

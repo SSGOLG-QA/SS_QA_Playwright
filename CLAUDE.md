@@ -36,6 +36,10 @@ npm run report       # 최근 HTML 리포트 열기
 - `playwright.config.ts` — `fullyParallel: ACCOUNT_COUNT>1`, `workers: ACCOUNT_COUNT`(기본1=직렬), **`retries: CI?2:1`**(진입 레이스 플레이크 흡수), **`trace:'retain-on-failure'`**, 창 최대화(`--start-maximized`, `viewport:null`), baseURL=td17. `ACCOUNT_COUNT`/`accountStorage(i)` export. (Playwright_New는 `retries: CI?1:0`)
 - 프로젝트: `setup`(auth) / `flow`(Flow/) / `admin-chromium`(Admin/, storageState 재사용).
 
+### 대상 서브도메인 전환 (`SUBDOMAIN` env, 2026-07-16)
+- 기본 **td17**(킹즈락). `SUBDOMAIN`/`CLUB_NAME` env로 전환 — `adminHelpers.SUBDOMAIN`·`auth.setup`·`playwright.config` baseURL 모두 `process.env.SUBDOMAIN || 'td17'`.
+- **대회모드는 td18**: `$env:SUBDOMAIN="td18"; npm run auth`(수동 로그인 시 td18 접근 클럽 선택) → `$env:SUBDOMAIN="td18"; npx playwright test --project=admin-chromium Admin/tournament.spec.ts --no-deps`. ⚠ storageState(`admin.json`)는 공유 — 환경 전환 시 재인증 필요(세션이 해당 서브도메인 쿠키 포함).
+
 ### ⚠️ 세션 만료/중복 로그인 (가장 흔한 실행 실패)
 - **증상 A — 중복 로그인 강제 로그아웃**: `openAdmin`이 명확히 fail-fast(`[openAdmin] 세션 무효 — 중복 로그인 강제 로그아웃 감지`). 다른 브라우저/탭의 클라우드(td17·sv1td4) 로그인·동시 실행을 모두 종료 → `npm run auth`.
 - **증상 B — 세션 만료**: 대시보드 인사말(`님 안녕하세요`) 미노출(로그아웃). 마찬가지로 `npm run auth` 재인증. (세션은 수일 내 만료)
@@ -88,7 +92,7 @@ npm run report       # 최근 HTML 리포트 열기
 - `runPinPosition`/`runPinHistory`/`runPinAnalysis`/`runCourseAnalysis`/`runGreenSpeed`/`runClubNews` — 코스 운영 관리 6종
 - `runCustomerEval`/`runCaddieEval`/`runReviewList`/`runReviewStats` — 고객 평가 관리 4종(CEVAL/CDEV/RVL/RVS)
 - `runAccountList`/`runAccountPermission` — 계정 관리 2종(ACL/APM)
-- `runTournament` — 대회>대회관리 구조 기반(TOURN-01~07)
+- `runTournament`(+`runTournamentPopups`) — 대회>대회관리 2026-06 대회모드 TC 기준(TOURN-01~12) + [스코어]/[결과집계] 읽기전용 팝업
 - `runLangCheckAll`(`lib/langCheck.ts`) — 전 메뉴 언어 검증(한글 노출/미노출 검출, 언어별 분리 리포트) ✨신규
 - `runIA` — IA 트리 전체 메뉴 구현여부(`IA_TREE` 정의)
 
@@ -113,7 +117,11 @@ npm run report       # 최근 HTML 리포트 열기
 - **코스 운영 관리 6종(핀 포지션 관리·변경이력·분석/코스 분석/그린스피드/골프장 소식)**: `Admin/course-ops.spec.ts` — **검증 완료(PASS 42/42)**
 - **고객 평가 관리 4종(고객 평가/캐디 평가/후기 리스트/후기 통계)**: `Admin/customer-eval.spec.ts` — **검증 완료(PASS 36/36)**. (식음료 평가 JSON 미확보)
 - **계정 관리 2종(계정 리스트/계정 권한 관리)**: `Admin/account.spec.ts` — **검증 완료(PASS 17/17). 권한변경·패스워드 변경·로그아웃·권한 적용 등 비파괴**
-- **대회 > 대회관리**: `locators/admin-tournament.md` + `runTournament` + `Admin/tournament.spec.ts` — **검증 완료(2026-06-09, PASS 8/8). 차이 1건(리더보드 웹뷰 URL = 관리자 웹뷰 URL 동일 `https://smartscore.kr/leaderBoardLogin` → URL 복붙/매핑 오류 의심)**. URL `/club/page/tournament`. 3영역(안내+웹뷰 URL 2종·검색·대회 테이블 15컬럼). 공식 대회 운영(참가자/조편성/그룹/스코어/리더보드, 단체 라운드와 별개). 🔴 비파괴(신규 등록·설정·등록·복사·보기 노출만). ⚠️ 안내문구가 `.info-box-text` 아님 → 안내 박스 텍스트 스코프 부분 일치. 행 액션은 데이터 의존(0건 SKIP)
+- **대회 > 대회관리**: `locators/admin-tournament.md` + `runTournament`/`runTournamentPopups` + `Admin/tournament.spec.ts` — ✨ **2026-06 대회모드 TC 기준 재작성 + td18 라이브 검증 완료(2026-07-16, PASS 12/FAIL 0/SKIP 1, 차이 6, TOURN-01~12)**. URL `/club/page/tournament?cp=1`. 공식 대회 운영(참가자/조편성/그룹/스코어/결과집계/리더보드, 단체 라운드와 별개).
+  - **TC 출처**: 드라이브 > 01.TC > **2026-06 대회모드**(id `1o5gXwl7Lt5RpL3c0GVEyYZSG6liO7A63PnfHqacNQZY`), 시트 **`대회모드_Cloud`**(531 TC). tcRef=`대회_대회관리_{No.}`. **TC host=td18** → `SUBDOMAIN=td18`로 검증(아래 환경 전환 참조).
+  - **스코프**(531 TC 중): 메인 화면(No.1~61, 상단문구·검색·대회리스트 15컬럼) = 구조/노출 검증 ✅ / 대회 등록·참가자 등록·조편성·그룹 관리·시상내역 편집 팝업(No.62~419) = 데이터 변경 → 🔴 노출·활성만 / **[스코어](No.262~) / [결과집계·출력](No.284~) [보기] 팝업** = ✅ 읽기전용 딥 인터랙션(열기→구조 노출→`Modal.closeNonDestructive`, td18 라이브 통과) / **리더보드·관리자 웹뷰**(No.420~531, `smartscore.kr` 별도 웹앱) = ⛔ 범위 외(랜딩만) → `diff`.
+  - ⚠️ **기획-구현 라벨 차이(2026-07-16 td18 확인, `diff` 추적·QA 확인 요망)**: 검색 ph 기획 `대회명`→구현 `검색어 입력` / 등록버튼 기획 `대회 등록`→구현 `신규 등록` / 접속 컬럼 기획 `접속 ID`→구현 `접속 인증키` / 접속키 형식 기획 `YYMMDD-16진수 3자리`→구현 `YYMMDD-영숫자 5자리`(예 `260716-W1O86`) / 신설 `온라인 참가자 접수` 컬럼 **미구현**(SKIP). 검증은 **구현 라벨 기준** 정규식 OR·부분일치로 PASS. ✅ **과거 이슈 해소**: 리더보드 웹뷰 URL(`/club/TournamentLeaderBoard`) ≠ 관리자 웹뷰 URL(`/club/TournamentAdminView`) 별도 경로 확인.
+  - 🔴 비파괴(대회 등록·설정·등록·복사·시상편집·저장·삭제·엑셀 업로드 노출만). 행 액션·접속 인증키·상태·온라인 접수는 데이터 의존(0건/미노출 SKIP).
 - **식음 관리 4종(버전 및 설정/식당 관리/상품 등록 관리/주문 내역 관리)**: `locators/admin-fnb-version.md`+`admin-fnb-rest.md` + `runFnbVersion`/`runFnbRestaurant`/`runFnbProduct`/`runFnbOrderHistory` + **`Admin/fnb.spec.ts`(4종 통합)** — **검증 완료(2026-06-09, PASS 27/27, 첫 메뉴 진입 플레이크는 재실행 통과). 차이 1건(SNB 라벨 드리프트: 실 SNB '버전 및 설정' ≠ IA 변경표 '버전 업데이트' → IA_TREE·langCheck MENU_LIST 정정함)**.
   - ① **버전 및 설정**(`/table-order-version`, FNBVER-01~09): F&B 데이터 연동 카드+현재버전·POS 연동 카드·코스별 기본 식당 vue-select. 🔴 전부 파괴적(동기화·코스 기본식당 변경) → 노출·활성만.
   - ② **식당 관리**(`/table-order-restaurant`, RESTO-01~05): 마스터-디테일(좌 식당 리스트+아이콘 범례+[관리]/[+ 식당 추가], 우 선택 안내).

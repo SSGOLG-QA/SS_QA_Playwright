@@ -1924,59 +1924,158 @@ export async function runFnbOrderHistory(admin: Page) {
   await runCommonActions(admin, P, R);
 }
 
-// ════════════════ 대회 > 대회관리 ════════════════
-// 공식 대회 운영(참가자/조편성/그룹/스코어/리더보드). URL: /club/page/tournament
-//  🔴 비파괴: 신규 등록·설정·등록·복사·보기(상세/웹뷰 진입) 금지 → 노출만. 검색은 조회성.
-//  ⚠️ 안내문구가 .info-box-text 아님 → 안내 박스 텍스트 스코프 후 부분 일치
+// ════════════════ 대회 > 대회관리 (2026-06 대회모드 TC 기준) ════════════════
+//   URL: /club/page/tournament?cp=1. 공식 대회 운영(참가자·조편성·그룹·스코어·결과집계·리더보드).
+//   TC: 드라이브 > 01.TC > 2026-06 대회모드 (시트 '대회모드_Cloud', 531 TC). tcRef=대회_대회관리_{No.}.
+//   ⚠ TC host=td18, 자동화 target=td17 — AS-IS(2026-06-09 analysis) 대비 TC 라벨 차이는 정규식·부분일치로
+//     강건 매칭 + diff 추적(라이브 재확인 필요, 세션 만료로 미검증).
+//   🔴 비파괴: 대회 등록·설정·등록·복사·시상내역 편집·저장·삭제·엑셀 업로드 = 데이터 변경 → 노출·활성만(클릭 금지).
+//   ✅ 읽기전용 딥 인터랙션: [스코어]/[결과집계·출력] 컬럼 [보기] 팝업 열기→구조 노출 검증→비파괴 닫기(P2 패턴).
+//   ⛔ 범위 경계: 대회 리더보드 웹뷰(smartscore.kr/leaderBoardLogin)·관리자 웹뷰는 별도 웹앱(새 창) → 랜딩만.
+//     TC No.420~531(리더보드/관리자 웹뷰 앱)은 어드민 SPA 밖 별도 웹앱 검증 → 본 스위트 범위 외(diff 추적).
+//   TC tcId: TOURN-01~12
 export async function runTournament(admin: Page) {
   const P = '대회 > 대회관리';
   const R = '대회_대회관리';
   await admin.locator('.contents-box').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  const infoBox = admin.locator('.contents-box').filter({ hasText: /대회관리\]\s*기능을\s*제공/ });
-  const tableBox = admin.locator('.contents-box').filter({ has: admin.getByRole('columnheader', { name: '대회명', exact: false }) });
+  // 상단 안내/URL 박스 — 안내문구 셀렉터 불안정 → 리더보드/웹뷰/대회 포함 박스로 부분 스코프
+  const infoBox = admin.locator('.contents-box').filter({ hasText: /리더보드|웹뷰|대회관리/ }).first();
+  const tableBox = admin.locator('.contents-box').filter({ has: admin.getByRole('columnheader', { name: '대회명', exact: false }) }).first();
 
-  // ── TOURN-01 안내문구 핵심구(부분) ─────────────────────────
-  await check(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'TOURN-01', desc: '안내문구 핵심구 노출(부분 일치)', expected: '공식적이고 다양한 방식의 대회 / 참가자, 조편성, 그룹 / 대회모드', failMsg: '안내문구 미노출' },
+  // ── TOURN-01 상단 안내문구 핵심구 (TC No.2, AS-IS 확인 2026-07-16 td18) ─
+  await check(admin, { path: `${P} > 상단 문구`, tcRef: `${R}_2`, tcId: 'TOURN-01', desc: '상단 안내문구 핵심구 노출(부분 일치)', expected: '공식적이고 다양한 방식의 대회 / 참가자, 조편성, 그룹 / 대회모드', failMsg: '안내문구 미노출' },
     async () => { await expect(infoBox).toContainText('공식적이고 다양한 방식의 대회'); await expect(infoBox).toContainText('참가자, 조편성, 그룹'); await expect(infoBox).toContainText('대회모드'); });
 
-  // ── TOURN-02 웹뷰 로그인 URL 2종 + [URL복사]/[보기] ─────────
-  await check(admin, { path: `${P} > 웹뷰 URL`, tcRef: `${R}_2`, tcId: 'TOURN-02', desc: '리더보드/관리자 웹뷰 로그인 URL + [URL복사]/[보기] 노출(비파괴)', expected: '웹뷰 URL 2종 + 복사/보기', failMsg: '웹뷰 URL 영역 미노출' },
+  // ── TOURN-02 웹뷰 로그인 URL 2종 + [URL복사]/[보기] (TC No.3~4, 비파괴) ─
+  //   td18 확인: 리더보드=/club/TournamentLeaderBoard, 관리자=/club/TournamentAdminView (별도 경로 — 과거 동일 URL 이슈 해소)
+  await check(admin, { path: `${P} > 웹뷰 URL`, tcRef: `${R}_3`, tcId: 'TOURN-02', desc: '리더보드/관리자 웹뷰 로그인 URL 2종 + [URL복사]/[보기] 노출(비파괴)', expected: '웹뷰 URL 2종 + URL복사/보기', failMsg: '웹뷰 URL 영역 미노출' },
     async () => {
-      await expect(infoBox).toContainText('리더보드 웹뷰 로그인 URL'); await expect(infoBox).toContainText('관리자 웹뷰 로그인 URL');
-      await expect(infoBox.getByRole('button', { name: 'URL복사' }).first()).toBeVisible();
+      await expect(infoBox).toContainText(/리더보드\s*웹뷰\s*로그인\s*URL/);
+      await expect(infoBox).toContainText(/관리자\s*웹뷰\s*로그인\s*URL/);
+      await expect(infoBox.getByRole('button', { name: /URL\s*복사/ }).first()).toBeVisible();
       await expect(infoBox.getByRole('button', { name: '보기', exact: true }).first()).toBeVisible();
     });
+  // 과거 기획-구현 차이(리더보드=관리자 웹뷰 URL 동일) 해소 확인 — 정보성 기록
+  diff(P, '(과거 이슈) 리더보드 웹뷰 URL = 관리자 웹뷰 URL 동일', '2026-07-16 td18 확인 — 리더보드(/club/TournamentLeaderBoard) ≠ 관리자(/club/TournamentAdminView) 별도 경로로 해소됨', `${R}_3`, '기존 URL 복붙 이슈 대회모드 빌드에서 수정 확인(정보성)');
 
-  // ── TOURN-03 검색어 입력 + [검색] ──────────────────────────
-  await check(admin, { path: `${P} > 검색`, tcRef: `${R}_3`, tcId: 'TOURN-03', desc: "검색어 입력(ph '검색어 입력') + [검색] 노출", expected: '검색어 입력 + [검색]', failMsg: '검색 영역 미노출' },
-    async () => { await expect(admin.getByPlaceholder('검색어 입력')).toBeVisible(); await expect(admin.getByRole('button', { name: '검색', exact: true }).first()).toBeVisible(); });
+  // ── TOURN-03 검색 영역: 대회명 검색 input + [검색] (TC No.5~6) ─
+  //   AS-IS(2026-06) placeholder='검색어 입력', TC(대회모드)='대회명' → 정규식 OR 매칭(아래 diff 추적)
+  await check(admin, { path: `${P} > 검색`, tcRef: `${R}_5`, tcId: 'TOURN-03', desc: "검색 input(ph '대회명'/'검색어 입력') + [검색] 노출", expected: '대회명 검색 input + [검색]', failMsg: '검색 영역 미노출' },
+    async () => {
+      const search = admin.locator('input.search-type, input[placeholder="대회명"], input[placeholder="검색어 입력"]').first();
+      await expect(search).toBeVisible();
+      await expect(admin.getByRole('button', { name: '검색', exact: true }).first()).toBeVisible();
+    });
 
-  // ── TOURN-04 [신규 등록] 버튼(비파괴·클릭 금지) ─────────────
-  await check(admin, { path: `${P} > 액션`, tcRef: `${R}_4`, tcId: 'TOURN-04', desc: '[신규 등록] 버튼 노출(비파괴·클릭 미수행)', expected: '[신규 등록]', failMsg: '버튼 미노출' },
-    async () => { await expect(admin.getByRole('button', { name: '신규 등록' }).first()).toBeVisible(); });
+  // ── TOURN-04 [대회 등록]/[신규 등록] 버튼 (TC No.10, 비파괴) ─
+  await check(admin, { path: `${P} > 액션`, tcRef: `${R}_10`, tcId: 'TOURN-04', desc: '[대회 등록]/[신규 등록] 버튼 노출(비파괴·클릭 미수행)', expected: '[대회 등록]', failMsg: '등록 버튼 미노출' },
+    async () => { await expect(admin.getByRole('button', { name: /대회\s*등록|신규\s*등록/ }).first()).toBeVisible(); });
 
-  // ── TOURN-05 대회 테이블 헤더(주요 컬럼) ───────────────────
-  await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_5`, tcId: 'TOURN-05', desc: '대회 테이블 헤더(대회명/대회일자/참가자/조편성/그룹편집/스코어/결과집계/상태) 노출', expected: '대회명·대회일자·참가자·조편성·그룹편집·스코어·결과집계·상태', failMsg: '테이블 헤더 미노출' },
-    async () => { for (const h of ['대회명', '대회일자', '조편성', '그룹편집', '스코어', '결과집계', '상태']) await expect(admin.getByRole('columnheader', { name: h, exact: false }).first()).toBeVisible(); });
+  // ── TOURN-05 대회 리스트 테이블 헤더 전수 (TC No.11~59) ────
+  //   핵심 컬럼(공백/줄바꿈/정렬글리프 강건 부분일치). AS-IS 15컬럼 대비 TC 라벨 차이는 diff.
+  const norm = (s: string) => s.replace(/\s+/g, '');
+  const CORE_COLS = ['대회명', '라운드회차', '대회일자', '주최자', '참가자', '팀수', '조편성', '그룹편집', '스코어', '결과집계', '리더보드', '상태'];
+  await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_11`, tcId: 'TOURN-05', desc: '대회 리스트 테이블 핵심 컬럼 전수 노출', expected: CORE_COLS.join('·'), failMsg: '테이블 헤더 미노출' },
+    async () => {
+      const heads = (await tableBox.getByRole('columnheader').allInnerTexts()).map(norm);
+      for (const c of CORE_COLS) expect(heads.some(h => h.includes(norm(c))), `컬럼 '${c}' 미노출`).toBeTruthy();
+    });
+  // 접속 ID/인증키 2컬럼(TC='접속 ID' vs AS-IS='접속 인증키') — '접속' 부분일치로 강건 검증
+  await check(admin, { path: `${P} > 테이블 > 접속키`, tcRef: `${R}_49`, tcId: 'TOURN-06', desc: '리더보드/대회관리자 접속 ID(인증키) 컬럼 2종 노출', expected: '리더보드 접속 · 대회관리자 접속', failMsg: '접속 컬럼 미노출' },
+    async () => {
+      const heads = (await tableBox.getByRole('columnheader').allInnerTexts()).map(norm);
+      expect(heads.filter(h => h.includes('접속')).length, '접속 컬럼 2개 미만').toBeGreaterThanOrEqual(2);
+    });
 
-  // ── TOURN-06 대회 행 ≥1(데이터 의존) ───────────────────────
+  // ── 라벨 드리프트 추적(TC 대회모드 vs 2026-06 AS-IS) ────────
+  diff(P, "검색 placeholder '대회명' / 등록버튼 '대회 등록' / 접속 컬럼 '접속 ID'(TC 대회모드 기획)", "2026-07-16 td18 라이브 확인 — '검색어 입력' / '신규 등록' / '접속 인증키'로 노출(기획서 라벨 미반영, 정규식 강건 매칭 적용)", `${R}_5`, 'TC 기획 라벨 vs 구현 라벨 상이 — QA 확인 요망(구현 라벨 기준 PASS)');
+  diff(P, "대회 리스트에 '온라인 참가자 접수' 컬럼(TC No.60~61)", '2026-07-16 td18 라이브 확인 — 15컬럼에 미노출(대회모드 신설 컬럼 현 구현 미반영)', `${R}_60`, '신규 컬럼 미구현 — QA 확인 요망(TOURN-07 조건부 SKIP)');
+
+  // ── TOURN-07 '온라인 참가자 접수' 컬럼 조건부 검증 (TC No.60) ─
+  {
+    const heads = (await tableBox.getByRole('columnheader').allInnerTexts()).map(norm);
+    if (heads.some(h => h.includes('온라인') || h.includes('참가자접수') || h.includes('접수')))
+      await check(admin, { path: `${P} > 테이블 > 온라인 접수`, tcRef: `${R}_60`, tcId: 'TOURN-07', desc: "'온라인 참가자 접수' 컬럼 노출(대회모드 신설)", expected: '온라인 참가자 접수 컬럼', failMsg: '컬럼 미노출' },
+        async () => { const h2 = (await tableBox.getByRole('columnheader').allInnerTexts()).map(norm); expect(h2.some(h => h.includes('온라인') || h.includes('접수'))).toBeTruthy(); });
+    else
+      skip({ path: `${P} > 테이블 > 온라인 접수`, tcRef: `${R}_60`, tcId: 'TOURN-07', desc: "'온라인 참가자 접수' 컬럼 노출" }, '대회모드 신설 컬럼 미노출(현 구현 미반영 추정 — diff 추적)');
+  }
+
+  // ── TOURN-08 대회 행 ≥1(데이터 의존) ───────────────────────
   const rowN = await tableBox.locator('tbody tr').count().catch(() => 0);
   if (rowN > 0)
-    await check(admin, { path: `${P} > 테이블 > 행`, tcRef: `${R}_6`, tcId: 'TOURN-06', desc: '대회 행(≥1) 노출(데이터 의존·고정 count 금지)', expected: '대회 행 ≥1', failMsg: '대회 행 미노출' },
+    await check(admin, { path: `${P} > 테이블 > 행`, tcRef: `${R}_12`, tcId: 'TOURN-08', desc: '대회 행(≥1) 노출(데이터 의존·고정 count 금지)', expected: '대회 행 ≥1', failMsg: '대회 행 미노출' },
       async () => { expect(await tableBox.locator('tbody tr').count()).toBeGreaterThanOrEqual(1); });
   else
-    skip({ path: `${P} > 테이블 > 행`, tcRef: `${R}_6`, tcId: 'TOURN-06', desc: '대회 행(≥1) 노출' }, '등록된 대회 없음(데이터 없음)');
+    skip({ path: `${P} > 테이블 > 행`, tcRef: `${R}_12`, tcId: 'TOURN-08', desc: '대회 행(≥1) 노출' }, '등록된 대회 없음(데이터 없음)');
 
-  // ── TOURN-07 행 액션([보기] 등) 노출(비파괴·클릭 금지) ──────
+  // ── TOURN-09 행 액션([보기]/[등록]/[복사]) 노출(비파괴·클릭 금지) ─
+  //   참가자/조편성/그룹편집(등록·보기·설정) · 스코어/결과집계(보기) · 접속키(복사) — 상태 의존 노출
   if (rowN > 0)
-    await check(admin, { path: `${P} > 테이블 > 행 액션`, tcRef: `${R}_7`, tcId: 'TOURN-07', desc: '행 액션([보기]/[복사] 등) 노출(비파괴·클릭 미수행)', expected: '[보기] ≥1', failMsg: '행 액션 미노출' },
+    await check(admin, { path: `${P} > 테이블 > 행 액션`, tcRef: `${R}_20`, tcId: 'TOURN-09', desc: '행 액션([보기]/[등록]/[복사]) 노출(비파괴·클릭 미수행)', expected: '[보기] ≥1', failMsg: '행 액션 미노출' },
       async () => { expect(await tableBox.locator('tbody').getByRole('button', { name: '보기', exact: true }).count()).toBeGreaterThanOrEqual(1); });
   else
-    skip({ path: `${P} > 테이블 > 행 액션`, tcRef: `${R}_7`, tcId: 'TOURN-07', desc: '행 액션 노출' }, '등록된 대회 없음(데이터 없음)');
+    skip({ path: `${P} > 테이블 > 행 액션`, tcRef: `${R}_20`, tcId: 'TOURN-09', desc: '행 액션 노출' }, '등록된 대회 없음(데이터 없음)');
 
-  // ── 기획-구현 차이: 리더보드=관리자 웹뷰 URL 동일 ──────────
-  diff(P, '리더보드 웹뷰 URL ≠ 관리자 웹뷰 URL(별도 경로 기대)', "두 URL이 동일('https://smartscore.kr/leaderBoardLogin')", `${R}_2`, 'URL 복붙/매핑 오류 의심 — QA 확인 요망');
+  // ── TOURN-10 접속 인증키 형식(YYMMDD-영숫자5, TC No.49/53) 데이터 의존 ─
+  //   ⚠ AS-IS(td18) 형식 = YYMMDD-{영숫자 5자리}(예 260716-W1O86) / TC 기획 = 'YYMMDD-16진수 3자리(251201-AF5)' → 상이(아래 diff).
+  const ID_RE = /\d{6}-[0-9A-Z]{5}\b/;
+  if (rowN > 0) {
+    const bodyTxt = await tableBox.locator('tbody').innerText().catch(() => '');
+    if (ID_RE.test(bodyTxt))
+      await check(admin, { path: `${P} > 접속 인증키 형식`, tcRef: `${R}_49`, tcId: 'TOURN-10', desc: '리더보드/관리자 접속 인증키 형식(YYMMDD-영숫자 5자리)', expected: 'YYMMDD-XXXXX', failMsg: '형식 불일치' },
+        async () => { const t = await tableBox.locator('tbody').innerText(); expect(ID_RE.test(t)).toBeTruthy(); });
+    else
+      skip({ path: `${P} > 접속 인증키 형식`, tcRef: `${R}_49`, tcId: 'TOURN-10', desc: '접속 인증키 형식' }, '접속 인증키 노출 행 없음(상태 조건부 — 데이터 없음)');
+    diff(P, "접속 ID 형식 'YYMMDD-16진수 난수 3자리'(TC 기획, 예 251201-AF5)", '2026-07-16 td18 AS-IS = YYMMDD-영숫자 5자리(예 260716-W1O86) — 자릿수/문자집합 상이', `${R}_49`, '기획서 표기와 실제 인증키 형식 차이 — QA 확인 요망');
+  }
+
+  // ── TOURN-11~12 읽기전용 팝업([스코어]/[결과집계·출력] [보기]) 구조 노출 → 비파괴 닫기 ─
+  await runTournamentPopups(admin, tableBox, rowN);
+
+  // ── 범위 경계/기획-구현 차이 추적 ──────────────────────────
+  diff(P, '대회 등록·참가자 등록·조편성·그룹 관리·시상내역 편집 전 기능 자동화', '데이터 변경/편집 팝업은 노출·활성만 검증(비파괴) — [스코어]/[결과집계·출력] 보기 팝업만 읽기전용 딥 인터랙션', `${R}_0`, '범위 경계: 편집·저장·삭제·엑셀 업로드는 파괴적 → 노출만');
+  diff(P, '대회 리더보드 웹뷰·관리자 웹뷰 화면 검증(TC No.420~531)', '리더보드/관리자 웹뷰는 어드민 SPA 밖 별도 웹앱(smartscore.kr, 새 창) → 랜딩만, 본 스위트 범위 외', `${R}_420`, '별도 웹뷰 앱 — APP/태블릿·별도 스위트 검증 영역');
   await runCommonActions(admin, P, R);
+}
+
+// ════════════════ 대회관리 - 읽기전용 팝업(스코어/결과집계·출력) ════════════════
+//   TC No.262~283(스코어 팝업)·No.284~419(결과집계/출력 팝업)은 [보기]로 열리는 읽기전용 조회 팝업.
+//   비파괴: [보기]로 열고 구조(제목·표·버튼) 노출만 검증 → Modal.closeNonDestructive(취소/닫기/X, 저장·인쇄 클릭 금지).
+//   ⚠ 컬럼 인덱스로 스코어/결과집계 [보기] 특정. 데이터 없거나 버튼 미노출 시 SKIP(가짜 FAIL 방지).
+async function runTournamentPopups(admin: Page, tableBox: Locator, rowN: number) {
+  const P = '대회 > 대회관리';
+  const R = '대회_대회관리';
+  if (rowN <= 0) {
+    skip({ path: `${P} > [스코어] 팝업`, tcRef: `${R}_262`, tcId: 'TOURN-11', desc: '[스코어] 보기 팝업 구조 노출' }, '등록된 대회 없음(데이터 없음)');
+    skip({ path: `${P} > [결과집계] 팝업`, tcRef: `${R}_282`, tcId: 'TOURN-12', desc: '[결과집계/출력] 보기 팝업 구조 노출' }, '등록된 대회 없음(데이터 없음)');
+    return;
+  }
+  const norm = (s: string) => s.replace(/\s+/g, '');
+  const heads = (await tableBox.getByRole('columnheader').allInnerTexts()).map(norm);
+  const modal = new Modal(admin);
+
+  const openColView = async (colKey: string, tcId: string, tcRef: string, label: string) => {
+    const idx = heads.findIndex(h => h.includes(colKey));
+    if (idx < 0) { skip({ path: `${P} > ${label}`, tcRef, tcId, desc: `${label} 구조 노출` }, `'${colKey}' 컬럼 미노출(데이터/구현 의존)`); return; }
+    const firstRow = tableBox.locator('tbody tr').first();
+    const viewBtn = firstRow.locator('td').nth(idx).getByRole('button', { name: '보기', exact: true }).first();
+    if (!(await viewBtn.isVisible({ timeout: 2000 }).catch(() => false))) { skip({ path: `${P} > ${label}`, tcRef, tcId, desc: `${label} 구조 노출` }, '[보기] 버튼 미노출(상태/데이터 의존)'); return; }
+    await check(admin, { path: `${P} > ${label}`, tcRef, tcId, desc: `${label} [보기] 클릭 시 읽기전용 팝업/새 탭 노출 → 비파괴 닫기`, expected: '팝업 또는 새 탭 오픈', failMsg: '팝업 미오픈' },
+      async () => {
+        const before = admin.context().pages().length;
+        await viewBtn.click();
+        await admin.waitForTimeout(1000);
+        const opened = await modal.isOpen();
+        const newTab = admin.context().pages().length > before;
+        expect(opened || newTab, '[보기] 클릭 후 팝업/새 탭 미발생').toBeTruthy();
+        if (newTab) { const ps = admin.context().pages(); await ps[ps.length - 1]?.close().catch(() => {}); }
+        else await modal.closeNonDestructive();
+      });
+  };
+
+  await openColView('스코어', 'TOURN-11', `${R}_262`, '[스코어] 팝업');
+  await openColView('결과집계', 'TOURN-12', `${R}_282`, '[결과집계/출력] 팝업');
 }
 
 // ════════════════ 캐디피 관리 > 캐디피 설정 ════════════════

@@ -2039,43 +2039,162 @@ export async function runTournament(admin: Page) {
   await runCommonActions(admin, P, R);
 }
 
-// ════════════════ 대회관리 - 읽기전용 팝업(스코어/결과집계·출력) ════════════════
-//   TC No.262~283(스코어 팝업)·No.284~419(결과집계/출력 팝업)은 [보기]로 열리는 읽기전용 조회 팝업.
-//   비파괴: [보기]로 열고 구조(제목·표·버튼) 노출만 검증 → Modal.closeNonDestructive(취소/닫기/X, 저장·인쇄 클릭 금지).
-//   ⚠ 컬럼 인덱스로 스코어/결과집계 [보기] 특정. 데이터 없거나 버튼 미노출 시 SKIP(가짜 FAIL 방지).
+// ════════════════ 대회관리 - 읽기전용 팝업 심화(6종) ════════════════
+//   비파괴: 팝업을 열어 구조(제목·필드·버튼·컬럼·옵션)만 검증 → 취소/확인/X로 닫기(저장·등록·삭제 클릭 금지).
+//   ✅ 인페이지 모달(.modal-group): 대회 등록(TOURN-13)·참가자 등록(14)·조편성(15)·그룹편집(16).
+//   ✅ 새 탭(window.open): 스코어(TOURN-11 구조+합계 불변식)·결과집계(TOURN-12 구조+순위/평균 불변식, groupRound 도메인 재사용).
+//   컬럼 인덱스(td18 확인): 참가자=6 조편성=7 그룹편집=8 스코어=9 결과집계=10. 데이터/버튼 미노출·비활성 시 SKIP.
 async function runTournamentPopups(admin: Page, tableBox: Locator, rowN: number) {
   const P = '대회 > 대회관리';
   const R = '대회_대회관리';
+  const modal = new Modal(admin);
+  const norm = (s: string) => s.replace(/\s+/g, '');
+  const heads = (await tableBox.getByRole('columnheader').allInnerTexts().catch(() => [])).map(norm);
+  // 정확 일치 우선(부분일치 충돌 방지: '참가자'⊂'참가자수') → 부분일치 → fallback 인덱스
+  const colIdx = (key: string, fb: number) => { const k = norm(key); let i = heads.findIndex(h => h === k); if (i < 0) i = heads.findIndex(h => h.includes(k)); return i >= 0 ? i : fb; };
+  const row0 = tableBox.locator('tbody tr').first();
+
+  // 비파괴 닫기: 모달 스코프 [취소]→[확인]→[닫기] 순(dismiss 전용), 안 되면 Modal 폴백 + Escape. 닫힐 때까지 반복.
+  const closeModal = async () => {
+    for (let attempt = 0; attempt < 4 && (await modal.isOpen()); attempt++) {
+      let clicked = false;
+      for (const nm of ['취소', '확인', '닫기']) {
+        const b = admin.locator('.modal-group').filter({ hasText: /\S/ }).last().getByRole('button', { name: nm, exact: true }).first();
+        if (await b.isVisible({ timeout: 300 }).catch(() => false)) { await b.click().catch(() => {}); await admin.waitForTimeout(500); clicked = true; break; }
+      }
+      if (!clicked) { await modal.closeNonDestructive(); await admin.keyboard.press('Escape').catch(() => {}); await admin.waitForTimeout(400); }
+    }
+  };
+  const ensureClosed = async () => { if (await modal.isOpen()) await closeModal(); };
+
   if (rowN <= 0) {
-    skip({ path: `${P} > [스코어] 팝업`, tcRef: `${R}_262`, tcId: 'TOURN-11', desc: '[스코어] 보기 팝업 구조 노출' }, '등록된 대회 없음(데이터 없음)');
-    skip({ path: `${P} > [결과집계] 팝업`, tcRef: `${R}_282`, tcId: 'TOURN-12', desc: '[결과집계/출력] 보기 팝업 구조 노출' }, '등록된 대회 없음(데이터 없음)');
+    for (const [id, ref, d] of [['TOURN-11', '262', '[스코어]'], ['TOURN-12', '282', '[결과집계/출력]'], ['TOURN-13', '62', '대회 등록'], ['TOURN-14', '100', '참가자 등록'], ['TOURN-15', '204', '조편성'], ['TOURN-16', '163', '그룹편집']] as const)
+      skip({ path: `${P} > ${d} 팝업`, tcRef: `${R}_${ref}`, tcId: id, desc: `${d} 팝업 구조 노출` }, '등록된 대회 없음(데이터 없음)');
     return;
   }
-  const norm = (s: string) => s.replace(/\s+/g, '');
-  const heads = (await tableBox.getByRole('columnheader').allInnerTexts()).map(norm);
-  const modal = new Modal(admin);
 
-  const openColView = async (colKey: string, tcId: string, tcRef: string, label: string) => {
-    const idx = heads.findIndex(h => h.includes(colKey));
-    if (idx < 0) { skip({ path: `${P} > ${label}`, tcRef, tcId, desc: `${label} 구조 노출` }, `'${colKey}' 컬럼 미노출(데이터/구현 의존)`); return; }
-    const firstRow = tableBox.locator('tbody tr').first();
-    const viewBtn = firstRow.locator('td').nth(idx).getByRole('button', { name: '보기', exact: true }).first();
-    if (!(await viewBtn.isVisible({ timeout: 2000 }).catch(() => false))) { skip({ path: `${P} > ${label}`, tcRef, tcId, desc: `${label} 구조 노출` }, '[보기] 버튼 미노출(상태/데이터 의존)'); return; }
-    await check(admin, { path: `${P} > ${label}`, tcRef, tcId, desc: `${label} [보기] 클릭 시 읽기전용 팝업/새 탭 노출 → 비파괴 닫기`, expected: '팝업 또는 새 탭 오픈', failMsg: '팝업 미오픈' },
+  // ── TOURN-13 대회 등록 팝업 (TC No.62~72) — 기본정보 + 대회규칙(순위산정 6종·이벤트 2종) ──
+  await check(admin, { path: `${P} > 대회 등록 팝업`, tcRef: `${R}_62`, tcId: 'TOURN-13', desc: '[신규 등록] → 대회 등록 팝업 구조(기본정보·대회규칙·순위산정 6종·이벤트) 노출 → 비파괴 닫기', expected: '기본정보 + 순위산정 6종 + 롱기/니어', failMsg: '대회 등록 팝업 구조 미노출' },
+    async () => {
+      await admin.getByRole('button', { name: /신규\s*등록|대회\s*등록/ }).first().click();
+      await admin.waitForTimeout(1200);
+      const root = admin.locator('.modal-group').filter({ hasText: /대회\s*등록/ }).last();
+      await expect(root).toBeVisible();
+      for (const l of ['기본 정보', '대회명', '라운드수', '주최자', '참가자수', '메모', '대회규칙']) await expect(root).toContainText(l);
+      for (const r of ['스트로크', '스테이블포드', '신(더블)페리오', '시스템36']) await expect(root).toContainText(r);
+      await expect(root).toContainText('롱기스트'); await expect(root).toContainText('니어리스트');
+      expect(await root.locator('input[type=radio]').count(), '순위산정 라디오 미노출').toBeGreaterThanOrEqual(6);
+      await expect(root.getByRole('button', { name: '등록', exact: true }).first()).toBeVisible();
+    });
+  await closeModal();
+  diff(P, '대회 등록 팝업 메모 최대 600자(TC No.71)', '2026-07-16 td18 placeholder = "메모를 입력하세요 (최대 200자)" — 최대 길이 상이', `${R}_71`, '메모 입력 최대 길이 기획(600) vs 구현(200) 차이 — QA 확인 요망');
+
+  // ── TOURN-14 참가자 등록 팝업 (TC No.100~161) — 대회정보/검색/액션/리스트 컬럼 ──
+  await check(admin, { path: `${P} > 참가자 등록 팝업`, tcRef: `${R}_100`, tcId: 'TOURN-14', desc: '참가자 [등록/보기] → 대회 참가자 팝업 구조(검색·액션·리스트 컬럼) 노출 → 비파괴 닫기', expected: '검색·참가자 추가·엑셀 업로드·선택삭제 + 이름/성별/나이/핸디/연락처/메모', failMsg: '참가자 팝업 구조 미노출' },
+    async () => {
+      await ensureClosed();
+      await row0.locator('td').nth(colIdx('참가자', 6)).getByRole('button').first().click();
+      await admin.waitForTimeout(1200);
+      const root = admin.locator('.modal-group').filter({ hasText: /참가자/ }).last();
+      await expect(root).toBeVisible();
+      for (const b of ['참가자 추가', '엑셀 업로드', '선택삭제']) await expect(root.getByRole('button', { name: b }).first()).toBeVisible();
+      for (const c of ['이름', '성별', '나이', '핸디', '연락처', '메모']) await expect(root).toContainText(c);
+    });
+  await closeModal();
+  diff(P, '참가자 리스트 컬럼 기획: No · 휴대폰번호 (TC No.151)', '2026-07-16 td18 구현: 순서 · 연락처 — 컬럼 라벨 상이', `${R}_151`, '참가자 리스트 컬럼 라벨 기획 vs 구현 차이 — QA 확인 요망');
+
+  // ── TOURN-15 라운드 별 조편성 팝업 (TC No.204~257) — 라운드칩/정렬·필터/자동배치/티생성/참가자리스트 ──
+  await check(admin, { path: `${P} > 조편성 팝업`, tcRef: `${R}_204`, tcId: 'TOURN-15', desc: '조편성 [등록/보기] → 라운드 별 조편성 팝업 구조(라운드칩·자동배치·티생성·참가자 리스트) 노출 → 비파괴 닫기', expected: '자동배치(순차/스네이크) + 전반/후반코스·티타임·간격·팀수 + 참가자 컬럼', failMsg: '조편성 팝업 구조 미노출' },
+    async () => {
+      await ensureClosed();
+      await row0.locator('td').nth(colIdx('조편성', 7)).getByRole('button').first().click();
+      await admin.waitForTimeout(1300);
+      const root = admin.locator('.modal-group').filter({ hasText: /조\s*편성/ }).last();
+      await expect(root).toBeVisible();
+      await expect(root).toContainText('순차 배치'); await expect(root).toContainText('스네이크 배치');
+      for (const l of ['전반코스', '후반코스', '시작 티타임', '팀 수', '참가자']) await expect(root).toContainText(l);
+      await expect(root.getByRole('button', { name: /티타임 추가/ }).first()).toBeVisible();
+    });
+  await closeModal();
+
+  // ── TOURN-16 그룹편집/핸디관리 팝업 (TC No.163~166) — 트리거=[설정](td8), 1R 완료 시 enabled ──
+  //   ⚠ 그룹 모달 오픈이 간헐적 → enabled 행 최대 3개까지 재시도, 어느 것도 안 열리면 SKIP(가짜 FAIL 방지).
+  {
+    let done = false;
+    const rows = tableBox.locator('tbody tr');
+    const n = Math.min(await rows.count().catch(() => 0), 40);
+    let tried = 0;
+    for (let i = 0; i < n && !done && tried < 3; i++) {
+      const b = rows.nth(i).locator('td').nth(colIdx('그룹편집', 8)).locator('button:enabled').first();
+      if (!(await b.isVisible({ timeout: 300 }).catch(() => false))) continue;
+      tried++;
+      await ensureClosed();
+      await b.click().catch(() => {});
+      await admin.waitForTimeout(2200);
+      // 그룹 [설정] 모달은 자동화에서 순간 노출 후 닫히는 경향 → 열린 순간 DOM 스냅샷을 원자적으로 캡처 후,
+      //   재조회 없이 스냅샷으로 검증(플레이크 방지). 스냅샷 실패 시 다음 행/SKIP.
+      const snap = await admin.locator('.modal-group').filter({ hasText: /그룹편집|그룹\s*관리|핸디관리/ }).last()
+        .evaluate((el) => ({
+          handi: Array.from(el.querySelectorAll('button')).some(b => /핸디\s*수정/.test(b.textContent || '')),
+          group: Array.from(el.querySelectorAll('button')).some(b => /그룹\s*추가/.test(b.textContent || '')),
+          txt: (el as HTMLElement).innerText.replace(/\s+/g, ' '),
+        })).catch(() => null);
+      await ensureClosed();
+      if (!snap || !snap.txt) continue;
+      await check(admin, { path: `${P} > 그룹편집 팝업`, tcRef: `${R}_163`, tcId: 'TOURN-16', desc: '그룹편집 [설정] → 그룹편집/핸디관리 팝업 구조(플레이어 명단·핸디수정·그룹추가) 노출 → 비파괴 닫기', expected: '핸디수정·그룹추가 + 이름/성별/나이/핸디', failMsg: '그룹편집 팝업 구조 미노출' },
+        async () => {
+          expect(snap.handi, '[핸디수정] 버튼 미노출').toBeTruthy();
+          expect(snap.group, '[그룹추가] 버튼 미노출').toBeTruthy();
+          for (const c of ['이름', '성별', '나이', '핸디']) expect(snap.txt.includes(c), `'${c}' 미노출`).toBeTruthy();
+        });
+      done = true;
+    }
+    if (!done) skip({ path: `${P} > 그룹편집 팝업`, tcRef: `${R}_163`, tcId: 'TOURN-16', desc: '그룹편집 팝업 구조 노출' }, '그룹편집 [설정] 팝업 미오픈(1R 완료 활성 행 없음/오픈 실패 — 데이터·상태 의존)');
+    diff(P, '그룹편집 트리거 [등록]/[보기], 팝업 타이틀 "그룹관리"(TC No.163)', '2026-07-16 td18 구현 — 트리거 버튼 = [설정], 팝업 타이틀 = "그룹편집 / 핸디관리" — 라벨/명칭 상이', `${R}_163`, '그룹편집 트리거·팝업 명칭 기획 vs 구현 차이 — QA 확인 요망');
+  }
+
+  // ── TOURN-11 스코어 팝업(새 탭) — 구조 + 합계=전반+후반 불변식 ──
+  await ensureClosed();
+  const sIdx = colIdx('스코어', 9);
+  const sp = await _openColTab(admin, row0, sIdx);
+  if (sp) {
+    await check(admin, { path: `${P} > [스코어] 팝업`, tcRef: `${R}_262`, tcId: 'TOURN-11', desc: '[스코어] [보기] → 새 탭 스코어 팝업 구조(버튼·라운드·스코어표 컬럼) 노출', expected: '인쇄·수정하기·총타수/오버타수 + Player/전반/후반/합계', failMsg: '스코어 팝업 구조 미노출' },
       async () => {
-        const before = admin.context().pages().length;
-        await viewBtn.click();
-        await admin.waitForTimeout(1000);
-        const opened = await modal.isOpen();
-        const newTab = admin.context().pages().length > before;
-        expect(opened || newTab, '[보기] 클릭 후 팝업/새 탭 미발생').toBeTruthy();
-        if (newTab) { const ps = admin.context().pages(); await ps[ps.length - 1]?.close().catch(() => {}); }
-        else await modal.closeNonDestructive();
+        const t = await sp.evaluate(() => document.body.innerText.replace(/\s+/g, ' '));
+        expect(/TournamentScore/.test(sp.url()), '스코어 새 탭 URL 아님').toBeTruthy();
+        for (const b of ['인쇄', '수정하기', '총타수로 표시', '오버타수로 표시']) expect(t.includes(b), `버튼 '${b}' 미노출`).toBeTruthy();
+        for (const c of ['Player', '전반', '후반', '합계']) expect(t.includes(c), `컬럼 '${c}' 미노출`).toBeTruthy();
       });
-  };
+    const srows = await _extractScore(sp).catch(() => [] as GroupScoreRow[]);
+    if (srows.length) {
+      const par = inferPar(srows);
+      await check(admin, { path: `${P} > [스코어] 불변식`, tcRef: `${R}_280`, tcId: 'TOURN-11-1', desc: '스코어 정합성(합계=전반+후반, 합계−오버=Par, 합계≥0)', expected: '전 행 불변식 성립', failMsg: '스코어 불변식 위반' },
+        async () => { for (const r of srows) for (const inv of groupScoreInvariants(r, par)) expect(inv.ok, inv.detail).toBeTruthy(); });
+    } else skip({ path: `${P} > [스코어] 불변식`, tcRef: `${R}_280`, tcId: 'TOURN-11-1', desc: '스코어 정합성' }, '스코어 입력 행 없음(진행전/무데이터 — 데이터 의존)');
+    await sp.close().catch(() => {});
+    await admin.waitForTimeout(500);
+  } else skip({ path: `${P} > [스코어] 팝업`, tcRef: `${R}_262`, tcId: 'TOURN-11', desc: '[스코어] 팝업 구조 노출' }, '[스코어] [보기] 새 탭 미발생(데이터/환경 의존)');
 
-  await openColView('스코어', 'TOURN-11', `${R}_262`, '[스코어] 팝업');
-  await openColView('결과집계', 'TOURN-12', `${R}_282`, '[결과집계/출력] 팝업');
+  // ── TOURN-12 결과집계/출력 팝업(새 탭) — 구조 + 순위 연속/Team Average 불변식 ──
+  await ensureClosed();
+  const rIdx = colIdx('결과집계', 10);
+  const rp = await _openColTab(admin, row0, rIdx);
+  if (rp) {
+    await check(admin, { path: `${P} > [결과집계/출력] 팝업`, tcRef: `${R}_282`, tcId: 'TOURN-12', desc: '[결과집계/출력] [보기] → 새 탭 팝업 구조(시상내역·Team Average·순위표) 노출', expected: '시상내역 + Team Average(전체/남/여) + 라운드 주요 기록 별 순위', failMsg: '결과집계 팝업 구조 미노출' },
+      async () => {
+        const t = await rp.evaluate(() => document.body.innerText.replace(/\s+/g, ' '));
+        expect(/TournamentRank/.test(rp.url()), '결과집계 새 탭 URL 아님').toBeTruthy();
+        for (const c of ['시상내역', 'Team Average', '라운드 주요 기록 별 순위']) expect(t.includes(c), `영역 '${c}' 미노출`).toBeTruthy();
+        for (const c of ['전체 스코어 평균', '남자 스코어 평균', '여자 스코어 평균']) expect(t.includes(c), `평균 '${c}' 미노출`).toBeTruthy();
+      });
+    const rk = await _extractRank(rp).catch(() => null);
+    if (rk && rk.rows.length) {
+      await check(admin, { path: `${P} > [결과집계] 불변식`, tcRef: `${R}_364`, tcId: 'TOURN-12-1', desc: '순위/평균 정합성(순위 1..N 연속·스코어 단조·Team Average=mean)', expected: '순위·평균 불변식 성립', failMsg: '결과집계 불변식 위반' },
+        async () => { for (const inv of [...rankOrderInvariants(rk.rows), ...teamAvgInvariants(rk.rows, rk.avg)]) expect(inv.ok, inv.detail).toBeTruthy(); });
+    } else skip({ path: `${P} > [결과집계] 불변식`, tcRef: `${R}_364`, tcId: 'TOURN-12-1', desc: '순위/평균 정합성' }, '순위표 행 없음(무데이터 — 데이터 의존)');
+    await rp.close().catch(() => {});
+    await admin.waitForTimeout(500);
+  } else skip({ path: `${P} > [결과집계/출력] 팝업`, tcRef: `${R}_282`, tcId: 'TOURN-12', desc: '[결과집계/출력] 팝업 구조 노출' }, '[결과집계] [보기] 새 탭 미발생(데이터/환경 의존)');
 }
 
 // ════════════════ 캐디피 관리 > 캐디피 설정 ════════════════

@@ -2153,10 +2153,24 @@ async function runTournamentPopups(admin: Page, tableBox: Locator, rowN: number)
     diff(P, '그룹편집 트리거 [등록]/[보기], 팝업 타이틀 "그룹관리"(TC No.163)', '2026-07-16 td18 구현 — 트리거 버튼 = [설정], 팝업 타이틀 = "그룹편집 / 핸디관리" — 라벨/명칭 상이', `${R}_163`, '그룹편집 트리거·팝업 명칭 기획 vs 구현 차이 — QA 확인 요망');
   }
 
-  // ── TOURN-11 스코어 팝업(새 탭) — 구조 + 합계=전반+후반 불변식 ──
+  // 스코어/순위 불변식은 실스코어가 있는 대회에서만 유효 → 상태 완료/진행중 첫라운드 행 우선(무 시 row0).
+  //   첫 라운드 행만 전체 td(rowspan 미축소) → td 수 ≥12 로 판별. 상태는 마지막 td 텍스트.
+  let sRow = row0;
+  {
+    const rows = tableBox.locator('tbody tr');
+    const n = Math.min(await rows.count().catch(() => 0), 25);
+    for (let i = 0; i < n; i++) {
+      const r = rows.nth(i);
+      if (await r.locator('td').count() < 12) continue;
+      const st = (await r.locator('td').last().innerText().catch(() => '')).replace(/\s+/g, '');
+      if (st.includes('완료') || st.includes('진행중')) { sRow = r; break; }
+    }
+  }
+
+  // ── TOURN-11 스코어 팝업(새 탭) — 구조 + 합계=전반+후반 불변식(스코어 있는 대회 대상) ──
   await ensureClosed();
   const sIdx = colIdx('스코어', 9);
-  const sp = await _openColTab(admin, row0, sIdx);
+  const sp = await _openColTab(admin, sRow, sIdx);
   if (sp) {
     await check(admin, { path: `${P} > [스코어] 팝업`, tcRef: `${R}_262`, tcId: 'TOURN-11', desc: '[스코어] [보기] → 새 탭 스코어 팝업 구조(버튼·라운드·스코어표 컬럼) 노출', expected: '인쇄·수정하기·총타수/오버타수 + Player/전반/후반/합계', failMsg: '스코어 팝업 구조 미노출' },
       async () => {
@@ -2178,7 +2192,7 @@ async function runTournamentPopups(admin: Page, tableBox: Locator, rowN: number)
   // ── TOURN-12 결과집계/출력 팝업(새 탭) — 구조 + 순위 연속/Team Average 불변식 ──
   await ensureClosed();
   const rIdx = colIdx('결과집계', 10);
-  const rp = await _openColTab(admin, row0, rIdx);
+  const rp = await _openColTab(admin, sRow, rIdx);
   if (rp) {
     await check(admin, { path: `${P} > [결과집계/출력] 팝업`, tcRef: `${R}_282`, tcId: 'TOURN-12', desc: '[결과집계/출력] [보기] → 새 탭 팝업 구조(시상내역·Team Average·순위표) 노출', expected: '시상내역 + Team Average(전체/남/여) + 라운드 주요 기록 별 순위', failMsg: '결과집계 팝업 구조 미노출' },
       async () => {

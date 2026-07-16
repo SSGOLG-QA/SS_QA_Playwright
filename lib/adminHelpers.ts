@@ -5,7 +5,8 @@ import { expect, Page, BrowserContext } from '@playwright/test';
 // ──────────────────────────────────────────────────────────────
 
 export const DASHBOARD_URL = 'https://sv1td4.smartscore.kr/ko/dashboard';
-export const SUBDOMAIN = 'td17';
+// 대상 서브도메인 — 기본 td17. `SUBDOMAIN=td18` 등 env로 전환(대회모드=td18 검증 등).
+export const SUBDOMAIN = process.env.SUBDOMAIN || 'td17';
 
 // 대시보드(세션 재사용) → td17 → 경기관제 [어드민 가기] → 어드민 홈
 export async function openAdmin(page: Page, context: BrowserContext): Promise<Page> {

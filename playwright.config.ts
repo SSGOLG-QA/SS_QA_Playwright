@@ -31,7 +31,7 @@ export default defineConfig({
   reporter: [['list'], ['html', { open: 'never' }]],
 
   use: {
-    baseURL: 'https://td17.smartscore.kr',
+    baseURL: `https://${process.env.SUBDOMAIN || 'td17'}.smartscore.kr`,
     actionTimeout: 15_000,
     // 첫 실패에도 트레이스 확보(재시도 전제인 on-first-retry보다 견고)
     trace: 'retain-on-failure',

@@ -23,8 +23,8 @@ import path from 'path';
 
 const DASHBOARD_URL = 'https://sv1td4.smartscore.kr/ko/dashboard';
 const LOGIN_URL = 'https://sv1td4.smartscore.kr/ko/login';
-const SUBDOMAIN = 'td17';
-const CLUB_NAME = '킹즈락';
+const SUBDOMAIN = process.env.SUBDOMAIN || 'td17';   // env 전환(대회모드=td18)
+const CLUB_NAME = process.env.CLUB_NAME || '킹즈락';   // CI 자동 로그인 클럽(수동 로그인은 사용자 선택)
 
 // CI 자동 로그인 모드: SS_USERNAME / SS_PASSWORD 환경변수가 모두 있을 때 활성화
 const CI_AUTO_LOGIN = Boolean(process.env.CI && process.env.SS_USERNAME && process.env.SS_PASSWORD);

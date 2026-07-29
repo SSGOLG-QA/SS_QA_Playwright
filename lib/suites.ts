@@ -2087,7 +2087,9 @@ async function runTournamentPopups(admin: Page, tableBox: Locator, rowN: number)
       await expect(root.getByRole('button', { name: '등록', exact: true }).first()).toBeVisible();
     });
   await closeModal();
-  diff(P, '대회 등록 팝업 메모 최대 600자(TC No.71)', '2026-07-16 td18 placeholder = "메모를 입력하세요 (최대 200자)" — 최대 길이 상이', `${R}_71`, '메모 입력 최대 길이 기획(600) vs 구현(200) 차이 — QA 확인 요망');
+  // (정정 2026-07-29) 대회 등록 메모 placeholder = "메모를 입력하세요 (최대 600자)" — TC No.71과 일치. 이전 '200자' 관찰은 오독(차이 아님)으로 철회.
+  diff(P, '순위산정 신(더블)페리오·시스템36 라디오 UI 간격 적정', 'QA-15144(신더블페리오·시스템36 라디오 사이 간격이 좁아 오조작 우려, 낮음, Backlog, 2026-07-20 생성) — 기능은 정상, UI 간격 개선 요청', `${R}_62`, '순위산정 라디오 UI 간격 개선 요청 — QA JIRA 추적 중');
+  diff(P, '컷오프 설정 안내문구·설명 텍스트 정확성(TC 기획)', 'QA-15162(컷오프 스코어 적용 확인 시 "해당"이 아닌 "당해"로 기입, 낮음, Backlog, 2026-07-21 생성)·QA-15159(컷오프 설정 사용 설정 시 설명 문구 미노출, 완료, 2026-07-21 수정됨) — 컷오프 설정은 대회 등록 팝업 대회규칙 영역이나 현재 스위트는 순위산정/이벤트만 구조검증(컷오프 세부 UI 미포함) → 문구 오탈자는 범위 외 추적만', `${R}_62`, '컷오프 설정 문구 결함 2건 — QA JIRA 추적 중(자동검출 대상 아님, 컷오프 UI 구조검증 미구현)');
 
   // ── TOURN-14 참가자 등록 팝업 (TC No.100~161) — 대회정보/검색/액션/리스트 컬럼 ──
   await check(admin, { path: `${P} > 참가자 등록 팝업`, tcRef: `${R}_100`, tcId: 'TOURN-14', desc: '참가자 [등록/보기] → 대회 참가자 팝업 구조(검색·액션·리스트 컬럼) 노출 → 비파괴 닫기', expected: '검색·참가자 추가·엑셀 업로드·선택삭제 + 이름/성별/나이/핸디/연락처/메모', failMsg: '참가자 팝업 구조 미노출' },
@@ -2102,6 +2104,9 @@ async function runTournamentPopups(admin: Page, tableBox: Locator, rowN: number)
     });
   await closeModal();
   diff(P, '참가자 리스트 컬럼 기획: No · 휴대폰번호 (TC No.151)', '2026-07-16 td18 구현: 순서 · 연락처 — 컬럼 라벨 상이', `${R}_151`, '참가자 리스트 컬럼 라벨 기획 vs 구현 차이 — QA 확인 요망');
+  diff(P, '참가자 등록/검색 시 대회별 검색조건 독립(초기화)', 'QA-15145(참가자 이름·연락처로 검색 후 다른 대회 참가자 팝업 재확인 시 이전 검색값이 잔존, 보통, Backlog, 2026-07-20 생성) — 팝업 간 검색 상태 미초기화 결함', `${R}_100`, '참가자 검색조건 잔존 결함 — QA JIRA 추적 중');
+  diff(P, '참가자 검색 결과없음 알림·검색 화면 기획(TC 기획)', 'QA-15150(대회 참가자 검색 화면 기획 확인 요청, 보통, Backlog, 2026-07-21 생성)·QA-15152(참가자 검색 결과 없을 시 "결과 없음" 알림 미노출, 보통, Backlog, 2026-07-21 생성) — 검색 결과 알림 로직은 비파괴 구조검증 범위 밖(실 검색 실행 필요)', `${R}_100`, '참가자 검색 결함 2건(07-21 신규) — QA JIRA 추적 중');
+  diff(P, '참가자 수 초과 등록 시 상태변경/삭제 정합성(TC 기획)', 'QA-15154(대회 등록 시 설정한 참가자 수보다 실제 참가자 등록을 더 많이 할 경우 상태변경 안 됨 + 이후 참가자 삭제 시 에러 발생, 높음, Backlog, 2026-07-21 생성) — 실등록/삭제 쓰기 상호작용 결함이라 본 스위트 비파괴 정책상 범위 외', `${R}_100`, '참가자 수 초과등록 결함(높음, 07-21 신규) — QA JIRA 추적 중');
 
   // ── TOURN-15 라운드 별 조편성 팝업 (TC No.204~257) — 라운드칩/정렬·필터/자동배치/티생성/참가자리스트 ──
   await check(admin, { path: `${P} > 조편성 팝업`, tcRef: `${R}_204`, tcId: 'TOURN-15', desc: '조편성 [등록/보기] → 라운드 별 조편성 팝업 구조(라운드칩·자동배치·티생성·참가자 리스트) 노출 → 비파괴 닫기', expected: '자동배치(순차/스네이크) + 전반/후반코스·티타임·간격·팀수 + 참가자 컬럼', failMsg: '조편성 팝업 구조 미노출' },
@@ -2116,6 +2121,8 @@ async function runTournamentPopups(admin: Page, tableBox: Locator, rowN: number)
       await expect(root.getByRole('button', { name: /티타임 추가/ }).first()).toBeVisible();
     });
   await closeModal();
+  diff(P, '조편성 팝업 — 저장/드래그배치/검색/정렬/필터 정상 동작(TC 기획)', 'QA-15131(미등록 정보 있는 상태 저장 시 오류팝업에 코드 노출)·QA-15133(드래그배치 시 "not found tp target" 토스트 노출)·QA-15134(안내문구 미기입)·QA-15135(조편성 완료 후 참가자 리스트에 "ASN" 노출)·QA-15137(참가자 이름 일부입력 검색 미동작)·QA-15138(핸디 낮은/높은순 정렬 미동작)·QA-15139(정렬-상태 필터 미동작) 전부 Backlog(2026-07-20 생성) — 실제 저장·드래그·정렬 등 쓰기 상호작용 결함이라 본 스위트는 비파괴 구조 노출만 검증(정책상 범위 외), JIRA로 결함 추적 중', `${R}_204`, '조편성 팝업 심층 상호작용 결함 7건 — 비파괴 정책상 스크립트 미검출 영역, QA JIRA 추적 중');
+  diff(P, '조편성 팝업 — 출력·컷오프적용·재편성 시 데이터 정합성(TC 기획, 07-21 추가 발견)', 'QA-15153([출력] 버튼 선택 시 반응 없음, 보통, Selected for Development, 2026-07-21 생성)·QA-15165(컷오프적용 버튼 선택 시 모든 참가자 사라짐, 높음, Backlog, 2026-07-21 생성)·QA-15166(편성 완료된 조 삭제 후 티타임 재추가·재편성 시 삭제한 조가 중복 재생성, 높음, Backlog, 2026-07-21 생성) — 전부 실제 클릭·삭제·재편성 쓰기 상호작용 결함이라 비파괴 스위트 범위 외, JIRA로 추적', `${R}_204`, '조편성 팝업 심층 상호작용 결함 3건 추가(07-21 신규, 높음 2건 포함) — QA JIRA 추적 중');
 
   // ── TOURN-16 그룹편집/핸디관리 팝업 (TC No.163~166) — 트리거=[설정](td8), 1R 완료 시 enabled ──
   //   ⚠ 그룹 모달 오픈이 간헐적 → enabled 행 최대 3개까지 재시도, 어느 것도 안 열리면 SKIP(가짜 FAIL 방지).
@@ -2151,6 +2158,7 @@ async function runTournamentPopups(admin: Page, tableBox: Locator, rowN: number)
     }
     if (!done) skip({ path: `${P} > 그룹편집 팝업`, tcRef: `${R}_163`, tcId: 'TOURN-16', desc: '그룹편집 팝업 구조 노출' }, '그룹편집 [설정] 팝업 미오픈(1R 완료 활성 행 없음/오픈 실패 — 데이터·상태 의존)');
     diff(P, '그룹편집 트리거 [등록]/[보기], 팝업 타이틀 "그룹관리"(TC No.163)', '2026-07-16 td18 구현 — 트리거 버튼 = [설정], 팝업 타이틀 = "그룹편집 / 핸디관리" — 라벨/명칭 상이', `${R}_163`, '그룹편집 트리거·팝업 명칭 기획 vs 구현 차이 — QA 확인 요망');
+    diff(P, '그룹편집/핸디관리 팝업 — 상태별 버튼 노출 로직·안내문구(TC 기획)', 'QA-15140(상태에 따른 버튼 노출이 기획서와 상이, Backlog, 2026-07-20 생성)·QA-15141(그룹 생성조건 안내문구 중 "조별 선택(티타임 기준)" 삭제 요청, Backlog, 2026-07-20 생성) — 상태 의존 버튼 노출 상세 로직은 범위 외(노출만 확인)', `${R}_163`, '그룹편집 팝업 상태별 버튼·안내문구 결함 2건 — QA JIRA 추적 중');
   }
 
   // 스코어/순위 불변식은 실스코어가 있는 대회에서만 유효 → 상태 완료/진행중 첫라운드 행 우선(무 시 row0).
@@ -2185,6 +2193,16 @@ async function runTournamentPopups(admin: Page, tableBox: Locator, rowN: number)
       await check(admin, { path: `${P} > [스코어] 불변식`, tcRef: `${R}_280`, tcId: 'TOURN-11-1', desc: '스코어 정합성(합계=전반+후반, 합계−오버=Par, 합계≥0)', expected: '전 행 불변식 성립', failMsg: '스코어 불변식 위반' },
         async () => { for (const r of srows) for (const inv of groupScoreInvariants(r, par)) expect(inv.ok, inv.detail).toBeTruthy(); });
     } else skip({ path: `${P} > [스코어] 불변식`, tcRef: `${R}_280`, tcId: 'TOURN-11-1', desc: '스코어 정합성' }, '스코어 입력 행 없음(진행전/무데이터 — 데이터 의존)');
+    // ── TOURN-11-2 스코어 팝업 "_def_" 텍스트 미노출(QA-15156 회귀 감지) ──
+    //   그룹 리스트 드롭다운 선택 시 미치환 템플릿 키 "_def_"가 렌더되는 버그(GRND-13b nullm과 동일 계열).
+    const hasDefKey = await sp.locator('body').innerText().then(t => /_def_/i.test(t)).catch(() => false);
+    await check(admin, { path: `${P} > 스코어 팝업 _def_ 검출`, tcRef: `${R}_262`, tcId: 'TOURN-11-2', desc: '스코어 팝업 그룹 리스트 드롭다운 "_def_" 텍스트 미노출(QA-15156 회귀 감지)', expected: '"_def_" 미검출', failMsg: '"_def_" 텍스트 감지됨 — 미치환 템플릿 키 렌더 버그(QA-15156)' },
+      async () => { expect(hasDefKey, '"_def_" 노출: QA-15156 미수정 상태').toBe(false); });
+    // ── TOURN-11-3 스코어 팝업 "라운드 별로 참가자가 다를 수 있음" 안내문구 노출(QA-15201 회귀 감지, 2026-07-23) ──
+    //   2R+ 대회에서 라운드별 참가자 상이 가능성 안내 문구가 누락되던 결함(완료 처리) — 재발 여부 상시 감시.
+    const hasRoundParticipantNotice = await sp.locator('body').innerText().then(t => t.replace(/\s+/g, '').includes('라운드별로참가자가다를수있음')).catch(() => false);
+    await check(admin, { path: `${P} > 스코어 팝업 안내문구`, tcRef: `${R}_262`, tcId: 'TOURN-11-3', desc: '스코어 팝업 "라운드 별로 참가자가 다를 수 있음" 안내문구 노출(QA-15201 회귀 감지)', expected: '안내문구 노출', failMsg: '안내문구 미노출 — QA-15201 재발' },
+      async () => { expect(hasRoundParticipantNotice, '안내문구 미노출: QA-15201 재발 가능성').toBe(true); });
     await sp.close().catch(() => {});
     await admin.waitForTimeout(500);
   } else skip({ path: `${P} > [스코어] 팝업`, tcRef: `${R}_262`, tcId: 'TOURN-11', desc: '[스코어] 팝업 구조 노출' }, '[스코어] [보기] 새 탭 미발생(데이터/환경 의존)');
@@ -2206,6 +2224,11 @@ async function runTournamentPopups(admin: Page, tableBox: Locator, rowN: number)
       await check(admin, { path: `${P} > [결과집계] 불변식`, tcRef: `${R}_364`, tcId: 'TOURN-12-1', desc: '순위/평균 정합성(순위 1..N 연속·스코어 단조·Team Average=mean)', expected: '순위·평균 불변식 성립', failMsg: '결과집계 불변식 위반' },
         async () => { for (const inv of [...rankOrderInvariants(rk.rows), ...teamAvgInvariants(rk.rows, rk.avg)]) expect(inv.ok, inv.detail).toBeTruthy(); });
     } else skip({ path: `${P} > [결과집계] 불변식`, tcRef: `${R}_364`, tcId: 'TOURN-12-1', desc: '순위/평균 정합성' }, '순위표 행 없음(무데이터 — 데이터 의존)');
+    // ── TOURN-12-2 결과집계 팝업 "-1m" 텍스트 미노출(QA-15160 회귀 감지) ──
+    //   롱기/니어 기록 없는 경우 시상내역에 "-1m"(무효 거리값)이 노출되던 버그.
+    const hasNeg1m = await rp.locator('body').innerText().then(t => /-1m\b/.test(t)).catch(() => false);
+    await check(admin, { path: `${P} > 결과집계 팝업 -1m 검출`, tcRef: `${R}_282`, tcId: 'TOURN-12-2', desc: '결과집계 팝업 시상내역 "-1m" 텍스트 미노출(QA-15160 회귀 감지)', expected: '"-1m" 미검출', failMsg: '"-1m" 텍스트 감지됨 — 롱기/니어 무효 거리값 렌더 버그(QA-15160)' },
+      async () => { expect(hasNeg1m, '"-1m" 노출: QA-15160 미수정 상태').toBe(false); });
     await rp.close().catch(() => {});
     await admin.waitForTimeout(500);
   } else skip({ path: `${P} > [결과집계/출력] 팝업`, tcRef: `${R}_282`, tcId: 'TOURN-12', desc: '[결과집계/출력] 팝업 구조 노출' }, '[결과집계] [보기] 새 탭 미발생(데이터/환경 의존)');

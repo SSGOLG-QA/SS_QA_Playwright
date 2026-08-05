@@ -23,6 +23,7 @@ npm run test:ia      # IA 순서 전체검증(--workers=1)
 npm run test:l4      # L4 교차정합(매출 요약↔랭킹, 내장통계 요약↔통계표)
 npm run test:lang    # 전 메뉴 언어 검증(7개국, ~26분 — 언어별 리포트)
 npm run test:e2e     # Playwright_New POM E2E(별도 config)
+npm run audit:skip   # SKIP 투명화 감사(정적 스캔) → reports/skip-audit_*.md (2026-08 신규)
 npm run report       # 최근 HTML 리포트 열기
 ```
 > raw 명령도 유효: `npx playwright test --project=admin-chromium Admin/<spec>.spec.ts [--no-deps] [--workers=1]`. `--no-deps`=setup 스킵(세션 유효 시), `KEEP_OPEN=1`=종료 전 pause.
@@ -288,3 +289,11 @@ npm run report       # 최근 HTML 리포트 열기
   | `locators/admin-caddie-fee.md` | 캐디피 관리 | 4종 (설정·통계·결제내역·캐디자료/신고서) | 1693–1861 |
 - **공통 헤더**: 분석일 2026-06-24 / 비파괴 원칙 / 동적 ID 금지 주의 / 컨테이너 스코프 패턴
 - **형식**: 소메뉴별 섹션 → URL · 안내문구 · 요소/Locator/TC ID/비고 테이블 → TypeScript 코드 스니펫
+
+## P4 자동화 범위 확장·개선 (2026-08-05)
+> "검증의 깊이·층위·자동화"를 늘리는 4개 워크스트림. 코드 전부 typecheck 통과 + Playwright 수집 확인. 라이브 캡처(baseline/discovery)는 세션 유효 필요(만료 시 `npm run auth`).
+
+- **P4-1 SKIP 투명화 감사(완료·오프라인)**: `scripts/skipAudit.ts` + `npm run audit:skip`. reporter `skip()` 호출을 정적 스캔 → 사유별 4분류(**LEGIT** 의도적 비검증 / **ENV** 진입·전환 실패 등 런타임 / **DATA** 데이터 부재=잠재 커버리지 구멍 / **OTHER** 미분류). 산출 `reports/skip-audit_<ts>.md`(요약표 + DATA 화면별 집계 + 지점별 file:line·함수·사유). **SKIP=미검증이 커버리지 착시를 만들지 않게 가시화**. 현 결과: 총 79건(LEGIT 21·ENV 8·DATA 50·OTHER 0). ⚠ **DATA 홀 집중처 = 대회/단체라운드 스코어·순위 불변식**(runGroupRoundPopups 7·runTournamentPopups 5·runGroupRound 4·runTournament 4=20건) → 채점 완료 대회 데이터/시드 있을 때만 실행. 분류기: `LEGIT_RE`(부적합·범위제외·미구현·파괴가드·비파괴·제거·가변데이터) > `ENV_RE`(전환실패·진입불가·미출현·충돌) > `DATA_RE`(데이터없음·0건·행없음·미노출·미검출) 우선순위. path가 템플릿변수(`${P}`)면 함수명으로 폴백 집계.
+- **P4-2 API 계약 검증 심화**: `lib/apiContract.ts` 강화 + `Admin/api-contract.spec.ts`(5→9화면 테이블 구동). **핵심**: ① **발견된 키 없이도 일반 불변식 수행** — 상태 2xx·CT JSON·JSON 파싱/최상위타입(object|array)·**에러 envelope 미포함**(`success:false`/`error`/`code≥400`/`status≥400` — 200인데 논리적 실패 감지). ② **단일 URL 키워드 의존 제거** — `startCapture`가 페이지의 **모든 JSON GET 수집**, `pick()`이 키워드 2xx > 키워드 임의 > (fallbackAny) 임의 2xx로 선택 → 키워드 빗나가도 false SKIP 없이 계약 검증. 9화면: 내장현황·전체라운드·주문내역·계정리스트·대회관리·캐디리스트·후기리스트·핀포지션·배토기록. ⏭ **라이브 후속**: discovery 테스트(`-g "탐지"`)로 실제 응답 구조 확인 → 화면별 `expectedKeys`/`countPath`/`countSel` 채우면 필드명 드리프트·정합성까지 강화.
+- **P4-3 UI 구조 드리프트 검출**: `Admin/ui-baseline.spec.ts`. 전 메뉴(MENU_LIST) 구조 chrome(컬럼헤더·버튼·탭·안내문구)을 admin.evaluate로 스캔 → committed baseline `baselines/ui-structure.<sub>.json`과 대조. **제거=check FAIL(회귀 신호)·추가=diff(기획-구현 차이 시트)·화면소실=FAIL·신규화면=diff**. 산출 `reports/ui-drift_<ts>.md` + `ui-baseline_report_*.xlsx`. env `UI_BASELINE=capture`(baseline 생성/갱신) vs 기본 diff(대조, baseline 부재 시 최초 자동 캡처). **기존 `driftDiff.ts`와 상보적**(driftDiff=리포트 간 FAIL 증감→기대값 구값일 때만 노출 / 본 스펙=구조 직접 대조→기대값 미수정 상태서도 제거 즉시 포착). 06-05/08/16 반복된 수동 드리프트 추적(all-suite→FAIL 산발→프로브→AS-IS)을 단일 스캔으로 대체. 비파괴(스캔만).
+- **P4-4 시각 회귀(Visual Regression)**: `Admin/visual-regression.spec.ts`. `toHaveScreenshot`로 핵심 6화면(태블릿기능·표준시간·그린스피드·아이콘·계정리스트·대회관리) 픽셀 대조 → **글리프 깨짐·글자 잘림·아이콘 누락·레이아웃 붕괴**(DOM·langCheck 범위제외 갭) 포착. **안정성**: 고정 뷰포트 1280×800(`test.use` — 기본 최대화는 머신별 크기 상이로 baseline 불안정) + 동적데이터 마스킹(tbody·요약카드값·datepicker·vue-select·input·canvas·img) + maxDiffPixelRatio 2%. baseline 생성 `--update-snapshots`(⚠ 폰트/렌더 차이로 **동일 환경**, 권장 CI 고정 러너서 생성). 비파괴.

@@ -17,6 +17,7 @@
     "ia:confluence": "tsc --project tsconfig.json && node dist/scripts/iaToConfluence.js",
     "drift:diff": "tsc --project tsconfig.json && node dist/scripts/driftDiff.js",
     "audit:assert": "tsc --project tsconfig.json && node dist/scripts/assertionAudit.js",
+    "audit:skip": "tsc --project tsconfig.json && node dist/scripts/skipAudit.js",
     "test:unit": "tsc -p tsconfig.unit.json && node --test dist-unit/test/domain.test.js",
     "mutation": "stryker run",
     "report": "playwright show-report",

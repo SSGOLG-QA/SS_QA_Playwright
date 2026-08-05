@@ -22,10 +22,14 @@ import { check, skip } from './reporter';
 
 interface CapturedRes {
   url: string;
+  method: string;
   status: number;
   ct: string;
   res: Response;
 }
+
+// 정적 자산 CT 제외(데이터 API만 남김). text/plain은 일부 API가 사용하므로 유지.
+const ASSET_CT = /html|css|javascript|image\/|font|woff/;
 
 export interface ApiCapture {
   urlKeyword: string;
@@ -55,27 +59,32 @@ export function startCapture(page: Page, urlKeyword: string): ApiCapture {
   const responses: CapturedRes[] = [];
   const handler = (res: Response) => {
     try {
-      if (res.request().method() !== 'GET') return;
+      const method = res.request().method();
+      if (method !== 'GET' && method !== 'POST') return;   // 데이터 조회: GET/POST 모두(SPA는 POST 조회 흔함)
       const ct = res.headers()['content-type'] ?? '';
-      if (!ct.includes('json')) return;
-      responses.push({ url: res.url(), status: res.status(), ct, res });
+      if (ASSET_CT.test(ct)) return;                        // 정적 자산 제외
+      responses.push({ url: res.url(), method, status: res.status(), ct, res });
     } catch { /* 응답 소멸 등 무시 */ }
   };
   page.on('response', handler);
   return { urlKeyword, responses, detach: () => page.off('response', handler) };
 }
 
-/** 수집분에서 검증 대상 응답을 선택: 키워드 2xx > 키워드 임의 > (fallback) 임의 2xx JSON */
+/** 수집분에서 검증 대상 응답을 선택: 키워드 2xx > JSON 2xx > 키워드 임의 > 임의 2xx */
 function pick(cap: ApiCapture, fallbackAny: boolean): CapturedRes | null {
+  const rs = cap.responses;
   const kw = cap.urlKeyword;
-  const byKw = cap.responses.filter(r => r.url.includes(kw));
-  const kw2xx = byKw.filter(r => r.status >= 200 && r.status < 300);
-  if (kw2xx.length) return kw2xx[kw2xx.length - 1];   // 키워드 일치 최신
-  if (byKw.length) return byKw[byKw.length - 1];       // 키워드 일치(비2xx도 상태검증 대상)
-  if (!fallbackAny) return null;
-  const any2xx = cap.responses.filter(r => r.status >= 200 && r.status < 300);
-  if (any2xx.length) return any2xx[any2xx.length - 1]; // 폴백: 임의 2xx JSON GET
-  return cap.responses[cap.responses.length - 1] ?? null;
+  const isJson = (r: CapturedRes) => r.ct.includes('json');
+  const ok = (r: CapturedRes) => r.status >= 200 && r.status < 300;
+  const last = (arr: CapturedRes[]) => (arr.length ? arr[arr.length - 1] : null);
+
+  return (
+    last(rs.filter(r => r.url.includes(kw) && isJson(r) && ok(r))) ||  // 키워드+JSON+2xx
+    last(rs.filter(r => r.url.includes(kw) && ok(r))) ||               // 키워드+2xx
+    (fallbackAny ? last(rs.filter(r => isJson(r) && ok(r))) : null) || // 폴백: JSON+2xx
+    (fallbackAny ? last(rs.filter(r => ok(r))) : null) ||             // 폴백: 임의 2xx
+    (fallbackAny ? last(rs) : null)                                    // 폴백: 마지막
+  );
 }
 
 /** 흔한 에러 envelope 패턴 감지(보수적 — false positive 회피) */

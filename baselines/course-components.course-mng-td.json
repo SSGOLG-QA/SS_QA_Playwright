@@ -1,0 +1,1764 @@
+{
+  "Home": [
+    {
+      "kind": "button",
+      "label": "평가 작성하기"
+    },
+    {
+      "kind": "button",
+      "label": "평가기준 설정하기"
+    },
+    {
+      "kind": "button",
+      "label": "목표 설정"
+    },
+    {
+      "kind": "button",
+      "label": "평가내역 보기"
+    }
+  ],
+  "코스 현황 관리 > 코스 모니터": [
+    {
+      "kind": "tab",
+      "label": "전체"
+    },
+    {
+      "kind": "tab",
+      "label": "작업"
+    },
+    {
+      "kind": "tab",
+      "label": "이슈"
+    },
+    {
+      "kind": "tab",
+      "label": "점검"
+    },
+    {
+      "kind": "tab",
+      "label": "인력"
+    },
+    {
+      "kind": "tab",
+      "label": "관심"
+    },
+    {
+      "kind": "toggle",
+      "label": "West East South 홀번호"
+    },
+    {
+      "kind": "toggle",
+      "label": "홀번호"
+    },
+    {
+      "kind": "datepicker",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "zoom",
+      "label": "Leaflet"
+    },
+    {
+      "kind": "zoom",
+      "label": "줌"
+    },
+    {
+      "kind": "input",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    }
+  ],
+  "코스 현황 관리 > 식생 분석": [
+    {
+      "kind": "datepicker",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "zoom",
+      "label": "Leaflet"
+    },
+    {
+      "kind": "zoom",
+      "label": "줌"
+    },
+    {
+      "kind": "input",
+      "label": "입력"
+    },
+    {
+      "kind": "input",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "button",
+      "label": "스와이프 비교"
+    },
+    {
+      "kind": "button",
+      "label": "값 표시(hover)"
+    },
+    {
+      "kind": "button",
+      "label": "배수 분석 →"
+    },
+    {
+      "kind": "button",
+      "label": "비교 분석 →"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    }
+  ],
+  "코스 현황 관리 > 코스 영역 설정": [
+    {
+      "kind": "zoom",
+      "label": "Leaflet"
+    },
+    {
+      "kind": "zoom",
+      "label": "줌"
+    },
+    {
+      "kind": "button",
+      "label": "추가"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    }
+  ],
+  "코스 현황 관리 > 드론사진 업로드": [
+    {
+      "kind": "button",
+      "label": "영상정보 등록"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    }
+  ],
+  "코스 현황 관리 > 3D": [
+    {
+      "kind": "toggle",
+      "label": "지점 거리 높이 각도 넓이"
+    },
+    {
+      "kind": "toggle",
+      "label": "Orbit"
+    },
+    {
+      "kind": "button",
+      "label": "지점"
+    },
+    {
+      "kind": "button",
+      "label": "거리"
+    },
+    {
+      "kind": "button",
+      "label": "높이"
+    },
+    {
+      "kind": "button",
+      "label": "각도"
+    },
+    {
+      "kind": "button",
+      "label": "넓이"
+    }
+  ],
+  "코스 현황 관리 > 그린 분석": [
+    {
+      "kind": "button",
+      "label": "좌"
+    },
+    {
+      "kind": "button",
+      "label": "우"
+    }
+  ],
+  "정보 관리 > 코스 기본 정보": [
+    {
+      "kind": "button",
+      "label": "수정"
+    }
+  ],
+  "정보 관리 > 코스 리뉴얼 정보": [
+    {
+      "kind": "button",
+      "label": "신규 등록"
+    },
+    {
+      "kind": "button",
+      "label": "수정"
+    }
+  ],
+  "정보 관리 > 홀 별 정보": [
+    {
+      "kind": "button",
+      "label": "내보내기"
+    },
+    {
+      "kind": "button",
+      "label": "보기"
+    },
+    {
+      "kind": "button",
+      "label": "수정"
+    }
+  ],
+  "정보 관리 > 잔디 측정 정보": [
+    {
+      "kind": "dropdown",
+      "label": "Loading..."
+    },
+    {
+      "kind": "toggle",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "datepicker",
+      "label": "기간 토 목"
+    },
+    {
+      "kind": "datepicker",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "input",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "button",
+      "label": "초기화"
+    },
+    {
+      "kind": "button",
+      "label": "적용"
+    },
+    {
+      "kind": "button",
+      "label": "신규 등록"
+    },
+    {
+      "kind": "button",
+      "label": "수정"
+    },
+    {
+      "kind": "button",
+      "label": "삭제"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "button",
+      "label": "1"
+    }
+  ],
+  "정보 관리 > 토양 측정 정보": [
+    {
+      "kind": "dropdown",
+      "label": "Loading..."
+    },
+    {
+      "kind": "toggle",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "datepicker",
+      "label": "기간 토 목"
+    },
+    {
+      "kind": "datepicker",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "input",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "button",
+      "label": "초기화"
+    },
+    {
+      "kind": "button",
+      "label": "적용"
+    },
+    {
+      "kind": "button",
+      "label": "신규 등록"
+    },
+    {
+      "kind": "button",
+      "label": "보기"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "button",
+      "label": "1"
+    }
+  ],
+  "정보 관리 > 발병 정보": [
+    {
+      "kind": "dropdown",
+      "label": "Loading..."
+    },
+    {
+      "kind": "toggle",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "datepicker",
+      "label": "기간 토 목"
+    },
+    {
+      "kind": "datepicker",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "input",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "input",
+      "label": "검색어 입력"
+    },
+    {
+      "kind": "button",
+      "label": "ico-search"
+    },
+    {
+      "kind": "button",
+      "label": "초기화"
+    },
+    {
+      "kind": "button",
+      "label": "적용"
+    },
+    {
+      "kind": "button",
+      "label": "신규 등록"
+    },
+    {
+      "kind": "button",
+      "label": "수정"
+    },
+    {
+      "kind": "button",
+      "label": "삭제"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "button",
+      "label": "1"
+    }
+  ],
+  "정보 관리 > 코스 운영 정보": [
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    }
+  ],
+  "정보 관리 > 기상 정보": [
+    {
+      "kind": "datepicker",
+      "label": "기간 토 목"
+    },
+    {
+      "kind": "datepicker",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "input",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "button",
+      "label": "초기화"
+    },
+    {
+      "kind": "button",
+      "label": "적용"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "button",
+      "label": "1"
+    }
+  ],
+  "정보 관리 > 거래처 정보": [
+    {
+      "kind": "dropdown",
+      "label": "전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "전체"
+    },
+    {
+      "kind": "input",
+      "label": "거래처 검색"
+    },
+    {
+      "kind": "button",
+      "label": "거래처 등록"
+    },
+    {
+      "kind": "button",
+      "label": "ico-search"
+    },
+    {
+      "kind": "button",
+      "label": "초기화"
+    }
+  ],
+  "정보 관리 > 관리 기준 정보": [
+    {
+      "kind": "input",
+      "label": "비중 입력"
+    },
+    {
+      "kind": "button",
+      "label": "ico-color-close"
+    },
+    {
+      "kind": "button",
+      "label": "저장"
+    }
+  ],
+  "정보 관리 > 일상 점검": [
+    {
+      "kind": "dropdown",
+      "label": "Loading..."
+    },
+    {
+      "kind": "toggle",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "datepicker",
+      "label": "기간 수 목"
+    },
+    {
+      "kind": "datepicker",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "input",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "input",
+      "label": "검색어 입력"
+    },
+    {
+      "kind": "button",
+      "label": "6개월"
+    },
+    {
+      "kind": "button",
+      "label": "1년"
+    },
+    {
+      "kind": "button",
+      "label": "ico-search"
+    },
+    {
+      "kind": "button",
+      "label": "초기화"
+    },
+    {
+      "kind": "button",
+      "label": "적용"
+    },
+    {
+      "kind": "button",
+      "label": "신규 등록"
+    },
+    {
+      "kind": "button",
+      "label": "보기"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "button",
+      "label": "1"
+    }
+  ],
+  "사진 관리 > 정보별 사진": [
+    {
+      "kind": "dropdown",
+      "label": "작업"
+    },
+    {
+      "kind": "toggle",
+      "label": "작업"
+    },
+    {
+      "kind": "datepicker",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "input",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    }
+  ],
+  "사진 관리 > 위치별 사진": [
+    {
+      "kind": "dropdown",
+      "label": "East"
+    },
+    {
+      "kind": "dropdown",
+      "label": "홀 1"
+    },
+    {
+      "kind": "dropdown",
+      "label": "그린(East 코스 1번)"
+    },
+    {
+      "kind": "toggle",
+      "label": "East"
+    },
+    {
+      "kind": "toggle",
+      "label": "홀 1"
+    },
+    {
+      "kind": "toggle",
+      "label": "그린(East 코스 1번)"
+    },
+    {
+      "kind": "datepicker",
+      "label": "토 목"
+    },
+    {
+      "kind": "datepicker",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "zoom",
+      "label": "Leaflet"
+    },
+    {
+      "kind": "input",
+      "label": "YYYY-MM-DD"
+    }
+  ],
+  "작업 관리 > 작업 지시": [
+    {
+      "kind": "dropdown",
+      "label": "전체"
+    },
+    {
+      "kind": "dropdown",
+      "label": "코스 전체"
+    },
+    {
+      "kind": "dropdown",
+      "label": "홀 전체"
+    },
+    {
+      "kind": "dropdown",
+      "label": "구역 전체"
+    },
+    {
+      "kind": "dropdown",
+      "label": "Loading..."
+    },
+    {
+      "kind": "toggle",
+      "label": "전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "코스 전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "홀 전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "구역 전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "datepicker",
+      "label": "수 목"
+    },
+    {
+      "kind": "datepicker",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "input",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "input",
+      "label": "검색어 입력"
+    },
+    {
+      "kind": "button",
+      "label": "신규 작업 지시 등록"
+    },
+    {
+      "kind": "button",
+      "label": "6개월"
+    },
+    {
+      "kind": "button",
+      "label": "1년"
+    },
+    {
+      "kind": "button",
+      "label": "초기화"
+    },
+    {
+      "kind": "button",
+      "label": "적용"
+    },
+    {
+      "kind": "button",
+      "label": "ico-search"
+    },
+    {
+      "kind": "button",
+      "label": "보기"
+    },
+    {
+      "kind": "button",
+      "label": "삭제"
+    },
+    {
+      "kind": "button",
+      "label": "수정"
+    }
+  ],
+  "작업 관리 > 작업 계획": [
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    }
+  ],
+  "작업 관리 > 이슈 관리": [
+    {
+      "kind": "dropdown",
+      "label": "코스 전체"
+    },
+    {
+      "kind": "dropdown",
+      "label": "홀 전체"
+    },
+    {
+      "kind": "dropdown",
+      "label": "구역 전체"
+    },
+    {
+      "kind": "dropdown",
+      "label": "Loading..."
+    },
+    {
+      "kind": "dropdown",
+      "label": "활성"
+    },
+    {
+      "kind": "toggle",
+      "label": "코스 전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "홀 전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "구역 전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "toggle",
+      "label": "활성"
+    },
+    {
+      "kind": "datepicker",
+      "label": "등록일 목"
+    },
+    {
+      "kind": "datepicker",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "datepicker",
+      "label": "기간"
+    },
+    {
+      "kind": "input",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "input",
+      "label": "검색어 입력"
+    },
+    {
+      "kind": "button",
+      "label": "신규 이슈 등록"
+    },
+    {
+      "kind": "button",
+      "label": "최근 3개월"
+    },
+    {
+      "kind": "button",
+      "label": "최근 6개월"
+    },
+    {
+      "kind": "button",
+      "label": "이후 1개월"
+    },
+    {
+      "kind": "button",
+      "label": "이후 3개월"
+    },
+    {
+      "kind": "button",
+      "label": "이후 6개월"
+    },
+    {
+      "kind": "button",
+      "label": "초기화"
+    },
+    {
+      "kind": "button",
+      "label": "검색"
+    },
+    {
+      "kind": "button",
+      "label": "ico-search"
+    },
+    {
+      "kind": "button",
+      "label": "보기"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "button",
+      "label": "1"
+    },
+    {
+      "kind": "button",
+      "label": "2"
+    },
+    {
+      "kind": "button",
+      "label": "3"
+    },
+    {
+      "kind": "button",
+      "label": "4"
+    },
+    {
+      "kind": "button",
+      "label": "5"
+    },
+    {
+      "kind": "button",
+      "label": "6"
+    },
+    {
+      "kind": "button",
+      "label": "7"
+    }
+  ],
+  "작업 관리 > 예측 정보": [
+    {
+      "kind": "dropdown",
+      "label": "전체"
+    },
+    {
+      "kind": "dropdown",
+      "label": "Loading..."
+    },
+    {
+      "kind": "dropdown",
+      "label": "코스 전체"
+    },
+    {
+      "kind": "dropdown",
+      "label": "홀 전체"
+    },
+    {
+      "kind": "dropdown",
+      "label": "구역 전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "toggle",
+      "label": "코스 전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "홀 전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "구역 전체"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    }
+  ],
+  "작업 관리 > 작업 일보": [
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    }
+  ],
+  "예산 관리 > 예산 총괄": [
+    {
+      "kind": "dropdown",
+      "label": "2026"
+    },
+    {
+      "kind": "dropdown",
+      "label": "Loading..."
+    },
+    {
+      "kind": "toggle",
+      "label": "2026"
+    },
+    {
+      "kind": "toggle",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "button",
+      "label": "내보내기"
+    }
+  ],
+  "예산 관리 > 예산 상세": [
+    {
+      "kind": "dropdown",
+      "label": "2026"
+    },
+    {
+      "kind": "toggle",
+      "label": "2026"
+    },
+    {
+      "kind": "button",
+      "label": "엑셀 업로드"
+    },
+    {
+      "kind": "button",
+      "label": "내보내기"
+    }
+  ],
+  "예산 관리 > 실적 관리": [
+    {
+      "kind": "dropdown",
+      "label": "2026"
+    },
+    {
+      "kind": "toggle",
+      "label": "2026"
+    },
+    {
+      "kind": "button",
+      "label": "엑셀 업로드"
+    },
+    {
+      "kind": "button",
+      "label": "내보내기"
+    }
+  ],
+  "예산 관리 > 예산 분석": [
+    {
+      "kind": "dropdown",
+      "label": "2026"
+    },
+    {
+      "kind": "dropdown",
+      "label": "대분류 전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "2026"
+    },
+    {
+      "kind": "toggle",
+      "label": "대분류 전체"
+    },
+    {
+      "kind": "button",
+      "label": "내보내기"
+    }
+  ],
+  "비용 관리 > 비용 집계": [
+    {
+      "kind": "dropdown",
+      "label": "2026 년"
+    },
+    {
+      "kind": "toggle",
+      "label": "2026 년"
+    },
+    {
+      "kind": "button",
+      "label": "내보내기"
+    }
+  ],
+  "비용 관리 > 작업별 비용": [
+    {
+      "kind": "dropdown",
+      "label": "Loading..."
+    },
+    {
+      "kind": "toggle",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "datepicker",
+      "label": "기간 수 목"
+    },
+    {
+      "kind": "datepicker",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "input",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "input",
+      "label": "검색어 입력"
+    },
+    {
+      "kind": "button",
+      "label": "초기화"
+    },
+    {
+      "kind": "button",
+      "label": "적용"
+    },
+    {
+      "kind": "button",
+      "label": "내보내기"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    }
+  ],
+  "비용 관리 > 분류별 비용": [
+    {
+      "kind": "dropdown",
+      "label": "2026 년"
+    },
+    {
+      "kind": "toggle",
+      "label": "2026 년"
+    },
+    {
+      "kind": "button",
+      "label": "정렬 초기화"
+    },
+    {
+      "kind": "button",
+      "label": "내보내기"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "button",
+      "label": "그린"
+    },
+    {
+      "kind": "button",
+      "label": "그린칼라"
+    }
+  ],
+  "비용 관리 > 위치별 비용": [
+    {
+      "kind": "dropdown",
+      "label": "2026 년"
+    },
+    {
+      "kind": "dropdown",
+      "label": "Loading..."
+    },
+    {
+      "kind": "toggle",
+      "label": "2026 년"
+    },
+    {
+      "kind": "toggle",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "button",
+      "label": "정렬 초기화"
+    },
+    {
+      "kind": "button",
+      "label": "내보내기"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "button",
+      "label": "East"
+    }
+  ],
+  "비용 관리 > 기간별 비용": [
+    {
+      "kind": "dropdown",
+      "label": "2026 년"
+    },
+    {
+      "kind": "toggle",
+      "label": "2026 년"
+    },
+    {
+      "kind": "button",
+      "label": "정렬 초기화"
+    },
+    {
+      "kind": "button",
+      "label": "내보내기"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "button",
+      "label": "그린"
+    },
+    {
+      "kind": "button",
+      "label": "그린칼라"
+    },
+    {
+      "kind": "button",
+      "label": "티박스"
+    },
+    {
+      "kind": "button",
+      "label": "러프"
+    },
+    {
+      "kind": "button",
+      "label": "장비"
+    }
+  ],
+  "인력 관리 > 권한관리": [
+    {
+      "kind": "toggle",
+      "label": "코스 현황 관리"
+    },
+    {
+      "kind": "toggle",
+      "label": "코스 영역 설정"
+    },
+    {
+      "kind": "toggle",
+      "label": "드론사진 업로드"
+    },
+    {
+      "kind": "toggle",
+      "label": "코스 모니터"
+    },
+    {
+      "kind": "toggle",
+      "label": "3D"
+    },
+    {
+      "kind": "toggle",
+      "label": "그린 분석"
+    },
+    {
+      "kind": "toggle",
+      "label": "정보 관리"
+    },
+    {
+      "kind": "toggle",
+      "label": "코스 기본 정보"
+    },
+    {
+      "kind": "toggle",
+      "label": "코스 리뉴얼 정보"
+    },
+    {
+      "kind": "toggle",
+      "label": "홀 별 정보"
+    },
+    {
+      "kind": "toggle",
+      "label": "잔디 측정 정보"
+    },
+    {
+      "kind": "toggle",
+      "label": "토양 측정 정보"
+    },
+    {
+      "kind": "toggle",
+      "label": "발병 정보"
+    },
+    {
+      "kind": "toggle",
+      "label": "코스 운영 정보"
+    },
+    {
+      "kind": "toggle",
+      "label": "기상 정보"
+    },
+    {
+      "kind": "toggle",
+      "label": "거래처 정보"
+    },
+    {
+      "kind": "toggle",
+      "label": "관리 기준 정보"
+    },
+    {
+      "kind": "toggle",
+      "label": "일상 점검"
+    },
+    {
+      "kind": "toggle",
+      "label": "작업 관리"
+    },
+    {
+      "kind": "toggle",
+      "label": "작업 지시"
+    },
+    {
+      "kind": "toggle",
+      "label": "작업 계획"
+    },
+    {
+      "kind": "toggle",
+      "label": "이슈 관리"
+    },
+    {
+      "kind": "toggle",
+      "label": "예측 정보"
+    },
+    {
+      "kind": "toggle",
+      "label": "작업 일보"
+    },
+    {
+      "kind": "toggle",
+      "label": "예산 관리"
+    },
+    {
+      "kind": "toggle",
+      "label": "예산 총괄"
+    },
+    {
+      "kind": "toggle",
+      "label": "예산 상세"
+    },
+    {
+      "kind": "toggle",
+      "label": "실적 관리"
+    },
+    {
+      "kind": "toggle",
+      "label": "예산 분석"
+    },
+    {
+      "kind": "toggle",
+      "label": "비용 관리"
+    },
+    {
+      "kind": "toggle",
+      "label": "작업별 비용"
+    },
+    {
+      "kind": "toggle",
+      "label": "분류별 비용"
+    },
+    {
+      "kind": "toggle",
+      "label": "위치별 비용"
+    },
+    {
+      "kind": "toggle",
+      "label": "기간별 비용"
+    },
+    {
+      "kind": "toggle",
+      "label": "인력 관리"
+    },
+    {
+      "kind": "toggle",
+      "label": "권한관리"
+    },
+    {
+      "kind": "toggle",
+      "label": "근태 관리"
+    },
+    {
+      "kind": "toggle",
+      "label": "투입 관리"
+    },
+    {
+      "kind": "toggle",
+      "label": "장비 관리"
+    },
+    {
+      "kind": "toggle",
+      "label": "총괄관리"
+    },
+    {
+      "kind": "toggle",
+      "label": "장비 관제"
+    },
+    {
+      "kind": "toggle",
+      "label": "자재 관리"
+    },
+    {
+      "kind": "toggle",
+      "label": "자재 총괄"
+    },
+    {
+      "kind": "toggle",
+      "label": "자재 수불"
+    },
+    {
+      "kind": "toggle",
+      "label": "시설 관리"
+    },
+    {
+      "kind": "toggle",
+      "label": "시설 총괄"
+    },
+    {
+      "kind": "toggle",
+      "label": "시설 관제"
+    },
+    {
+      "kind": "toggle",
+      "label": "사진 관리"
+    },
+    {
+      "kind": "toggle",
+      "label": "정보별 사진"
+    },
+    {
+      "kind": "toggle",
+      "label": "위치별 사진"
+    },
+    {
+      "kind": "toggle",
+      "label": "코스뷰"
+    },
+    {
+      "kind": "toggle",
+      "label": "코스 정보 입력"
+    },
+    {
+      "kind": "toggle",
+      "label": "이슈/예측"
+    },
+    {
+      "kind": "toggle",
+      "label": "전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "input",
+      "label": "이름 입력"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "button",
+      "label": "그룹 추가"
+    },
+    {
+      "kind": "button",
+      "label": "ico-search"
+    },
+    {
+      "kind": "button",
+      "label": "저장하기"
+    }
+  ],
+  "인력 관리 > 인력 관리": [
+    {
+      "kind": "dropdown",
+      "label": "전체"
+    },
+    {
+      "kind": "dropdown",
+      "label": "1"
+    },
+    {
+      "kind": "toggle",
+      "label": "전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "1"
+    },
+    {
+      "kind": "input",
+      "label": "이름 검색"
+    },
+    {
+      "kind": "button",
+      "label": "표준 근무시간 설정"
+    },
+    {
+      "kind": "button",
+      "label": "신규 등록"
+    },
+    {
+      "kind": "button",
+      "label": "초기화"
+    },
+    {
+      "kind": "button",
+      "label": "적용"
+    },
+    {
+      "kind": "button",
+      "label": "보기"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "button",
+      "label": "1"
+    }
+  ],
+  "인력 관리 > 근태 관리": [
+    {
+      "kind": "toggle",
+      "label": "전일 근무"
+    },
+    {
+      "kind": "toggle",
+      "label": "오전 근무"
+    },
+    {
+      "kind": "toggle",
+      "label": "오후 근무"
+    },
+    {
+      "kind": "toggle",
+      "label": "휴가"
+    },
+    {
+      "kind": "toggle",
+      "label": "결근"
+    },
+    {
+      "kind": "datepicker",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "input",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    }
+  ],
+  "인력 관리 > 투입 관리": [
+    {
+      "kind": "dropdown",
+      "label": "전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "전체"
+    },
+    {
+      "kind": "datepicker",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "input",
+      "label": "YYYY-MM-DD"
+    }
+  ],
+  "장비 관리 > 장비 총괄": [
+    {
+      "kind": "datepicker",
+      "label": "매입일"
+    },
+    {
+      "kind": "datepicker",
+      "label": "선택 안함"
+    },
+    {
+      "kind": "input",
+      "label": "선택 안함"
+    },
+    {
+      "kind": "input",
+      "label": "검색어 입력"
+    },
+    {
+      "kind": "button",
+      "label": "표준 유류비 설정"
+    },
+    {
+      "kind": "button",
+      "label": "장비등록"
+    },
+    {
+      "kind": "button",
+      "label": "초기화"
+    },
+    {
+      "kind": "button",
+      "label": "적용"
+    },
+    {
+      "kind": "button",
+      "label": "보기"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "button",
+      "label": "1"
+    },
+    {
+      "kind": "button",
+      "label": "2"
+    },
+    {
+      "kind": "button",
+      "label": "3"
+    },
+    {
+      "kind": "button",
+      "label": "4"
+    },
+    {
+      "kind": "button",
+      "label": "5"
+    },
+    {
+      "kind": "button",
+      "label": "6"
+    }
+  ],
+  "장비 관리 > 장비 관제": [
+    {
+      "kind": "dropdown",
+      "label": "Loading..."
+    },
+    {
+      "kind": "toggle",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "zoom",
+      "label": "Leaflet"
+    }
+  ],
+  "자재 관리 > 자재 총괄": [
+    {
+      "kind": "input",
+      "label": "자재명 입력"
+    },
+    {
+      "kind": "button",
+      "label": "신규 등록"
+    },
+    {
+      "kind": "button",
+      "label": "ico-search"
+    },
+    {
+      "kind": "button",
+      "label": "검색"
+    },
+    {
+      "kind": "button",
+      "label": "보기"
+    },
+    {
+      "kind": "button",
+      "label": "추가 입고"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "button",
+      "label": "1"
+    },
+    {
+      "kind": "button",
+      "label": "2"
+    },
+    {
+      "kind": "button",
+      "label": "3"
+    }
+  ],
+  "자재 관리 > 자재 수불(품목별)": [
+    {
+      "kind": "dropdown",
+      "label": "농약"
+    },
+    {
+      "kind": "dropdown",
+      "label": "2026년"
+    },
+    {
+      "kind": "toggle",
+      "label": "농약"
+    },
+    {
+      "kind": "toggle",
+      "label": "2026년"
+    },
+    {
+      "kind": "datepicker",
+      "label": "기간 목 목"
+    },
+    {
+      "kind": "datepicker",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "input",
+      "label": "자재명 입력"
+    },
+    {
+      "kind": "input",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "button",
+      "label": "ico-search"
+    },
+    {
+      "kind": "button",
+      "label": "초기화"
+    },
+    {
+      "kind": "button",
+      "label": "적용"
+    },
+    {
+      "kind": "button",
+      "label": "보기"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "button",
+      "label": "1"
+    },
+    {
+      "kind": "button",
+      "label": "2"
+    },
+    {
+      "kind": "button",
+      "label": "3"
+    }
+  ],
+  "자재 관리 > 자재 수불(일자별)": [
+    {
+      "kind": "dropdown",
+      "label": "전체"
+    },
+    {
+      "kind": "dropdown",
+      "label": "최근 3개월"
+    },
+    {
+      "kind": "toggle",
+      "label": "전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "최근 3개월"
+    },
+    {
+      "kind": "datepicker",
+      "label": "기간 수 목"
+    },
+    {
+      "kind": "datepicker",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "input",
+      "label": "YYYY-MM-DD"
+    },
+    {
+      "kind": "button",
+      "label": "초기화"
+    },
+    {
+      "kind": "button",
+      "label": "적용"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    }
+  ],
+  "시설 관리 > 시설 총괄": [
+    {
+      "kind": "dropdown",
+      "label": "지상"
+    },
+    {
+      "kind": "dropdown",
+      "label": "Loading..."
+    },
+    {
+      "kind": "toggle",
+      "label": "지상"
+    },
+    {
+      "kind": "toggle",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "input",
+      "label": "시설명 입력"
+    },
+    {
+      "kind": "button",
+      "label": "신규 등록"
+    },
+    {
+      "kind": "button",
+      "label": "초기화"
+    },
+    {
+      "kind": "button",
+      "label": "적용"
+    },
+    {
+      "kind": "button",
+      "label": "보기"
+    },
+    {
+      "kind": "button",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "button",
+      "label": "1"
+    },
+    {
+      "kind": "button",
+      "label": "2"
+    },
+    {
+      "kind": "button",
+      "label": "3"
+    }
+  ],
+  "시설 관리 > 시설 관제": [
+    {
+      "kind": "dropdown",
+      "label": "Loading..."
+    },
+    {
+      "kind": "dropdown",
+      "label": "전체"
+    },
+    {
+      "kind": "toggle",
+      "label": "(무텍스트)"
+    },
+    {
+      "kind": "toggle",
+      "label": "전체"
+    },
+    {
+      "kind": "zoom",
+      "label": "Leaflet"
+    },
+    {
+      "kind": "button",
+      "label": "leaflet-marker-icon"
+    },
+    {
+      "kind": "button",
+      "label": "8"
+    },
+    {
+      "kind": "button",
+      "label": "15"
+    },
+    {
+      "kind": "button",
+      "label": "12"
+    }
+  ]
+}

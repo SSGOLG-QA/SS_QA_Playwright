@@ -1,0 +1,1085 @@
+{
+ "_doc": "커버리지 매핑(분자) — 라이브 검증(PASS) 통과한 컴포넌트만 등재. label 은 인벤토리 라벨과 정규화 일치/포함으로 매칭. level: L1 존재 / L2 상호작용 / L3 정합성.",
+ "Home": [
+  {
+   "label": "평가 작성하기",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CHOME-02"
+  },
+  {
+   "label": "평가내역 보기",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "HOME-REVIEW"
+  },
+  {
+   "label": "평가기준 설정하기",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "HOME-CRITERIA"
+  },
+  {
+   "label": "목표 설정",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "HOME-GOAL"
+  }
+ ],
+ "코스 현황 관리 > 코스 모니터": [
+  {
+   "label": "전체",
+   "kind": "tab",
+   "level": "L2",
+   "tcId": "CMON-TAB-전체"
+  },
+  {
+   "label": "작업",
+   "kind": "tab",
+   "level": "L2",
+   "tcId": "CMON-TAB-작업"
+  },
+  {
+   "label": "이슈",
+   "kind": "tab",
+   "level": "L2",
+   "tcId": "CMON-TAB-이슈"
+  },
+  {
+   "label": "관심",
+   "kind": "tab",
+   "level": "L2",
+   "tcId": "CMON-TAB-관심"
+  },
+  {
+   "label": "점검",
+   "kind": "tab",
+   "level": "L1",
+   "tcId": "CMON-01"
+  },
+  {
+   "label": "홀번호",
+   "kind": "toggle",
+   "level": "L1",
+   "tcId": "CMON-03"
+  },
+  {
+   "label": "인력",
+   "kind": "tab",
+   "level": "L2",
+   "tcId": "CMON-TAB-인력"
+  }
+ ],
+ "정보 관리 > 코스 리뉴얼 정보": [
+  {
+   "label": "신규 등록",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CINFO-RENEW-REG"
+  }
+ ],
+ "정보 관리 > 홀 별 정보": [
+  {
+   "label": "내보내기",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CINFO-HOLE-CTL"
+  }
+ ],
+ "정보 관리 > 잔디 측정 정보": [
+  {
+   "label": "초기화",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CINFO-GRASS-CTL"
+  },
+  {
+   "label": "적용",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CINFO-GRASS-CTL"
+  },
+  {
+   "label": "신규 등록",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CINFO-GRASS-REG"
+  },
+  {
+   "label": "YYYY-MM-DD",
+   "level": "L2",
+   "tcId": "CINFO-GRASS-DATE"
+  },
+  {
+   "label": "기간",
+   "kind": "datepicker",
+   "level": "L2",
+   "tcId": "CINFO-GRASS-DATE"
+  }
+ ],
+ "정보 관리 > 토양 측정 정보": [
+  {
+   "label": "초기화",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CINFO-SOIL-CTL"
+  },
+  {
+   "label": "적용",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CINFO-SOIL-CTL"
+  },
+  {
+   "label": "신규 등록",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CINFO-SOIL-REG"
+  },
+  {
+   "label": "YYYY-MM-DD",
+   "level": "L2",
+   "tcId": "CINFO-SOIL-DATE"
+  },
+  {
+   "label": "기간",
+   "kind": "datepicker",
+   "level": "L2",
+   "tcId": "CINFO-SOIL-DATE"
+  }
+ ],
+ "정보 관리 > 발병 정보": [
+  {
+   "label": "초기화",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CINFO-DISEASE-CTL"
+  },
+  {
+   "label": "적용",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CINFO-DISEASE-CTL"
+  },
+  {
+   "label": "검색어 입력",
+   "kind": "input",
+   "level": "L1",
+   "tcId": "CINFO-DISEASE-CTL"
+  },
+  {
+   "label": "신규 등록",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CINFO-DISEASE-REG"
+  },
+  {
+   "label": "YYYY-MM-DD",
+   "level": "L2",
+   "tcId": "CINFO-DISEASE-DATE"
+  },
+  {
+   "label": "기간",
+   "kind": "datepicker",
+   "level": "L2",
+   "tcId": "CINFO-DISEASE-DATE"
+  }
+ ],
+ "정보 관리 > 기상 정보": [
+  {
+   "label": "초기화",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CINFO-WEATHER-CTL"
+  },
+  {
+   "label": "적용",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CINFO-WEATHER-CTL"
+  },
+  {
+   "label": "YYYY-MM-DD",
+   "level": "L2",
+   "tcId": "CINFO-WEATHER-DATE"
+  },
+  {
+   "label": "기간",
+   "kind": "datepicker",
+   "level": "L2",
+   "tcId": "CINFO-WEATHER-DATE"
+  }
+ ],
+ "정보 관리 > 일상 점검": [
+  {
+   "label": "6개월",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CINFO-DAILY-CTL"
+  },
+  {
+   "label": "1년",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CINFO-DAILY-CTL"
+  },
+  {
+   "label": "초기화",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CINFO-DAILY-CTL"
+  },
+  {
+   "label": "적용",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CINFO-DAILY-CTL"
+  },
+  {
+   "label": "검색어 입력",
+   "kind": "input",
+   "level": "L1",
+   "tcId": "CINFO-DAILY-CTL"
+  },
+  {
+   "label": "신규 등록",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CINFO-DAILY-REG"
+  },
+  {
+   "label": "YYYY-MM-DD",
+   "level": "L2",
+   "tcId": "CINFO-DAILY-DATE"
+  },
+  {
+   "label": "기간",
+   "kind": "datepicker",
+   "level": "L2",
+   "tcId": "CINFO-DAILY-DATE"
+  }
+ ],
+ "정보 관리 > 거래처 정보": [
+  {
+   "label": "거래처 검색",
+   "kind": "input",
+   "level": "L1",
+   "tcId": "CVEND-03"
+  },
+  {
+   "label": "거래처 등록",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CVEND-04"
+  },
+  {
+   "label": "초기화",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "VENDOR-RESET"
+  }
+ ],
+ "작업 관리 > 작업 지시": [
+  {
+   "label": "코스 전체",
+   "kind": "dropdown",
+   "level": "L1",
+   "tcId": "CWORK-02"
+  },
+  {
+   "label": "홀 전체",
+   "kind": "dropdown",
+   "level": "L1",
+   "tcId": "CWORK-02"
+  },
+  {
+   "label": "구역 전체",
+   "kind": "dropdown",
+   "level": "L1",
+   "tcId": "CWORK-02"
+  },
+  {
+   "label": "신규 작업 지시 등록",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CWORK-06"
+  },
+  {
+   "label": "YYYY-MM-DD",
+   "level": "L2",
+   "tcId": "CWORK-07"
+  },
+  {
+   "label": "기간",
+   "kind": "datepicker",
+   "level": "L2",
+   "tcId": "CWORK-07"
+  },
+  {
+   "label": "6개월",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CWORK-CTL"
+  },
+  {
+   "label": "1년",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CWORK-CTL"
+  },
+  {
+   "label": "초기화",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CWORK-CTL"
+  },
+  {
+   "label": "적용",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CWORK-CTL"
+  },
+  {
+   "label": "검색어 입력",
+   "kind": "input",
+   "level": "L1",
+   "tcId": "CWORK-CTL"
+  },
+  {
+   "label": "보기",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CWORK-VIEW"
+  },
+  {
+   "label": "수정",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CWORK-EDIT"
+  }
+ ],
+ "예산 관리 > 예산 상세": [
+  {
+   "label": "2026",
+   "kind": "dropdown",
+   "level": "L1",
+   "tcId": "CBUD-02"
+  },
+  {
+   "label": "엑셀 업로드",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CBUD-03"
+  },
+  {
+   "label": "내보내기",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CBUD-03"
+  }
+ ],
+ "비용 관리 > 비용 집계": [
+  {
+   "label": "내보내기",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CCOST-02"
+  }
+ ],
+ "비용 관리 > 작업별 비용": [
+  {
+   "label": "초기화",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CCOST-TASK-CTL"
+  },
+  {
+   "label": "적용",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CCOST-TASK-CTL"
+  },
+  {
+   "label": "내보내기",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CCOST-TASK-CTL"
+  },
+  {
+   "label": "검색어 입력",
+   "kind": "input",
+   "level": "L1",
+   "tcId": "CCOST-TASK-CTL"
+  },
+  {
+   "label": "YYYY-MM-DD",
+   "level": "L2",
+   "tcId": "CCOST-TASK-DATE"
+  },
+  {
+   "label": "기간",
+   "kind": "datepicker",
+   "level": "L2",
+   "tcId": "CCOST-TASK-DATE"
+  }
+ ],
+ "비용 관리 > 분류별 비용": [
+  {
+   "label": "정렬 초기화",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CCOST-CAT-CTL"
+  },
+  {
+   "label": "내보내기",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CCOST-CAT-CTL"
+  },
+  {
+   "label": "그린",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CTRL-COSTCAT-CHIP"
+  },
+  {
+   "label": "그린칼라",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CTRL-COSTCAT-CHIP"
+  }
+ ],
+ "비용 관리 > 위치별 비용": [
+  {
+   "label": "정렬 초기화",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CCOST-LOC-CTL"
+  },
+  {
+   "label": "내보내기",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CCOST-LOC-CTL"
+  },
+  {
+   "label": "East",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CTRL-COSTLOC-CHIP"
+  }
+ ],
+ "비용 관리 > 기간별 비용": [
+  {
+   "label": "정렬 초기화",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CCOST-PERIOD-CTL"
+  },
+  {
+   "label": "내보내기",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CCOST-PERIOD-CTL"
+  },
+  {
+   "label": "그린",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CTRL-COSTPER-CHIP"
+  },
+  {
+   "label": "그린칼라",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CTRL-COSTPER-CHIP"
+  },
+  {
+   "label": "티박스",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CTRL-COSTPER-CHIP"
+  },
+  {
+   "label": "러프",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CTRL-COSTPER-CHIP"
+  },
+  {
+   "label": "장비",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CTRL-COSTPER-CHIP"
+  }
+ ],
+ "자재 관리 > 자재 총괄": [
+  {
+   "label": "자재명 입력",
+   "kind": "input",
+   "level": "L1",
+   "tcId": "CMATS-01"
+  },
+  {
+   "label": "신규 등록",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CMATS-03"
+  },
+  {
+   "label": "추가 입고",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "ACT-추가입고"
+  },
+  {
+   "label": "보기",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "GAP-MATSUM-VIEW"
+  },
+  {
+   "label": "검색",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CTRL-MATSUM-SEARCH"
+  }
+ ],
+ "자재 관리 > 자재 수불(품목별)": [
+  {
+   "label": "농약",
+   "kind": "dropdown",
+   "level": "L1",
+   "tcId": "CMAT-02"
+  },
+  {
+   "label": "자재명 입력",
+   "kind": "input",
+   "level": "L1",
+   "tcId": "CMAT-01"
+  },
+  {
+   "label": "초기화",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "GAP-MATITEM-RESET"
+  },
+  {
+   "label": "YYYY-MM-DD",
+   "kind": "datepicker",
+   "level": "L2",
+   "tcId": "GAP-MATITEM-DATE"
+  },
+  {
+   "label": "2026년",
+   "kind": "dropdown",
+   "level": "L2",
+   "tcId": "GAP-MATITEM-FILTER"
+  },
+  {
+   "label": "적용",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CTRL-MATITEM-APPLY"
+  }
+ ],
+ "장비 관리 > 장비 총괄": [
+  {
+   "label": "표준 유류비 설정",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CEQP-01"
+  },
+  {
+   "label": "장비등록",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CEQP-03"
+  },
+  {
+   "label": "초기화",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "GAP-EQUIP-RESET"
+  },
+  {
+   "label": "매입일",
+   "kind": "datepicker",
+   "level": "L2",
+   "tcId": "GAP-EQUIP-DATE"
+  },
+  {
+   "label": "검색어 입력",
+   "kind": "input",
+   "level": "L2",
+   "tcId": "GAP-EQUIP-SEARCH"
+  },
+  {
+   "label": "적용",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CTRL-EQUIP-APPLY"
+  }
+ ],
+ "시설 관리 > 시설 총괄": [
+  {
+   "label": "신규 등록",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CFAC-02"
+  },
+  {
+   "label": "시설명 입력",
+   "kind": "input",
+   "level": "L1",
+   "tcId": "CFAC-02"
+  },
+  {
+   "label": "초기화",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "GAP-FACILITY-RESET"
+  },
+  {
+   "label": "지상",
+   "kind": "dropdown",
+   "level": "L2",
+   "tcId": "GAP-FACILITY-FILTER"
+  },
+  {
+   "label": "적용",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CTRL-FACILITY-APPLY"
+  }
+ ],
+ "예산 관리 > 예산 총괄": [
+  {
+   "label": "내보내기",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CBUD-SUM-CTL"
+  }
+ ],
+ "예산 관리 > 실적 관리": [
+  {
+   "label": "엑셀 업로드",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CBUD-PERF-CTL"
+  },
+  {
+   "label": "내보내기",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CBUD-PERF-CTL"
+  }
+ ],
+ "예산 관리 > 예산 분석": [
+  {
+   "label": "내보내기",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CBUD-ANAL-CTL"
+  }
+ ],
+ "자재 관리 > 자재 수불(일자별)": [
+  {
+   "label": "초기화",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CMAT-DAILY-CTL"
+  },
+  {
+   "label": "적용",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CMAT-DAILY-CTL"
+  },
+  {
+   "label": "YYYY-MM-DD",
+   "level": "L2",
+   "tcId": "CMAT-DAILY-DATE"
+  },
+  {
+   "label": "기간",
+   "kind": "datepicker",
+   "level": "L2",
+   "tcId": "CMAT-DAILY-DATE"
+  }
+ ],
+ "사진 관리 > 위치별 사진": [
+  {
+   "label": "YYYY-MM-DD",
+   "level": "L2",
+   "tcId": "CPHOTO-LOC-DATE"
+  },
+  {
+   "label": "기간",
+   "kind": "datepicker",
+   "level": "L2",
+   "tcId": "CPHOTO-LOC-DATE"
+  },
+  {
+   "label": "토 목",
+   "kind": "datepicker",
+   "level": "L2",
+   "tcId": "GAP-PHOTOLOC-DATE"
+  },
+  {
+   "label": "East",
+   "kind": "dropdown",
+   "level": "L2",
+   "tcId": "GAP-PHOTOLOC-FILTER"
+  }
+ ],
+ "작업 관리 > 이슈 관리": [
+  {
+   "label": "초기화",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CISSUE-CTL"
+  },
+  {
+   "label": "검색",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CISSUE-CTL"
+  },
+  {
+   "label": "최근 3개월",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CISSUE-CTL"
+  },
+  {
+   "label": "최근 6개월",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CISSUE-CTL"
+  },
+  {
+   "label": "이후 1개월",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CISSUE-CTL"
+  },
+  {
+   "label": "이후 3개월",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CISSUE-CTL"
+  },
+  {
+   "label": "이후 6개월",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CISSUE-CTL"
+  },
+  {
+   "label": "검색어 입력",
+   "kind": "input",
+   "level": "L1",
+   "tcId": "CISSUE-CTL"
+  },
+  {
+   "label": "코스 전체",
+   "kind": "dropdown",
+   "level": "L1",
+   "tcId": "CISSUE-CTL"
+  },
+  {
+   "label": "홀 전체",
+   "kind": "dropdown",
+   "level": "L1",
+   "tcId": "CISSUE-CTL"
+  },
+  {
+   "label": "구역 전체",
+   "kind": "dropdown",
+   "level": "L1",
+   "tcId": "CISSUE-CTL"
+  },
+  {
+   "label": "신규 이슈 등록",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CISSUE-REG"
+  },
+  {
+   "label": "YYYY-MM-DD",
+   "level": "L2",
+   "tcId": "CISSUE-DATE"
+  },
+  {
+   "label": "기간",
+   "kind": "datepicker",
+   "level": "L2",
+   "tcId": "CISSUE-DATE"
+  }
+ ],
+ "작업 관리 > 예측 정보": [
+  {
+   "label": "코스 전체",
+   "kind": "dropdown",
+   "level": "L1",
+   "tcId": "CPREDICT-CTL"
+  },
+  {
+   "label": "홀 전체",
+   "kind": "dropdown",
+   "level": "L1",
+   "tcId": "CPREDICT-CTL"
+  },
+  {
+   "label": "구역 전체",
+   "kind": "dropdown",
+   "level": "L1",
+   "tcId": "CPREDICT-CTL"
+  }
+ ],
+ "인력 관리 > 권한관리": [
+  {
+   "label": "이름 입력",
+   "kind": "input",
+   "level": "L1",
+   "tcId": "CHR-PERM-CTL"
+  },
+  {
+   "label": "그룹 추가",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CHR-PERM-CTL"
+  },
+  {
+   "label": "저장하기",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CHR-PERM-CTL"
+  },
+  {
+   "label": "전체",
+   "kind": "toggle",
+   "level": "L2",
+   "tcId": "PERM-ALL-TOGGLE"
+  }
+ ],
+ "인력 관리 > 인력 관리": [
+  {
+   "label": "이름 검색",
+   "kind": "input",
+   "level": "L1",
+   "tcId": "CHR-HUMAN-CTL"
+  },
+  {
+   "label": "표준 근무시간 설정",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CHR-HUMAN-CTL"
+  },
+  {
+   "label": "초기화",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CHR-HUMAN-CTL"
+  },
+  {
+   "label": "적용",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "CHR-HUMAN-CTL"
+  },
+  {
+   "label": "신규 등록",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "CHR-HUMAN-REG"
+  }
+ ],
+ "코스 현황 관리 > 3D": [
+  {
+   "label": "지점",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "D3-TOOL-지점"
+  },
+  {
+   "label": "거리",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "D3-TOOL-거리"
+  },
+  {
+   "label": "높이",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "D3-TOOL-높이"
+  },
+  {
+   "label": "각도",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "D3-TOOL-각도"
+  },
+  {
+   "label": "넓이",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "D3-TOOL-넓이"
+  }
+ ],
+ "코스 현황 관리 > 그린 분석": [
+  {
+   "label": "좌",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "GRN-SWIPE"
+  },
+  {
+   "label": "우",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "GRN-SWIPE"
+  }
+ ],
+ "코스 현황 관리 > 드론사진 업로드": [
+  {
+   "label": "영상정보 등록",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "DRN-REGISTER-MODAL"
+  }
+ ],
+ "코스 현황 관리 > 식생 분석": [
+  {
+   "label": "스와이프 비교",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "VEG-SWIPE"
+  },
+  {
+   "label": "값 표시(hover)",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "VEG-VALUE"
+  },
+  {
+   "label": "배수 분석 →",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "VEG-DRAINAGE"
+  },
+  {
+   "label": "비교 분석 →",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "VEG-COMPARE"
+  },
+  {
+   "label": "YYYY-MM-DD",
+   "kind": "datepicker",
+   "level": "L2",
+   "tcId": "VEG-DATE"
+  }
+ ],
+ "코스 현황 관리 > 코스 영역 설정": [
+  {
+   "label": "추가",
+   "kind": "button",
+   "level": "L1",
+   "tcId": "DRW-ADD"
+  }
+ ],
+ "정보 관리 > 코스 기본 정보": [
+  {
+   "label": "수정",
+   "kind": "button",
+   "level": "L2",
+   "tcId": "INFOD-CB-EDIT"
+  }
+ ],
+ "인력 관리 > 근태 관리": [
+  {
+   "label": "YYYY-MM-DD",
+   "kind": "datepicker",
+   "level": "L2",
+   "tcId": "GAP-HRWORK-DATE"
+  },
+  {
+   "label": "YYYY-MM-DD",
+   "kind": "input",
+   "level": "L2",
+   "tcId": "GAP-HRWORK-DATE"
+  },
+  {
+   "label": "전일 근무",
+   "kind": "toggle",
+   "level": "L2",
+   "tcId": "CTRL-HRWORK-CHIP"
+  },
+  {
+   "label": "오전 근무",
+   "kind": "toggle",
+   "level": "L2",
+   "tcId": "CTRL-HRWORK-CHIP"
+  },
+  {
+   "label": "오후 근무",
+   "kind": "toggle",
+   "level": "L2",
+   "tcId": "CTRL-HRWORK-CHIP"
+  },
+  {
+   "label": "휴가",
+   "kind": "toggle",
+   "level": "L2",
+   "tcId": "CTRL-HRWORK-CHIP"
+  },
+  {
+   "label": "결근",
+   "kind": "toggle",
+   "level": "L2",
+   "tcId": "CTRL-HRWORK-CHIP"
+  }
+ ],
+ "인력 관리 > 투입 관리": [
+  {
+   "label": "YYYY-MM-DD",
+   "kind": "datepicker",
+   "level": "L2",
+   "tcId": "GAP-HRASSIGN-DATE"
+  },
+  {
+   "label": "전체",
+   "kind": "dropdown",
+   "level": "L2",
+   "tcId": "GAP-HRASSIGN-FILTER"
+  },
+  {
+   "label": "YYYY-MM-DD",
+   "kind": "input",
+   "level": "L2",
+   "tcId": "GAP-HRASSIGN-DATE"
+  }
+ ],
+ "사진 관리 > 정보별 사진": [
+  {
+   "label": "YYYY-MM-DD",
+   "kind": "datepicker",
+   "level": "L2",
+   "tcId": "GAP-PHOTOINFO-DATE"
+  },
+  {
+   "label": "작업",
+   "kind": "dropdown",
+   "level": "L2",
+   "tcId": "GAP-PHOTOINFO-FILTER"
+  },
+  {
+   "label": "YYYY-MM-DD",
+   "kind": "input",
+   "level": "L2",
+   "tcId": "GAP-PHOTOINFO-DATE"
+  }
+ ]
+}

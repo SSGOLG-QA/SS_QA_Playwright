@@ -48,32 +48,46 @@ test('API 계약 검증 — 핵심 화면(단일 세션 순회)', async ({ admin
   test.setTimeout(15 * 60_000);
   resetResults(); resetNoTC(); resetDiff();
 
-  for (const s of SCREENS) {
-    const capture = startCapture(admin, s.kw);
+  // ✨P2(2026-08-19): 이 어드민 SPA는 부팅 시 데이터를 프리페치하고 검색도 클라이언트 필터라
+  //   진입/[조회] 클릭으론 데이터 API가 뜨지 않음(라이브 확인: refetch-클릭 → 전 화면 0건).
+  //   → **부팅 프리페치 캡처**: 전역 캡처 설치 → reload()로 재부팅(비파괴, 데이터 라우트만 재요청) →
+  //     프리페치 번들 수집 → 화면별 키워드로 공유 풀에서 선택. (URL 정적자산 필터로 폰트 오탐 제거)
+  const pool = startCapture(admin, '');   // kw='' → 전 데이터 응답 수집(자산 제외는 startCapture 내부)
+  await admin.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
+  await admin.waitForLoadState('networkidle', { timeout: 12_000 }).catch(() => {});
+  await admin.waitForTimeout(2_500);
+  const loginPage = /\/login/.test(admin.url());
+  console.log(`\n[boot prefetch] 데이터 API ${pool.responses.length}건 수집${loginPage ? ' ⚠세션 만료(로그인 페이지)' : ''}`);
+  const bootUrls = [...new Set(pool.responses.map(r => `${r.method} ${r.status} ${new URL(r.url).pathname} [${(r.ct.split(';')[0] || '').trim()}]`))];
+  bootUrls.slice(0, 40).forEach(u => console.log('  ', u));
 
+  for (const s of SCREENS) {
     await gotoMenu(admin, s.menu, s.sub, {
       path: s.label, tcRef: 'API_CONTRACT', tcId: s.id,
       desc: `${s.sub} 메뉴 진입`, failMsg: '메뉴 진입 불가',
     });
+    // 화면별 refetch도 시도(서버 조회형이면 추가 캡처 — 클라이언트 필터면 무효, 공유 풀에 누적)
+    const scope = admin.locator('.contents, main').first();
+    const refetch = scope.getByRole('button', { name: /^\s*(조회|검색)\s*$/ }).first();
+    if (await refetch.isVisible({ timeout: 1_500 }).catch(() => false)) {
+      await refetch.click({ timeout: 2_500 }).catch(() => {});
+      await admin.waitForLoadState('networkidle', { timeout: 6_000 }).catch(() => {});
+      await admin.waitForTimeout(800);
+    }
 
-    await checkApiContract(admin, capture, {
-      path: s.label,
-      tcRef: 'API_CONTRACT',
-      tcId: s.id,
-      expectedStatus: 200,
-      expectedKeys: s.expectedKeys ?? [],
-      countPath: s.countPath,
-      getRenderedCount: s.countSel
-        ? async (page) => page.locator(s.countSel!).count()
-        : undefined,
+    // 공유 풀(부팅 프리페치 + 화면 refetch 누적)에서 키워드로 선택. detach는 마지막에 1회.
+    await checkApiContract(admin, { urlKeyword: s.kw, responses: pool.responses, detach: () => {} }, {
+      path: s.label, tcRef: 'API_CONTRACT', tcId: s.id,
+      expectedStatus: 200, expectedKeys: s.expectedKeys ?? [], countPath: s.countPath,
+      getRenderedCount: s.countSel ? async (page) => page.locator(s.countSel!).count() : undefined,
+      settleMs: 400,
     });
 
-    // discovery: 캡처된 데이터 API(GET/POST) 출력(expectedKeys/countPath 채우기 참조용)
-    const urls = [...new Set(capture.responses.map(r =>
-      `${r.method} ${r.status} ${new URL(r.url).pathname}  [${(r.ct.split(';')[0] || '').trim()}]`))];
-    console.log(`\n[API Discovery] ${s.label} — 데이터 API ${urls.length}건:`);
-    urls.forEach(u => console.log('  ', u));
+    const urls = [...new Set(pool.responses.filter(r => r.url.includes(s.kw)).map(r =>
+      `${r.method} ${r.status} ${new URL(r.url).pathname}`))];
+    console.log(`[API Discovery] ${s.label} — 키워드 '${s.kw}' 매칭 ${urls.length}건${urls.length ? ': ' + urls.join(', ') : ''}`);
   }
 
+  pool.detach();
   await writeReport('api-contract');
 });

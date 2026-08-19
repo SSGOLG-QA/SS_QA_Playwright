@@ -11,6 +11,7 @@
     "lib/**/*.ts",
     "Admin/**/*.ts",
     "auth/**/*.ts",
+    "Course/**/*.ts",
     "playwright.config.ts"
   ],
   "exclude": [

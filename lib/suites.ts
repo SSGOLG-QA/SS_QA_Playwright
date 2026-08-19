@@ -208,6 +208,11 @@ export async function runRoundMgmt(admin: Page) {
   //    과거 '범위제외(고도화 별도) + noTC'였으나, 현 구현 구조를 비파괴로 검증(runGroupRound).
   if (await gotoMenu(admin, M, '단체라운드', { path: '라운드관리 > 단체 라운드', tcRef: '라운드 관리_단체 라운드', tcId: '진입', desc: '단체 라운드 진입', failMsg: '메뉴 진입 불가' }))
     await runGroupRound(admin);
+
+  // 8. 스코어 출력 설정 — 신규 화면(2026-08 학습, runScoreOutput). 구조 기반 비파괴.
+  //    URL /club/page/scorecard-print-setting. all-suite 편입(2026-08-18): 라운드관리 하위 순차 진입.
+  if (await gotoMenu(admin, M, '스코어 출력 설정', { path: '라운드관리 > 스코어 출력 설정', tcRef: '라운드 관리_스코어 출력 설정', tcId: '진입', desc: '스코어 출력 설정 진입', failMsg: '메뉴 진입 불가' }))
+    await runScoreOutput(admin);
 }
 
 // ════════════════ 라운드관리 > 단체 라운드 (구조 기반 + 읽기전용 딥 인터랙션) ════════════════
@@ -753,6 +758,82 @@ export async function runLiveChatNotice(admin: Page) {
   await runCommonActions(admin, P, R);
 }
 
+// ════════════════ 라운드 관리 > 스코어 출력 설정 (신규 화면, 2026-08 학습) ════════════════
+//   URL: /club/page/scorecard-print-setting · 스코어카드 출력 서비스 사용여부(토글 tgv-*)·골프장 로고·본인확인 방식(radio authMethod).
+//   ⚠ 비파괴: 저장·[스코어 출력 서비스 바로가기](로그아웃/이동)·[사진선택/사진등록]·토글 실변경·라디오 저장 클릭 금지 → 노출·활성만.
+//   ⚠ 상태 의존: 로고·본인확인 섹션은 '노출(사용)' 상태에서만 렌더 → 미노출(미사용)이면 skip.
+//   기획-구현 차이: 토글 라벨 '미사용/사용'→'미노출/노출' · 로고 [사진등록] 버튼 추가 · 안내문구 확장 · 파일규격 표기 'JPG, PNG'(JPEG 누락).
+export async function runScoreOutput(admin: Page) {
+  const P = '라운드관리 > 스코어 출력 설정';
+  const R = '라운드 관리_스코어 출력 설정';   // tcRef: 시트제목_1depth_No.
+  await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
+
+  // ── SCOUT-01 상단 안내문구(구현 AS-IS 전문 일치) ──
+  await checkText(admin, { path: `${P} > 설명 영역`, tcRef: `${R}_1`, tcId: 'SCOUT-01', desc: '안내문구 노출(구현 AS-IS)', expected: '스코어카드 출력 서비스의 사용 여부를 설정하고, 고객이 접속할 전용 URL과 본인확인 방식을 관리합니다. 설정 완료 후 저장하면 해당 골프장의 출력 서비스 페이지에 즉시 반영됩니다.', failMsg: 'UI 불일치(안내 문구)' },
+    admin.locator('.info-box-text').first());
+
+  // ── SCOUT-02 [스코어 출력 서비스 바로가기] 버튼(노출만 — 클릭=로그아웃/이동) ──
+  await check(admin, { path: `${P} > 바로가기`, tcRef: `${R}_2`, tcId: 'SCOUT-02', desc: '[스코어 출력 서비스 바로가기] 버튼 노출', expected: '버튼', failMsg: '버튼 미노출' },
+    async () => { await expect(admin.getByRole('button', { name: '스코어 출력 서비스 바로가기' })).toBeVisible(); });
+
+  // ── SCOUT-03 스코어 출력 기능 사용 여부 토글(섹션 스코프 — 동적 id tgv-* 금지) ──
+  const useBox = admin.locator('.contents-box').filter({ hasText: '스코어 출력 기능 사용 여부' });
+  await check(admin, { path: `${P} > 사용여부`, tcRef: `${R}_3`, tcId: 'SCOUT-03', desc: '사용여부 토글 노출(미노출/노출)', expected: 'toggle-switch', failMsg: '토글 미노출' },
+    async () => { await expect(useBox.locator('.toggle-switch, input[type=checkbox]').first()).toBeVisible(); });
+  await check(admin, { path: `${P} > 사용여부 안내`, tcRef: `${R}_3`, tcId: 'SCOUT-03b', desc: '사용여부 안내문구(미노출/노출)', expected: '미노출/노출 안내', failMsg: '안내문구 미노출' },
+    async () => { await expect(useBox.getByText(/미노출 시 접속하면/)).toBeVisible(); });
+
+  // ── SCOUT-04 골프장 로고 등록(노출 상태 의존) ──
+  const logoBox = admin.locator('.contents-box').filter({ hasText: '골프장 로고 등록' });
+  if (await logoBox.first().isVisible().catch(() => false)) {
+    await check(admin, { path: `${P} > 로고`, tcRef: `${R}_4`, tcId: 'SCOUT-04a', desc: '파일명 input + [사진선택]/[사진 미리보기]/[사진등록] 노출', expected: 'file-name-input + 3버튼', failMsg: '로고 등록 UI 미노출' },
+      async () => {
+        await expect(logoBox.locator('.file-name-input, input[placeholder="이미지를 선택하세요."]').first()).toBeVisible();
+        await expect(logoBox.getByRole('button', { name: '사진선택' })).toBeVisible();
+        await expect(logoBox.getByRole('button', { name: '사진 미리보기' })).toBeVisible();
+        await expect(logoBox.getByRole('button', { name: '사진등록' })).toBeVisible();
+      });
+    await check(admin, { path: `${P} > 로고 규격`, tcRef: `${R}_4`, tcId: 'SCOUT-04b', desc: '파일 규격 안내(300*80px·5MB·JPG/PNG)', expected: '파일 규격', failMsg: '규격 안내 미노출' },
+      async () => { await expect(logoBox.getByText(/파일\s*규격/)).toBeVisible(); });
+  } else {
+    skip({ path: `${P} > 로고`, tcRef: `${R}_4`, tcId: 'SCOUT-04a', desc: '골프장 로고 등록 영역' }, '미노출(사용여부 미노출 상태 — 상태 의존)');
+  }
+
+  // ── SCOUT-05 본인확인 방식(노출 상태 의존) ──
+  const authBox = admin.locator('.contents-box').filter({ hasText: '본인확인 방식' });
+  if (await authBox.first().isVisible().catch(() => false)) {
+    await check(admin, { path: `${P} > 본인확인`, tcRef: `${R}_5`, tcId: 'SCOUT-05a', desc: '본인확인 방식 라디오 3종(authMethod) + auth-card 3', expected: 'radio x3', failMsg: '라디오 미노출' },
+      async () => { await expect(authBox.locator('input[name="authMethod"]')).toHaveCount(3); await expect(authBox.locator('.auth-card')).toHaveCount(3); });
+    await check(admin, { path: `${P} > 본인확인 옵션`, tcRef: `${R}_5`, tcId: 'SCOUT-05b', desc: '라디오 3종 라벨(라운드번호 입력[권장]/코스·티타임/둘 다)', expected: '3종 라벨', failMsg: '옵션 라벨 미노출' },
+      async () => {
+        await expect(authBox.getByText(/라운드번호 입력/).first()).toBeVisible();
+        await expect(authBox.getByText(/코스\/티타임 선택/).first()).toBeVisible();
+        await expect(authBox.getByText(/라운드번호 \+ 코스\/티타임/).first()).toBeVisible();
+      });
+  } else {
+    skip({ path: `${P} > 본인확인`, tcRef: `${R}_5`, tcId: 'SCOUT-05a', desc: '본인확인 방식 라디오' }, '미노출(사용여부 미노출 상태 — 상태 의존)');
+  }
+
+  // ── SCOUT-06 [저장] 버튼(노출만 — 활성은 변경사항 존재 시에만, 비파괴 무변경 상태선 disabled 정상) ──
+  await check(admin, { path: `${P} > 저장`, tcRef: `${R}_6`, tcId: 'SCOUT-06', desc: '[저장] 버튼 노출', expected: '저장 버튼', failMsg: '저장 버튼 미노출' },
+    async () => { await expect(admin.getByRole('button', { name: '저장' }).first()).toBeVisible(); });
+  const saveEnabled = await admin.getByRole('button', { name: '저장' }).first().isEnabled().catch(() => false);
+  diff(P, '[저장] 버튼 활성 조건', `무변경 상태 저장 버튼 ${saveEnabled ? '활성' : '비활성(변경사항 있어야 활성 추정)'}`, `${R}_6`, '활성 조건 = 변경 감지(비파괴 검증은 노출만)');
+
+  // ── 기획-구현 차이(diff 추적) ──
+  diff(P, '사용여부 토글 라벨', "기획 '미사용/사용' → 구현 '미노출/노출'", `${R}_3`, '라벨 변경 — 기능 정상, QA 확인');
+  diff(P, '골프장 로고 [사진등록] 버튼', '기획 [사진선택]/[사진 미리보기] → 구현 [사진등록] 버튼 추가(등록 확정 분리)', `${R}_4`, '버튼 추가 — 현 구현');
+  // ✨QA-15282(2026-08-18 완료) — 파일규격 안내문구 JPEG 누락이 실결함으로 확정·수정 완료됨(당일). SCOUT-04b는 '파일\s*규격' 느슨한 매칭이라 문구 변경과 무관하게 통과 — 안전.
+  diff(P, '파일 규격 표기', "구현 '300*80픽셀, 5MB 이하 JPG, PNG'(JPEG 누락) vs 기획 'JPG, JPEG, PNG'", `${R}_4`, 'JIRA QA-15282(2026-08-18 완료) — JPEG 누락 결함 확정·당일 수정완료. 다음 라이브 세션에서 "JPG, JPEG, PNG" 반영 재확인 권고');
+  // ⚠ QA-15278(2026-08-18 완료) — 화면 문구가 기획서와 상이하다는 결함이 확정·당일 수정완료됨. 아래 SCOUT-01 checkText 전문은
+  //   같은 날 이 결함이 접수(09:18)되기 전 캡처된 AS-IS 문구라 수정 이후 실제 문구와 달라졌을 가능성 있음(라이브 미재확인).
+  //   다음 라이브 세션에서 SCOUT-01 안내문구 전문 재추출 후 checkText expected 값 갱신 필요(가짜 FAIL 방지).
+  diff(P, '안내문구 확장', "구현 상단 안내에 '고객이 접속할 전용 URL과 본인확인 방식을 관리' 추가(기획 대비)", `${R}_1`, 'JIRA QA-15278(2026-08-18 완료) — 문구 상이 결함 확정·당일 수정완료. SCOUT-01 checkText는 수정 전 캡처본이라 다음 라이브 세션에서 전문 재확인/갱신 필요');
+  // ✨QA-15281(2026-08-18 생성, Backlog·미해결) — 로고 등록 시 용량초과/미지원확장자/미등록 알럿 문구가 서버 공용 검증 메시지("그룹명"·"열외"·"엑셀 파일만 업로드 가능합니다" 등)로 오표기.
+  //   suite는 [사진선택] 클릭·업로드를 수행하지 않아(비파괴) 직접 검출 대상은 아니나, QA 트래킹 가시성을 위해 diff로 기록.
+  diff(P, '로고 등록 오류 알럿 문구(용량초과/미지원확장자/미등록)', '서버 공용 검증 메시지가 그대로 노출(예: 용량초과 시 "그룹명", 미지원확장자 시 "열외", 미등록 시 "엑셀 파일만 업로드 가능합니다.")', `${R}_4`, 'JIRA QA-15281 Backlog(미해결) — 알럿 문구 오표기. 비파괴 원칙상 업로드 트리거는 suite 범위 밖(수동 확인 필요)');
+}
+
 // ════════════════ 관제관리 > 메시지 기록 조회 - 구조 기반 TC (콘텐츠 구현 확인 2026-06-08) ════════════════
 //   URL: /club/page/control-message-history · 안내문구 + 검색(조회일 datepicker / 검색어) + 결과(.message-box 채팅버블: 날짜/To.{대상자}/내용/시각)
 //   ⚠ 과거 '빈 화면'이었으나 콘텐츠 구현됨(2026-06 리뉴얼). SNB·TC 상세 라벨 = '메시지 기록 조회'(IA변경표의 '기기 조회' 표기와 달리 라이브는 '기록 조회'). 초기화/적용은 조회(읽기)·비파괴
@@ -855,6 +936,9 @@ export async function runTabletFeature(admin: Page) {
   // ── TABLET-01 안내문구 원문 일치 ────────────────────────────
   await checkText(admin, { path: `${P} > 설명 영역`, tcRef: `${R}_1`, tcId: 'TABLET-01', desc: '안내 문구 TC 원문 일치', expected: '태블릿에서 사용 가능한 기능들을 설정할 수 있습니다. 고객 확인서, 중대재해 확인서 및 카트 도로 이탈 메시지의 내용을 설정할 수 있으며, 긴급 호출 시 태블릿에 전송되는 연락처를 입력할 수 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
     admin.locator('.info-box-text'));
+  // ⚠ QA-15105(2026-07-22 요청 → 2026-07-23 완료 확인, 한지연 "문구 변경 적용 확인") — '고객확인서' 팝업/기능명 → '카트확인서'로 명칭 변경 실적용 확인됨(주도현 승인).
+  //   본 checkText는 여전히 구(舊) '고객 확인서' 표기 기준 — 정확한 변경 후 전문(全文)은 라이브 미확인(클라우드 샌드박스 td17 네트워크 차단으로 본 세션 확인 불가) → 다음 로컬 라이브 세션에서 실제 문구 재추출 후 갱신 필요.
+  diff(`${P} > 설명 영역`, 'TABLET-01 안내문구 "고객 확인서" 표기', 'QA-15105 완료(2026-07-23 적용 확인) — "고객확인서"→"카트확인서" 명칭 변경. TABLET-01 checkText 전문은 구 표기 기준이라 라이브 재확인 후 갱신 필요(본 세션은 네트워크 차단으로 미확인)', `${R}_1`, '2026-08-03 정기 점검에서 JIRA 확인 완료 확인, 스크립트 문구는 다음 라이브 세션 갱신 대상');
 
   // ── TABLET-02 경기 진행 설정: 통계카드 3 + 합 일치 ───────────
   const secGame = admin.locator('.contents-box').filter({ hasText: /경기\s*진행\s*설정/ });
@@ -871,7 +955,8 @@ export async function runTabletFeature(admin: Page) {
   const MSG_SECS: { rx: RegExp; label: string; cols: string[] }[] = [
     { rx: /카트도로\s*이탈\s*메시지/, label: '카트도로 이탈 메시지', cols: ['상세 메시지', '수정일시', '작성자', '관리'] },
     { rx: /긴급\s*?호출\s*연락처/, label: '긴급호출 연락처', cols: ['전화번호', '수정일시', '작성자', '관리'] },
-    { rx: /고객\s*확인서/, label: '고객 확인서', cols: ['상세 메시지', '수정일시', '작성자', '관리'] },
+    // ⚠ QA-15105(완료 2026-07-23) — '고객확인서'→'카트확인서' 명칭 변경 확인됨(라이브 미검증, 네트워크 차단). 구/신 라벨 모두 매칭되도록 정규식 관용화(섹션 미탐지 회귀 방지).
+    { rx: /고객\s*확인서|카트\s*확인서/, label: '고객/카트 확인서', cols: ['상세 메시지', '수정일시', '작성자', '관리'] },
     { rx: /중대재해\s*확인서/, label: '중대재해 확인서', cols: ['상세 메시지', '수정일시', '작성자', '관리'] },
   ];
   for (const [i, sec] of MSG_SECS.entries()) {
@@ -2459,6 +2544,8 @@ const IA_TREE: [string, string, string?][] = [
   ['라운드 관리', '홀별 정산 관리'],
   ['라운드 관리', '카트 관리'],
   ['라운드 관리', '단체 라운드'],
+  ['라운드 관리', '스코어 출력 설정', '신규(2026-08 학습·스크립트화·all-suite 편입)'],
+  ['라운드 관리', '마커 인증 조회', '신규(QA-15177) — 학습 대기(라이브 캡처 필요)'],
   ['관제 관리', '관제 모니터', 'SNB有·TC無(범위제외 가능)'],
   ['관제 관리', '아이콘 관리'],
   ['관제 관리', '라이브채팅 공지 조회'],

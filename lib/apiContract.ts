@@ -30,6 +30,8 @@ interface CapturedRes {
 
 // 정적 자산 CT 제외(데이터 API만 남김). text/plain은 일부 API가 사용하므로 유지.
 const ASSET_CT = /html|css|javascript|image\/|font|woff/;
+// ✨CT가 비거나 octet-stream이면 CT 필터를 빠져나가므로 URL 확장자/경로로도 정적 자산 제외(폰트 woff2 오탐 방지).
+const ASSET_URL = /\.(woff2?|ttf|otf|eot|css|m?js|png|jpe?g|gif|svg|ico|webp|avif|map)(\?|#|$)|\/fonts?\//i;
 
 export interface ApiCapture {
   urlKeyword: string;
@@ -62,7 +64,8 @@ export function startCapture(page: Page, urlKeyword: string): ApiCapture {
       const method = res.request().method();
       if (method !== 'GET' && method !== 'POST') return;   // 데이터 조회: GET/POST 모두(SPA는 POST 조회 흔함)
       const ct = res.headers()['content-type'] ?? '';
-      if (ASSET_CT.test(ct)) return;                        // 정적 자산 제외
+      if (ASSET_CT.test(ct)) return;                        // 정적 자산 제외(CT 기준)
+      if (ASSET_URL.test(res.url())) return;                // 정적 자산 제외(URL 기준 — CT 공란/octet-stream 대응)
       responses.push({ url: res.url(), method, status: res.status(), ct, res });
     } catch { /* 응답 소멸 등 무시 */ }
   };

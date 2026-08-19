@@ -5,11 +5,10 @@
  *       제품 결함을 시뮬레이션(DOM 결함 주입)했을 때 FAIL로 뒤집히는가(mutant kill).
  *       뒤집히지 않으면(survive) "가짜 PASS(vacuous pass)" 위험 단언으로 분류.
  *
- * 대상 화면(4개) × 케이스(A~E, 5종) = 최대 20건 측정:
- *   1. 관제 관리 > 라이브채팅 공지 조회  — 안내문구 + 버튼
- *   2. 코스 운영 관리 > 코스 분석        — 안내문구 + 컬럼 헤더
- *   3. 고객 평가 관리 > 후기 통계        — 안내문구 + 컬럼 헤더 + 버튼
- *   4. 캐디 관리 > 캐디 리스트           — 컬럼 헤더 + 버튼
+ * 대상 화면(11개, 2026-08-19 확대) × 케이스(A~E, 5종):
+ *   기존 4: 라이브채팅 공지 조회 · 코스 분석 · 후기 통계 · 캐디 리스트
+ *   확대 7: 내장 현황 · 태블릿 기능 설정 · 홀맵 구역 설정 · 진행시간 조회 · 주문 내역 관리 · 계정 리스트 · 대회관리
+ *   → 전 대메뉴 대표 화면군의 단언 품질(민감/둔감) 감사(표준 축 C 확대)
  *
  * 케이스:
  *   A: checkText 안내문구 전문 일치          → 민감(변조 즉시 FAIL) 기대
@@ -72,6 +71,56 @@ const SENS_SCREENS: Array<{
     cases: (admin, screen) => {
       const ctx = { infoText: '', colHeader: '' };
       return [caseC(admin, screen, TOP), caseD(admin, screen, TOP), caseE(admin, screen, TOP, ctx)];
+    },
+  },
+  // ✨P5 확대(2026-08-19): 4→11화면 · 전 대메뉴 대표 화면군 단언 품질 감사(축 C)
+  {
+    parent: '라운드 관리', child: '내장 현황',
+    cases: (admin, screen) => {
+      const ctx = { infoText: '', colHeader: '' };
+      return [caseA(admin, screen, TOP, ctx), caseB(admin, screen, TOP, ctx), caseC(admin, screen, TOP), caseD(admin, screen, TOP), caseE(admin, screen, TOP, ctx)];
+    },
+  },
+  {
+    parent: '태블릿 운영 관리', child: '태블릿 기능 설정',
+    cases: (admin, screen) => {
+      const ctx = { infoText: '' };
+      return [caseA(admin, screen, TOP, ctx), caseB(admin, screen, TOP, ctx), caseC(admin, screen, TOP), caseD(admin, screen, TOP)];
+    },
+  },
+  {
+    parent: '홀맵 관리', child: '홀맵 구역 설정',
+    cases: (admin, screen) => {
+      const ctx = { infoText: '' };
+      return [caseA(admin, screen, TOP, ctx), caseB(admin, screen, TOP, ctx), caseD(admin, screen, TOP)];
+    },
+  },
+  {
+    parent: '경기 진행 관리', child: '진행시간 조회',
+    cases: (admin, screen) => {
+      const ctx = { infoText: '', colHeader: '' };
+      return [caseA(admin, screen, TOP, ctx), caseB(admin, screen, TOP, ctx), caseD(admin, screen, TOP), caseE(admin, screen, TOP, ctx)];
+    },
+  },
+  {
+    parent: '식음 관리', child: '주문 내역 관리',
+    cases: (admin, screen) => {
+      const ctx = { infoText: '' };
+      return [caseA(admin, screen, TOP, ctx), caseB(admin, screen, TOP, ctx), caseC(admin, screen, TOP), caseD(admin, screen, TOP)];
+    },
+  },
+  {
+    parent: '계정 관리', child: '계정 리스트',
+    cases: (admin, screen) => {
+      const ctx = { colHeader: '' };
+      return [caseC(admin, screen, TOP), caseD(admin, screen, TOP), caseE(admin, screen, TOP, ctx)];
+    },
+  },
+  {
+    parent: '대회', child: '대회관리',
+    cases: (admin, screen) => {
+      const ctx = { infoText: '', colHeader: '' };
+      return [caseA(admin, screen, TOP, ctx), caseB(admin, screen, TOP, ctx), caseC(admin, screen, TOP), caseD(admin, screen, TOP), caseE(admin, screen, TOP, ctx)];
     },
   },
 ];

@@ -24,12 +24,34 @@ test.use({ viewport: { width: 1280, height: 800 } });
 
 interface VisualScreen { menu: string; sub: string; name: string; }
 
+// ✨P4 확대(2026-08-19): 6→22화면 · 전 대메뉴 핵심 화면 픽셀 baseline 대조.
+//   ⚠ baseline은 **동일(고정 CI) 러너에서 --update-snapshots로 생성**해야 오탐 없음(로컬↔CI 폰트/렌더 차이).
+//   신규 화면은 첫 --update-snapshots 실행 시 baseline 생성됨. 비파괴.
 const SCREENS: VisualScreen[] = [
+  // 설정/폼 화면(레이아웃·글리프 회귀 민감)
   { menu: '태블릿 운영 관리', sub: '태블릿 기능 설정', name: 'tablet-feature' },
   { menu: '경기 진행 관리', sub: '진행시간 표준 설정', name: 'time-standard' },
   { menu: '코스 운영 관리', sub: '그린 스피드', name: 'green-speed' },
   { menu: '관제 관리', sub: '아이콘 관리', name: 'icon-mgmt' },
+  { menu: '라운드 관리', sub: '스코어 출력 설정', name: 'score-output' },
+  { menu: '홀맵 관리', sub: '홀맵 구역 설정', name: 'holemap-zone' },
+  // 리스트/테이블 화면(컬럼·정렬·페이지네이션 chrome)
+  { menu: '라운드 관리', sub: '내장 현황', name: 'visit-status' },
+  { menu: '라운드 관리', sub: '전체라운드', name: 'all-rounds' },
   { menu: '계정 관리', sub: '계정 리스트', name: 'account-list' },
+  { menu: '계정 관리', sub: '계정 권한 관리', name: 'account-perm' },
+  { menu: '캐디 관리', sub: '캐디 리스트', name: 'caddie-list' },
+  { menu: '배토 관리', sub: '배토 기록 조회', name: 'beto-record' },
+  { menu: '식음 관리', sub: '주문 내역 관리', name: 'fnb-order' },
+  { menu: '고객 평가 관리', sub: '후기 통계', name: 'review-stats' },
+  { menu: '코스 운영 관리', sub: '핀 포지션 관리', name: 'pin-position' },
+  { menu: '경기 진행 관리', sub: '진행시간 통계', name: 'time-stats' },
+  // 안내문구/탭 화면
+  { menu: '관제 관리', sub: '라이브채팅 공지 조회', name: 'livechat-notice' },
+  { menu: '관제 관리', sub: '메시지 기록 조회', name: 'message-history' },
+  { menu: '태블릿 운영 관리', sub: '메시지 관리', name: 'tablet-message' },
+  { menu: '태블릿 운영 관리', sub: '홀 이벤트 관리', name: 'hole-event' },
+  { menu: '코스 운영 관리', sub: '골프장 소식', name: 'club-news' },
   { menu: '대회', sub: '대회관리', name: 'tournament' },
 ];
 

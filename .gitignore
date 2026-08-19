@@ -42,3 +42,7 @@ new.html
 # 테스트 결과 출력 json
 Playwright_New/Playwright_New/
 **/e2e-results.json
+
+# generated monocart reports
+monocart-report/
+Course/monocart-report/

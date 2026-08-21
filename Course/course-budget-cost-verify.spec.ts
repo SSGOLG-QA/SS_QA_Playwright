@@ -273,7 +273,7 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
       const nonconf: string[] = [];
       for (const r of gr) { const buy = num(r[bi]), life = num(r[li]), annual = num(r[ai]), hourly = num(r[hi]); if (buy == null || life == null || annual == null || hourly == null || life * annual === 0) continue; const calc = buy / (life * annual); eqData.push({ name: r[ni] || '', buy, life, annual, hourly, calc }); if (!nearRel(calc, hourly, 0.01)) nonconf.push(`${r[ni]}(${won(hourly)}≠${calc.toFixed(2)})`); }
       const conf = eqData.length - nonconf.length;
-      checks.push({ name: '장비 시간당비용 = 매입가 ÷ (내용연수 × 연간운용시간)', scope: 'source', ok: conf > 0, detail: `전 페이지 ${eqData.length}대 · 공식 정합 ${conf}대` + (nonconf.length ? ` · 불일치 ${nonconf.length}대(수동입력/스테일 추정 — ⑥탭 빨강: ${nonconf.slice(0, 2).join(',')})` : '') });
+      checks.push({ name: '장비 시간당비용 = 매입가 ÷ (내용연수 × 연간운용시간)', scope: 'source', ok: conf > 0, na: eqData.length === 0, detail: eqData.length === 0 ? '검증 대상 장비 데이터 없음 — 판정 제외(참고)' : `전 페이지 ${eqData.length}대 · 공식 정합 ${conf}대` + (nonconf.length ? ` · 불일치 ${nonconf.length}대(수동입력/스테일 추정 — ⑥탭 빨강: ${nonconf.slice(0, 2).join(',')})` : '') });
     } }
 
   const matData: { name: string; total: number; qty: number; unit: number; calc: number }[] = [];
@@ -283,7 +283,7 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
       const nonconf: string[] = [];
       for (const r of gr) { const total = num(r[ti]), qty = num(r[qi]), unit = num(r[ui]); if (total == null || qty == null || unit == null || qty === 0) continue; const calc = total / qty; matData.push({ name: r[ni] || '', total, qty, unit, calc }); if (!nearRel(calc, unit, 0.01)) nonconf.push(`${r[ni]}(${won(unit)}≠${calc.toFixed(0)})`); }
       const conf = matData.length - nonconf.length;
-      checks.push({ name: '자재 단위당원가 = 총 매입가 ÷ 재고수량', scope: 'source', ok: conf > 0, detail: `전 페이지 ${matData.length}종 · 공식 정합 ${conf}종` + (nonconf.length ? ` · 불일치 ${nonconf.length}종(수동입력/스테일 추정 — ⑥탭 빨강: ${nonconf.slice(0, 2).join(',')})` : '') });
+      checks.push({ name: '자재 단위당원가 = 총 매입가 ÷ 재고수량', scope: 'source', ok: conf > 0, na: matData.length === 0, detail: matData.length === 0 ? '검증 대상 자재 데이터 없음 — 판정 제외(참고)' : `전 페이지 ${matData.length}종 · 공식 정합 ${conf}종` + (nonconf.length ? ` · 불일치 ${nonconf.length}종(수동입력/스테일 추정 — ⑥탭 빨강: ${nonconf.slice(0, 2).join(',')})` : '') });
     } }
 
   // 원천 → 비용 반영: 인력 임률이 분류별 비용 인건비 컬럼에 등장하는지(±1 반올림 허용)
@@ -319,21 +319,25 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
   const source = checks.filter((c) => c.scope === 'source');
   const costChecks = intra.filter((c) => /비용집계|분류별|위치별/.test(c.name));
   const budChecks = intra.filter((c) => /소계/.test(c.name));
-  const pass = checks.filter((c) => c.ok).length; const fail = checks.length - pass;
+  // 판정: na(데이터 없음)는 pass/fail 집계에서 제외 — "미확인 ≠ 결함"(리포트 표준).
+  const judged = checks.filter((c) => !c.na);
+  const naCount = checks.length - judged.length;
+  const pass = judged.filter((c) => c.ok).length; const fail = judged.filter((c) => !c.ok).length;
   const ts = new Date().toISOString().slice(0, 19).replace('T', ' ');
-  const chk = (c: Check) => `<tr class="${c.ok ? 'ok' : 'ng'}"><td>${c.ok ? '✅' : '❌'}</td><td>${esc(c.name)}</td><td>${esc(c.detail)}</td></tr>`;
+  const mark = (c: Check) => c.na ? '➖' : (c.ok ? '✅' : '❌');
+  const chk = (c: Check) => `<tr class="${c.na ? 'na' : c.ok ? 'ok' : 'ng'}"><td>${mark(c)}</td><td>${esc(c.name)}</td><td>${esc(c.detail)}</td></tr>`;
 
   // Report 탭: 전 검증 항목을 구분별로 그룹핑(구분 내 FAIL 우선), 판정 일람.
   const catOf = (c: Check): string => c.scope === 'cross' ? '교차 화면' : c.scope === 'source' ? '원천 값' : /소계/.test(c.name) ? '내부-예산(소계)' : /비용집계|분류별|위치별/.test(c.name) ? '내부-비용' : '정보';
   const REPORT_CATS = ['교차 화면', '내부-비용', '내부-예산(소계)', '원천 값', '정보'];
   const reportBody = REPORT_CATS.map((cn) => {
-    const rows = checks.filter((c) => catOf(c) === cn).sort((a, b) => (a.ok ? 1 : 0) - (b.ok ? 1 : 0));
+    const rows = checks.filter((c) => catOf(c) === cn).sort((a, b) => ((a.na ? 2 : a.ok ? 1 : 0)) - ((b.na ? 2 : b.ok ? 1 : 0)));
     if (!rows.length) return '';
-    const p = rows.filter((r) => r.ok).length; const f = rows.length - p;
-    return `<tr class="mt"><td colspan="4">${cn} — ${rows.length}건 · <span class="okb">PASS ${p}</span>${f ? ` · <span class="ngb">FAIL ${f}</span>` : ''}</td></tr>`
-      + rows.map((r, i) => `<tr class="${r.ok ? 'ok' : 'ng'}"><td class="num">${i + 1}</td><td>${r.ok ? '✅' : '❌'}</td><td>${esc(r.name)}</td><td>${esc(r.detail)}</td></tr>`).join('');
+    const p = rows.filter((r) => !r.na && r.ok).length; const f = rows.filter((r) => !r.na && !r.ok).length; const n = rows.filter((r) => r.na).length;
+    return `<tr class="mt"><td colspan="4">${cn} — ${rows.length}건 · <span class="okb">통과 ${p}</span>${f ? ` · <span class="ngb">주의 ${f}</span>` : ''}${n ? ` · <span class="mut">참고 ${n}</span>` : ''}</td></tr>`
+      + rows.map((r, i) => `<tr class="${r.na ? 'na' : r.ok ? 'ok' : 'ng'}"><td class="num">${i + 1}</td><td>${mark(r)}</td><td>${esc(r.name)}</td><td>${esc(r.detail)}</td></tr>`).join('');
   }).join('');
-  const catCount = (cn: string) => { const rows = checks.filter((c) => catOf(c) === cn); return `${rows.filter((r) => r.ok).length}/${rows.length}`; };
+  const catCount = (cn: string) => { const rows = checks.filter((c) => catOf(c) === cn && !c.na); return `${rows.filter((r) => r.ok).length}/${rows.length}`; };
 
   // 원천값 ↔ 비용 비교 테이블
   const cmpTbl = cmp.length
@@ -403,7 +407,7 @@ h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:24px 0 10px;border-bot
 .sub{color:var(--mut);font-size:13px;margin-bottom:8px}
 .cards{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}.card{flex:1 1 100px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}.card .n{font-size:23px;font-weight:700}.card .l{font-size:12px;color:var(--mut)}
 table{border-collapse:collapse;width:100%;font-size:13.5px;margin:6px 0}th,td{text-align:left;padding:6px 9px;border-bottom:1px solid var(--line);white-space:nowrap}th{color:var(--mut);font-size:11.5px;background:var(--card)}
-td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}tr.hot td{background:var(--hot);font-weight:700}tr.mt td{font-weight:700}tr.ng td{color:var(--ng);font-weight:600}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}tr.hot td{background:var(--hot);font-weight:700}tr.mt td{font-weight:700}tr.ng td{color:var(--ng);font-weight:600}tr.na td{color:var(--mut)}.na-n{color:var(--mut);font-weight:700}
 .ok-n{color:var(--ok);font-weight:700}.ng-n{color:var(--ng);font-weight:700}
 .note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 15px;font-size:13.5px;color:var(--mut);margin:8px 0}.note.big{border-left:3px solid var(--accent)}
 code{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12px}kbd{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:2px 7px;font:12.5px monospace}
@@ -431,11 +435,11 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <h1>예산·비용 숫자가 화면마다 맞아떨어지는지 확인</h1>
 <div class="sub">같은 예산·비용 값을 여러 화면에서 서로 대조 + 각 화면 내부 합계 검산(화면 변경 없음) · 킹즈락 · 수집시각 ${ts}</div>
 <div class="lead"><b>한눈에 보기.</b> 코스관리의 <span class="em">예산·비용 숫자</span>가 여러 화면에 나뉘어 표시되는데, 그 값들이 <b>서로 어긋나지 않고</b>(예: 합계 = 항목들의 합, 여러 화면의 같은 총액 일치) 맞아떨어지는지 확인했습니다.<br>
-확인 항목 <b>${checks.length}개</b> 중 <span class="ok-n">정상 ${pass}개</span>${fail ? ` · <span class="ng-n">주의 ${fail}개</span>` : ' · 주의 0개'} (여러 화면을 맞대어 본 <b>교차 확인 ${cross.length}건</b> 포함).<br>
+확인 항목 <b>${judged.length}개</b> 중 <span class="ok-n">정상 ${pass}개</span>${fail ? ` · <span class="ng-n">주의 ${fail}개</span>` : ' · 주의 0개'} (여러 화면을 맞대어 본 <b>교차 확인 ${cross.length}건</b> 포함)${naCount ? ` · <span class="na-n">참고 ${naCount}개</span>(데이터가 없어 확인 대상 아님 — 판정 제외)` : ''}.<br>
 이 리포트는 <b>"지금 화면 값들이 서로 맞는가"</b>를 봅니다 — 화면 기준 확인이며, 앱 내부 코드 검사는 아닙니다.</div>
 <div class="persp">📏 <b>보는 관점:</b> 화면에 <b>표시된 값</b>을 서로 대조·검산합니다(앱 내부 코드 커버리지가 아님). 확인 중 저장·변경하지 않습니다.</div>
 <div class="honest"><b>정직하게 읽는 법.</b> ① <b>정상 통과 = 지금 값이 서로 정합</b>. "값이 틀어졌을 때 잡아내는 힘(신뢰도)"은 별도 민감도 점검이 담당합니다 — 통과 수가 곧 완벽은 아닙니다. ② <b>'참고(정보)' 항목은 통과/결함 판정 대상이 아닙니다</b>(기간·범위 안내). ③ <b>주의가 있어도</b> 회계상 비용과 작업지시 집계처럼 <b>원래 차이가 날 수 있는 경우</b>는 각 항목에 사유를 표기했습니다.</div>
-<div class="cards"><div class="card"><div class="n">${checks.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">주의 필요</div></div><div class="card"><div class="n">${cross.length}</div><div class="l">교차 확인</div></div></div>
+<div class="cards"><div class="card"><div class="n">${judged.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">주의 필요</div></div>${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}<div class="card"><div class="n">${cross.length}</div><div class="l">교차 확인</div></div></div>
 
 <input class="tabin" type="radio" name="tab" id="t1" checked><input class="tabin" type="radio" name="tab" id="t2"><input class="tabin" type="radio" name="tab" id="t3"><input class="tabin" type="radio" name="tab" id="t7"><input class="tabin" type="radio" name="tab" id="t4"><input class="tabin" type="radio" name="tab" id="t5"><input class="tabin" type="radio" name="tab" id="t6">
 <div class="tabs"><label for="t1">① 실행 방법</label><label for="t2">② 연관성 맵</label><label for="t3">③ 요약</label><label for="t7">④ 전체 결과</label><label for="t4">⑤ 비용 상세</label><label for="t5">⑥ 예산 상세</label><label for="t6">⑦ 원천 값 검증</label></div>
@@ -479,11 +483,11 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 
 <div class="panel" id="p3">
 <h2>검증 요약</h2>
-<div class="cards"><div class="card"><div class="n">${checks.length}</div><div class="l">총 검증</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">PASS</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">FAIL</div></div><div class="card"><div class="n">${cross.length}</div><div class="l">교차</div></div><div class="card"><div class="n">${intra.length}</div><div class="l">내부</div></div></div>
+<div class="cards"><div class="card"><div class="n">${judged.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">주의 필요</div></div>${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}<div class="card"><div class="n">${cross.length}</div><div class="l">교차 확인</div></div></div>
 <h2>구분별 검증 항목 · 결과</h2>
 <div class="tblwrap"><table><thead><tr><th>구분</th><th>검증 내용</th><th class="num">항목</th><th class="num ok-n">PASS</th><th class="num ng-n">FAIL</th></tr></thead><tbody>
-${REPORT_CATS.map((cn) => { const rows = checks.filter((c) => catOf(c) === cn); if (!rows.length) return ''; const p = rows.filter((r) => r.ok).length; const f = rows.length - p; const desc = { '교차 화면': '여러 화면 재집계 총합·항목 일치', '내부-비용': '비용 화면 내 합계=Σ관리비유형', '내부-예산(소계)': '예산/실적 소계=Σ소분류', '원천 값': '타 메뉴 단가/임률 계산·유입', '정보': '기간 스코프 등 참고(판정 제외)' }[cn] || ''; return `<tr class="${f ? 'ng' : ''}"><td><b>${cn}</b></td><td>${desc}</td><td class="num">${rows.length}</td><td class="num ok-n">${p}</td><td class="num ${f ? 'ng-n' : ''}">${f}</td></tr>`; }).join('')}
-<tr class="mt"><td colspan="2">합계</td><td class="num">${checks.length}</td><td class="num ok-n">${pass}</td><td class="num ${fail ? 'ng-n' : ''}">${fail}</td></tr>
+${REPORT_CATS.map((cn) => { const rows = checks.filter((c) => catOf(c) === cn); if (!rows.length) return ''; const p = rows.filter((r) => !r.na && r.ok).length; const f = rows.filter((r) => !r.na && !r.ok).length; const n = rows.filter((r) => r.na).length; const desc = { '교차 화면': '여러 화면 재집계 총합·항목 일치', '내부-비용': '비용 화면 내 합계=Σ관리비유형', '내부-예산(소계)': '예산/실적 소계=Σ소분류', '원천 값': '타 메뉴 단가/임률 계산·유입', '정보': '기간 스코프 등 참고(판정 제외)' }[cn] || ''; return `<tr class="${f ? 'ng' : ''}"><td><b>${cn}</b></td><td>${desc}${n ? ` <span class="mut">(참고 ${n})</span>` : ''}</td><td class="num">${p + f}</td><td class="num ok-n">${p}</td><td class="num ${f ? 'ng-n' : ''}">${f}</td></tr>`; }).join('')}
+<tr class="mt"><td colspan="2">합계${naCount ? ` <span class="mut">(참고 ${naCount} 제외)</span>` : ''}</td><td class="num">${judged.length}</td><td class="num ok-n">${pass}</td><td class="num ${fail ? 'ng-n' : ''}">${fail}</td></tr>
 </tbody></table></div>
 <div class="note">항목별 상세 판정 일람은 <b>④ Report</b> 탭.</div>
 <h2>★ 교차 화면 정합성</h2>
@@ -497,9 +501,9 @@ ${REPORT_CATS.map((cn) => { const rows = checks.filter((c) => catOf(c) === cn); 
 </div>
 
 <div class="panel" id="p7">
-<h2>Report — 전체 검증 항목 · 결과</h2>
-<div class="note big">총 <b>${checks.length}</b>건 · <span class="okb">PASS ${pass}</span> · <span class="${fail ? 'ngb' : 'okb'}">FAIL ${fail}</span>. 구분별 PASS/전체 = 교차 ${catCount('교차 화면')} · 내부-비용 ${catCount('내부-비용')} · 내부-예산(소계) ${catCount('내부-예산(소계)')} · 원천 ${catCount('원천 값')} · 정보 ${catCount('정보')}. <span class="mut">(구분 내 FAIL 우선 정렬)</span></div>
-${fail ? `<div class="note" style="border-left:3px solid var(--ng)"><b class="ngb">⚠ 주의 필요 (FAIL ${fail})</b><br>${checks.filter((c) => !c.ok).map((c) => `${esc(c.name)} — ${esc(c.detail)}`).join('<br>')}</div>` : '<div class="note" style="border-left:3px solid var(--ok)"><b class="okb">✅ 전 항목 PASS</b> — FAIL 없음</div>'}
+<h2>전체 검증 항목 · 결과</h2>
+<div class="note big">확인 항목 <b>${judged.length}</b>건 · <span class="okb">정상 ${pass}</span> · <span class="${fail ? 'ngb' : 'okb'}">주의 ${fail}</span>${naCount ? ` · <span class="mut">참고 ${naCount}(데이터 없음, 판정 제외)</span>` : ''}. 구분별 정상/확인 = 교차 ${catCount('교차 화면')} · 내부-비용 ${catCount('내부-비용')} · 내부-예산(소계) ${catCount('내부-예산(소계)')} · 원천 ${catCount('원천 값')} · 정보 ${catCount('정보')}. <span class="mut">(구분 내 주의 우선 정렬)</span></div>
+${fail ? `<div class="note" style="border-left:3px solid var(--ng)"><b class="ngb">⚠ 주의 필요 (${fail}건)</b><br>${judged.filter((c) => !c.ok).map((c) => `${esc(c.name)} — ${esc(c.detail)}`).join('<br>')}</div>` : '<div class="note" style="border-left:3px solid var(--ok)"><b class="okb">✅ 확인 항목 전부 정상</b> — 주의 없음</div>'}${naCount ? `<div class="note" style="border-left:3px solid var(--mut)"><b>➖ 참고: 데이터 없어 확인 대상 아님 (${naCount}건, 판정 제외)</b><br>${checks.filter((c) => c.na).map((c) => `${esc(c.name)} — ${esc(c.detail)}`).join('<br>')}</div>` : ''}
 <div class="tblwrap"><table><thead><tr><th class="num">#</th><th></th><th>검증 항목</th><th>결과</th></tr></thead><tbody>${reportBody}</tbody></table></div>
 <div class="note">구분: <b>교차 화면</b>=여러 화면 재집계 총합/항목 일치 · <b>내부-비용/예산</b>=단일 화면 내 합계=Σ부분 · <b>원천 값</b>=타 메뉴 단가/임률 계산·유입 · <b>정보</b>=기간 스코프 등 판정 제외 참고.</div>
 </div>
@@ -557,5 +561,5 @@ ${cmpTbl}
   fs.writeFileSync(outPath, html);
   console.log(`\n[검증] 총 ${checks.length} · PASS ${pass} · FAIL ${fail} · 교차 ${cross.length} · 예산소계 ${detailGroups.length}+${perfGroups.length}`);
   console.log(`[report] ${outPath}`);
-  for (const c of checks.filter((x) => !x.ok)) console.log(`  ❌ ${c.name} — ${c.detail}`);
+  for (const c of checks.filter((x) => !x.ok && !x.na)) console.log(`  ❌ ${c.name} — ${c.detail}`);
 });

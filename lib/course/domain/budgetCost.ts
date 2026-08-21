@@ -13,6 +13,7 @@ export interface Check {
   ok: boolean;
   detail: string;
   values?: { label: string; value: number | null }[];
+  na?: boolean;   // 데이터 없음 = 판정 제외(참고). pass/fail 집계에서 제외 — "미확인 ≠ 결함".
 }
 
 export const near = (a: number, b: number, tol = 1) => Math.abs(a - b) <= tol;

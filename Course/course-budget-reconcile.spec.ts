@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { openCourseAdmin, killAlarms } from '../lib/course/courseHelpers';
 import { grab, gridOf, grabPaged, Grab } from '../lib/course/budgetCapture';
-import { num } from '../lib/course/domain/budgetCost';
+import { num, near, nearRel } from '../lib/course/domain/budgetCost';
 import { sanityBatch, findCol } from '../lib/course/domain/budgetReconcile';
 import { resetResults, resetNoTC, resetDiff, resetReview, resetIA, record, skip, writeReport, CheckMeta } from '../lib/reporter';
 
@@ -107,15 +107,29 @@ test('P1 독립 재집계(A) + 이상치(E) — 예산·비용 교차 맹점 보
       rec({ name: '작업별 각 행: 총비용 = Σ(유형별)  [행단위 독립 검증 A]', ok: true, na: true, detail: `작업행 없음(${rows.length}) 또는 컬럼 미검출 — 판정 제외` }, 'RECON-A-ROW');
     }
 
-    // ── Tier A-2 (집계 대조·스코프 주의): Σ(작업별) vs 비용집계 — 기간 정렬 필요 → 판정 보류(INFO) ──
-    //   ⚠ 작업별=날짜필터(1년) vs 비용집계=기본/시작연도 스코프 상이 → 직접 대조는 기간 정렬 후에만 유효.
-    //     정합 여부는 위 A-1(행단위)로 판정. 여기선 두 값을 나란히 기록(판정 제외)해 스코프 격차를 투명 노출.
-    const sumType = (label: string, disp: number | null, ci: number) => {
-      const recomputed = ci >= 0 ? rows.reduce((a, r) => a + (num(r[ci]) ?? 0), 0) : null;
-      rec({ name: `${label}: Σ작업별 vs 비용집계  [집계 대조·스코프주의]`, ok: true, na: true, detail: `Σ작업별(1년) ${recomputed == null ? '—' : Math.round(recomputed).toLocaleString()} · 비용집계 ${disp == null ? '—' : disp.toLocaleString()} — 기간 스코프 상이로 직접 판정 보류(정합은 행단위 A-1로 검증). 기간 정렬 시 일치해야 함.` }, `RECON-A2-${label.replace(/[^가-힣]/g, '').slice(0, 4)}`);
+    // ── Tier A-2 (P1.1 집계 대조·기간 정렬 assert): 스코프 자동 탐색 ──
+    //   작업별 각 행의 기간 '시작연도'를 파싱 → 스코프별 Σ 계산. "어떤 스코프에서 Σ작업별=비용집계 성립?"을 탐색.
+    //   ⚠ 크로스이어(budget-verify): 집계/분류별/위치별/기간별=시작연도 기준 → 시작연도 필터가 정렬 후보.
+    //   성립 스코프 존재 → 정합(교차 맹점 닫힘: 원자 재구성=집계). 어디서도 불일치 → 실제 정합 이슈.
+    const periodCol = colOf(/^기간$|일자|날짜/);
+    const startYear = (r: string[]): number | null => { const m = /(\d{4})-\d{2}-\d{2}/.exec(periodCol >= 0 ? (r[periodCol] || '') : ''); return m ? +m[1] : null; };
+    const curYear = new Date().getFullYear();
+    const scopes: { key: string; f: (r: string[]) => boolean }[] = [
+      { key: `시작연도=${curYear}`, f: (r) => startYear(r) === curYear },
+      { key: `시작연도≤${curYear}`, f: (r) => { const y = startYear(r); return y != null && y <= curYear; } },
+      { key: '전체(모든 기간)', f: () => true },
+    ];
+    const sumScope = (ci: number, f: (r: string[]) => boolean) => ci < 0 ? null : rows.filter(f).reduce((a, r) => a + (num(r[ci]) ?? 0), 0);
+    const matchTotal = (label: string, disp: number | null, ci: number, tcId: string) => {
+      if (disp == null || ci < 0) { rec({ name: `${label}: Σ작업별=비용집계 [집계 정합 A-2]`, ok: true, na: true, detail: `표시 총액 또는 컬럼 없음 — 판정 제외` }, tcId); return; }
+      const sums = scopes.map((s) => ({ key: s.key, v: sumScope(ci, s.f) as number }));
+      const hit = sums.find((s) => near(s.v, disp) || nearRel(s.v, disp, 0.005));
+      const brief = sums.map((s) => `${s.key} ${Math.round(s.v).toLocaleString()}`).join(' / ');
+      if (hit) rec({ name: `${label}: Σ작업별=비용집계 [집계 정합 A-2]`, ok: true, detail: `정합 — 스코프 '${hit.key}'에서 Σ작업별 = 비용집계 ${disp.toLocaleString()} 일치(원자 재구성=집계 → 교차 맹점 닫힘). [${brief}]` }, tcId);
+      else rec({ name: `${label}: Σ작업별=비용집계 [집계 정합 A-2]`, ok: false, detail: `[불일치] 어느 기간 스코프에서도 비용집계 ${disp.toLocaleString()}와 안 맞음 — 원자 재구성값: ${brief}. → 실제 집계·배분 정합 이슈이거나 비용집계 스코프 정의 상이. 확인 필요.` }, tcId);
     };
-    sumType('총계', 총계, totalCol);
-    types.forEach(([label], i) => sumType(label, agg[label] ?? null, typeCols[i]));
+    matchTotal('총계', 총계, totalCol, 'RECON-A2-TOT');
+    types.forEach(([label], i) => matchTotal(label, agg[label] ?? null, typeCols[i], `RECON-A2-${label.replace(/[^가-힣]/g, '').slice(0, 4)}`));
   }
 
   // ── Tier E: 원천 단가/임률/시간당비용 정상성 ──

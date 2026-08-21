@@ -422,14 +422,23 @@ code{background:var(--card);border:1px solid var(--line);border-radius:4px;paddi
 .arrow{display:flex;align-items:center;color:var(--mut);font-size:12px;padding:0 2px}.arrow b{color:var(--fg)}
 .bg{margin:12px 0}.bgname{font-weight:700;font-size:13.5px;margin:4px 0}.okb{color:var(--ok)}.ngb{color:var(--ng)}
 .scr{margin:14px 0 22px}.scr h3{margin-bottom:2px}.scr .rt{color:var(--mut);font-size:12px;margin-bottom:4px}
+.lead{font-size:16px;line-height:1.75;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:16px 18px;margin:12px 0}.lead b{font-size:18px}.lead .em{color:var(--accent);font-weight:700}
+.persp{font-size:12.5px;color:var(--mut);background:var(--card);border:1px dashed var(--line);border-radius:8px;padding:9px 13px;margin:8px 0}
+.honest{font-size:13px;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:8px;padding:11px 14px;margin:8px 0}.honest b{color:var(--fg)}
+details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px}details.gloss summary{cursor:pointer;font-weight:700;color:var(--fg)}details.gloss dt{font-weight:700;color:var(--fg);margin-top:8px}details.gloss dd{margin:0 0 2px 0}
 </style>
 <div class="wrap">
-<h1>예산·비용 화면 간 계산 정합성 검증</h1>
-<div class="sub">현재 시스템 데이터 수집(비파괴) → 교차/내부 불변식 · <code>course-mng-td</code> 킹즈락 · 수집시각 ${ts}</div>
-<div class="cards"><div class="card"><div class="n">${checks.length}</div><div class="l">총 검증</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">PASS</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">FAIL</div></div><div class="card"><div class="n">${cross.length}</div><div class="l">교차</div></div></div>
+<h1>예산·비용 숫자가 화면마다 맞아떨어지는지 확인</h1>
+<div class="sub">같은 예산·비용 값을 여러 화면에서 서로 대조 + 각 화면 내부 합계 검산(화면 변경 없음) · 킹즈락 · 수집시각 ${ts}</div>
+<div class="lead"><b>한눈에 보기.</b> 코스관리의 <span class="em">예산·비용 숫자</span>가 여러 화면에 나뉘어 표시되는데, 그 값들이 <b>서로 어긋나지 않고</b>(예: 합계 = 항목들의 합, 여러 화면의 같은 총액 일치) 맞아떨어지는지 확인했습니다.<br>
+확인 항목 <b>${checks.length}개</b> 중 <span class="ok-n">정상 ${pass}개</span>${fail ? ` · <span class="ng-n">주의 ${fail}개</span>` : ' · 주의 0개'} (여러 화면을 맞대어 본 <b>교차 확인 ${cross.length}건</b> 포함).<br>
+이 리포트는 <b>"지금 화면 값들이 서로 맞는가"</b>를 봅니다 — 화면 기준 확인이며, 앱 내부 코드 검사는 아닙니다.</div>
+<div class="persp">📏 <b>보는 관점:</b> 화면에 <b>표시된 값</b>을 서로 대조·검산합니다(앱 내부 코드 커버리지가 아님). 확인 중 저장·변경하지 않습니다.</div>
+<div class="honest"><b>정직하게 읽는 법.</b> ① <b>정상 통과 = 지금 값이 서로 정합</b>. "값이 틀어졌을 때 잡아내는 힘(신뢰도)"은 별도 민감도 점검이 담당합니다 — 통과 수가 곧 완벽은 아닙니다. ② <b>'참고(정보)' 항목은 통과/결함 판정 대상이 아닙니다</b>(기간·범위 안내). ③ <b>주의가 있어도</b> 회계상 비용과 작업지시 집계처럼 <b>원래 차이가 날 수 있는 경우</b>는 각 항목에 사유를 표기했습니다.</div>
+<div class="cards"><div class="card"><div class="n">${checks.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">주의 필요</div></div><div class="card"><div class="n">${cross.length}</div><div class="l">교차 확인</div></div></div>
 
 <input class="tabin" type="radio" name="tab" id="t1" checked><input class="tabin" type="radio" name="tab" id="t2"><input class="tabin" type="radio" name="tab" id="t3"><input class="tabin" type="radio" name="tab" id="t7"><input class="tabin" type="radio" name="tab" id="t4"><input class="tabin" type="radio" name="tab" id="t5"><input class="tabin" type="radio" name="tab" id="t6">
-<div class="tabs"><label for="t1">① 실행 방법</label><label for="t2">② 연관성 맵</label><label for="t3">③ Summary</label><label for="t7">④ Report</label><label for="t4">⑤ 비용 상세</label><label for="t5">⑥ 예산 상세</label><label for="t6">⑦ 원천 값 검증</label></div>
+<div class="tabs"><label for="t1">① 실행 방법</label><label for="t2">② 연관성 맵</label><label for="t3">③ 요약</label><label for="t7">④ 전체 결과</label><label for="t4">⑤ 비용 상세</label><label for="t5">⑥ 예산 상세</label><label for="t6">⑦ 원천 값 검증</label></div>
 
 <div class="panel" id="p1">
 <h2>실행 방법</h2>
@@ -526,6 +535,15 @@ ${perfGroups.length ? perfGroups.map(budGroupTbl).join('') : '<div class="note">
 <div class="note big">원천 화면의 단가·임률을 비용 화면(분류별) 값과 <b>직접 대조</b>. <b>인력 임률</b>은 단일작업 비용에 그대로 반영되어 <b>직접 등장</b>. <b>자재 단가·장비 시간당비용</b>은 출고량·운용시간과 곱해져 <b>집계</b>되므로 원값이 직접 등장하지 않을 수 있음(정상) — 이때는 위 단가 공식 정합으로 신뢰성 확보. 총 ${cmp.length}건 중 직접 등장 <b class="okb">${cmpAppearN}건</b>.</div>
 ${cmpTbl}
 </div>
+<details class="gloss"><summary>용어 풀이 (처음 보시는 분용)</summary>
+<dl>
+<dt>정합성</dt><dd>여러 화면·항목에 나오는 같은 숫자가 서로 어긋나지 않고 맞아떨어지는 상태.</dd>
+<dt>교차(교차 확인)</dt><dd>같은 총비용·예산을 화면마다 다른 기준(작업별/분류별/위치별 등)으로 다시 모아 보여줄 때, 그 <b>총합과 항목이 일치</b>하는지 맞대어 보는 것.</dd>
+<dt>원천(원천 값)</dt><dd>비용의 밑값이 되는 대표 화면의 단가·임률(인력 임률·자재 단가·장비 시간당 비용). 이 값이 정확해야 비용·예산이 신뢰 가능.</dd>
+<dt>소계 검산</dt><dd>화면에 적힌 소계·합계가 실제 하위 항목들을 더한 값과 같은지 다시 계산해 맞춰 보는 것.</dd>
+<dt>화면 변경 없음(비파괴)</dt><dd>확인만 하고 저장·삭제·수정은 하지 않아, 실제 데이터가 바뀌지 않음.</dd>
+<dt>정상 통과 / 주의 / 참고</dt><dd>정상=값이 맞음. 주의=값이 다르거나 확인 필요(사유 표기). 참고=기간·범위 안내로 통과/결함 판정 대상 아님.</dd>
+</dl></details>
 </div>`;
 
   if (!fs.existsSync('reports')) fs.mkdirSync('reports', { recursive: true });

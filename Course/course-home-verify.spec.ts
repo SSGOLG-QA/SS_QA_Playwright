@@ -261,14 +261,23 @@ code{background:var(--card);border:1px solid var(--line);border-radius:4px;paddi
 #t1:checked~.tabs label[for=t1],#t2:checked~.tabs label[for=t2],#t3:checked~.tabs label[for=t3],#t4:checked~.tabs label[for=t4],#t5:checked~.tabs label[for=t5],#t6:checked~.tabs label[for=t6]{color:var(--fg);border-color:var(--line);background:var(--card)}
 .panel{display:none;padding-top:14px}#t1:checked~#p1,#t2:checked~#p2,#t3:checked~#p3,#t4:checked~#p4,#t5:checked~#p5,#t6:checked~#p6{display:block}
 .badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:var(--card);border:1px solid var(--line);color:var(--mut);margin-left:6px}
+.lead{font-size:16px;line-height:1.75;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:16px 18px;margin:12px 0}.lead b{font-size:18px}.lead .em{color:var(--accent);font-weight:700}
+.persp{font-size:12.5px;color:var(--mut);background:var(--card);border:1px dashed var(--line);border-radius:8px;padding:9px 13px;margin:8px 0}
+.honest{font-size:13px;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:8px;padding:11px 14px;margin:8px 0}.honest b{color:var(--fg)}
+details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px}details.gloss summary{cursor:pointer;font-weight:700;color:var(--fg)}details.gloss dt{font-weight:700;color:var(--fg);margin-top:8px}details.gloss dd{margin:0 0 2px 0}
 </style>
 <div class="wrap">
-<h1>HOME 대시보드 데이터 연관 정합성 <span class="badge">3탭 분리</span></h1>
-<div class="sub">HOME <code>.tab-group</code> 3탭(관리 목표 및 현황 · 작업 · 비용) 표시 값 ↔ 원천 화면 대조(비파괴) · <code>course-mng-td</code> 킹즈락 · ${ts}</div>
-<div class="cards"><div class="card"><div class="n">${checks.length}</div><div class="l">총 검증</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">PASS</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">FAIL</div></div></div>
+<h1>홈 화면 숫자가 원천 값과 맞는지 확인</h1>
+<div class="sub">코스관리 첫 화면(홈)의 등급·작업·비용 표시 값을 각 원천 화면과 대조(화면 변경 없음) · 킹즈락 · ${ts}</div>
+<div class="lead"><b>한눈에 보기.</b> 코스관리 <span class="em">첫 화면(홈)</span>에 보이는 <b>등급·작업·비용</b> 숫자가 그 값이 나오는 <b>원천 화면</b>과 어긋나지 않는지 확인했습니다.<br>
+확인 항목 <b>${checks.length}개</b> 중 <span class="ok-n">정상 ${pass}개</span>${fail ? ` · <span class="ng-n">주의 ${fail}개</span>` : ' · 주의 0개'}.<br>
+이 리포트는 <b>"지금 화면 값이 맞는가"</b>를 봅니다 — 사용자가 보는 화면 기준 확인이며, 앱 내부 코드 검사는 아닙니다.</div>
+<div class="persp">📏 <b>보는 관점:</b> 화면에 <b>표시된 값</b>을 원천 화면과 맞대어 봅니다(앱 내부 코드 커버리지가 아님). 확인 중 화면을 바꾸거나 저장하지 않습니다.</div>
+<div class="honest"><b>정직하게 읽는 법.</b> ① <b>정상 통과 = 지금 값이 원천과 일치</b>. "값이 틀어졌을 때 잡아내는 힘(신뢰도)"은 별도 민감도 점검이 담당합니다 — 통과 수가 곧 완벽은 아닙니다. ② <b>주의(불일치)라도 곧 결함은 아닐 수 있습니다</b> — 화면마다 집계 기간·범위가 달라 생기는 차이는 각 항목 설명에 표기했습니다.</div>
+<div class="cards"><div class="card"><div class="n">${checks.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">주의 필요</div></div></div>
 
 <input class="tabin" type="radio" name="tab" id="t1" checked><input class="tabin" type="radio" name="tab" id="t2"><input class="tabin" type="radio" name="tab" id="t3"><input class="tabin" type="radio" name="tab" id="t4"><input class="tabin" type="radio" name="tab" id="t5"><input class="tabin" type="radio" name="tab" id="t6">
-<div class="tabs"><label for="t1">① 실행 방법</label><label for="t2">② 연관성 맵</label><label for="t3">③ Summary</label><label for="t4">④ 관리 목표·현황</label><label for="t5">⑤ 작업 탭</label><label for="t6">⑥ 비용 탭</label></div>
+<div class="tabs"><label for="t1">① 실행 방법</label><label for="t2">② 연관성 맵</label><label for="t3">③ 요약</label><label for="t4">④ 관리 목표·현황</label><label for="t5">⑤ 작업 탭</label><label for="t6">⑥ 비용 탭</label></div>
 
 <div class="panel" id="p1">
 <h2>실행 방법</h2>
@@ -342,6 +351,14 @@ code{background:var(--card);border:1px solid var(--line);border-radius:4px;paddi
 <h3>연간예산 원천 대조</h3>
 <div class="note">비용탭 전체 연간예산 <b>${annual['전체']?.budget != null ? annual['전체'].budget!.toLocaleString() + '원' : '—'}</b> ↔ [예산 관리&gt;예산 총괄] 금액집합(${budgetNums.length}건${budgetNums.length ? ': ' + budgetNums.slice(0, 8).map((v) => v.toLocaleString()).join(', ') + (budgetNums.length > 8 ? ' …' : '') : ''}). 안내문구: <i>${esc(costTab.guide || '—')}</i></div>
 </div>
+<details class="gloss"><summary>용어 풀이 (처음 보시는 분용)</summary>
+<dl>
+<dt>정합성</dt><dd>여러 화면에 나오는 같은 숫자가 서로 어긋나지 않고 맞아떨어지는 상태.</dd>
+<dt>원천(원천 화면)</dt><dd>그 값을 실제로 입력·계산하는 대표 화면. 홈은 이 값을 가져다 보여줄 뿐이라, 원천과 같아야 정상.</dd>
+<dt>등급 추세</dt><dd>구역별 관리 등급(A+~E-)이 시간에 따라 어떻게 변했는지 보여주는 선 그래프.</dd>
+<dt>화면 변경 없음(비파괴)</dt><dd>확인만 하고 저장·삭제·수정은 하지 않아, 실제 데이터가 바뀌지 않음.</dd>
+<dt>정상 통과 / 주의</dt><dd>정상=값이 맞음. 주의=값이 다르거나 확인이 더 필요(원인은 각 항목에 표기).</dd>
+</dl></details>
 </div>`;
 
   if (!fs.existsSync('reports')) fs.mkdirSync('reports', { recursive: true });

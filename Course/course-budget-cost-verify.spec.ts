@@ -434,13 +434,18 @@ code{background:var(--card);border:1px solid var(--line);border-radius:4px;paddi
 details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px}details.gloss summary{cursor:pointer;font-weight:700;color:var(--fg)}details.gloss dt{font-weight:700;color:var(--fg);margin-top:8px}details.gloss dd{margin:0 0 2px 0}
 </style>
 <div class="wrap">
-<h1>예산·비용 숫자가 화면마다 맞아떨어지는지 확인</h1>
-<div class="sub">같은 예산·비용 값을 여러 화면에서 서로 대조 + 각 화면 내부 합계 검산(화면 변경 없음) · 킹즈락 · 수집시각 ${ts}</div>
-<div class="lead"><b>한눈에 보기.</b> 코스관리의 <span class="em">예산·비용 숫자</span>가 여러 화면에 나뉘어 표시되는데, 그 값들이 <b>서로 어긋나지 않고</b>(예: 합계 = 항목들의 합, 여러 화면의 같은 총액 일치) 맞아떨어지는지 확인했습니다.<br>
-확인 항목 <b>${judged.length}개</b> 중 <span class="ok-n">정상 ${pass}개</span>${fail ? ` · <span class="ng-n">주의 ${fail}개</span>` : ' · 주의 0개'} (여러 화면을 맞대어 본 <b>교차 확인 ${cross.length}건</b> 포함)${naCount ? ` · <span class="na-n">참고 ${naCount}개</span>(데이터가 없어 확인 대상 아님 — 판정 제외)` : ''}.<br>
-이 리포트는 <b>"지금 화면 값들이 서로 맞는가"</b>를 봅니다 — 화면 기준 확인이며, 앱 내부 코드 검사는 아닙니다.</div>
-<div class="persp">📏 <b>보는 관점:</b> 화면에 <b>표시된 값</b>을 서로 대조·검산합니다(앱 내부 코드 커버리지가 아님). 확인 중 저장·변경하지 않습니다.</div>
-<div class="honest"><b>정직하게 읽는 법.</b> ① <b>정상 통과 = 지금 값이 서로 정합</b>. "값이 틀어졌을 때 잡아내는 힘(신뢰도)"은 별도 민감도 점검이 담당합니다 — 통과 수가 곧 완벽은 아닙니다. ② <b>'참고(정보)' 항목은 통과/결함 판정 대상이 아닙니다</b>(기간·범위 안내). ③ <b>주의가 있어도</b> 회계상 비용과 작업지시 집계처럼 <b>원래 차이가 날 수 있는 경우</b>는 각 항목에 사유를 표기했습니다.</div>
+<h1>예산·비용이 공식대로 계산되고 화면마다 일관되는지 확인</h1>
+<div class="sub">① 공식 계산 ② 합계 검산 ③ 화면 간 일관성 — 3가지를 함께 확인(화면 변경 없음) · 킹즈락 · 수집시각 ${ts}</div>
+<div class="lead"><b>한눈에 보기.</b> 코스관리의 <span class="em">예산·비용 숫자</span>를 <b>세 가지 방식</b>으로 확인했습니다.<br>
+<b>① 공식대로 계산됐나</b> — 원천 값이 정해진 계산식과 맞는지(예: 자재 단위당원가 = 총매입가 ÷ 재고수량, 장비 시간당비용 = 매입가 ÷ (내용연수 × 운용시간)).<br>
+<b>② 합계가 부분의 합과 맞나</b> — 총계 = 항목들의 합, 소계 = 하위 분류들의 합(산술 검산).<br>
+<b>③ 화면마다 일관되나</b> — 같은 총비용을 여러 화면이 다른 기준으로 재집계해도 총합이 일치하는지(교차).<br>
+확인 항목 <b>${judged.length}개</b> 중 <span class="ok-n">정상 ${pass}개</span>${fail ? ` · <span class="ng-n">주의 ${fail}개</span>` : ' · 주의 0개'} (그중 화면 간 교차 ${cross.length}건)${naCount ? ` · <span class="na-n">참고 ${naCount}개</span>(데이터 없어 판정 제외)` : ''}.</div>
+<div class="persp">📏 <b>보는 관점:</b> 화면에 <b>표시된 값</b>을 공식·합계·화면 간으로 검산합니다(앱 내부 코드 커버리지가 아님). 확인 중 저장·변경하지 않습니다.</div>
+<div class="honest"><b>이 검증이 잡는 것과 못 잡는 것(중요).</b><br>
+✅ <b>잡음:</b> 원천 단가·임률이 <b>공식과 다르게</b> 계산된 경우(①) · 총계·소계가 <b>부분의 합과 어긋난</b> 경우(②) · 한 화면 값이 <b>다른 화면과 다른</b> 경우(③).<br>
+⚠ <b>못 잡음(한계):</b> <b>③ 화면 간 일관성만으로는</b> "모든 화면이 <b>똑같이 틀린 값</b>"이면 통과합니다(재집계 일관성 검사이지 원값의 절대 정확성 검사가 아님) — 그래서 <b>①(공식)·②(합계)</b>로 원값·산술을 함께 봅니다. 다만 <b>애초에 입력 데이터 자체가 틀린 경우</b>(예: 매입가를 잘못 입력)는 공식·합계·일관성이 모두 통과하므로 <b>이 리포트로는 못 잡습니다</b> — 원본 대장과의 대조가 별도로 필요합니다.<br>
+ℹ️ 그 외: <b>'참고' 항목</b>은 데이터가 없어 판정 제외입니다. <b>회계상 비용과 작업지시 집계</b>처럼 원래 차이가 날 수 있는 경우는 각 항목에 사유를 표기했습니다.</div>
 <div class="cards"><div class="card"><div class="n">${judged.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">주의 필요</div></div>${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}<div class="card"><div class="n">${cross.length}</div><div class="l">교차 확인</div></div></div>
 
 <input class="tabin" type="radio" name="tab" id="t1" checked><input class="tabin" type="radio" name="tab" id="t2"><input class="tabin" type="radio" name="tab" id="t3"><input class="tabin" type="radio" name="tab" id="t7"><input class="tabin" type="radio" name="tab" id="t4"><input class="tabin" type="radio" name="tab" id="t5"><input class="tabin" type="radio" name="tab" id="t6">

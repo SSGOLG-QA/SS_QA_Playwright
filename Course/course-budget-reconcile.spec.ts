@@ -1,7 +1,8 @@
 import { test, Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
-import { openCourseAdmin, killAlarms } from '../lib/course/courseHelpers';
+import { openCourseAdmin, killAlarms, COURSE_SUBDOMAIN } from '../lib/course/courseHelpers';
+import { loadPrevBudgetSnapshot, appendBudgetSnapshot } from '../lib/historyDb';
 import { grab, gridOf, grabPaged, Grab } from '../lib/course/budgetCapture';
 import { num, near, nearRel } from '../lib/course/domain/budgetCost';
 import { sanityBatch, findCol } from '../lib/course/domain/budgetReconcile';
@@ -120,7 +121,11 @@ test('P1 독립 재집계(A) + 이상치(E) — 예산·비용 교차 맹점 보
       { key: '전체(모든 기간)', f: () => true },
     ];
     const sumScope = (ci: number, f: (r: string[]) => boolean) => ci < 0 ? null : rows.filter(f).reduce((a, r) => a + (num(r[ci]) ?? 0), 0);
+    const snapMetrics: { metric: string; value: number | null }[] = [];
     const matchTotal = (label: string, disp: number | null, ci: number, tcId: string) => {
+      // P2 스냅샷 메트릭 수집(비용집계 표시 + 작업별 시작연도=현재).
+      snapMetrics.push({ metric: `비용집계_${label}`, value: disp });
+      snapMetrics.push({ metric: `작업별시작연도_${label}`, value: ci >= 0 ? sumScope(ci, scopes[0].f) : null });
       if (disp == null || ci < 0) { rec({ name: `${label}: Σ작업별=비용집계 [집계 정합 A-2]`, ok: true, na: true, detail: `표시 총액 또는 컬럼 없음 — 판정 제외` }, tcId); return; }
       const sums = scopes.map((s) => ({ key: s.key, v: sumScope(ci, s.f) as number }));
       const hit = sums.find((s) => near(s.v, disp) || nearRel(s.v, disp, 0.005));
@@ -134,6 +139,25 @@ test('P1 독립 재집계(A) + 이상치(E) — 예산·비용 교차 맹점 보
     };
     matchTotal('총계', 총계, totalCol, 'RECON-A2-TOT');
     types.forEach(([label], i) => matchTotal(label, agg[label] ?? null, typeCols[i], `RECON-A2-${label.replace(/[^가-힣]/g, '').slice(0, 4)}`));
+
+    // ── Tier B (P2 이력 스냅샷·드리프트): 핵심 총액을 직전 스냅샷과 대조 → 조용한 급변/변조 감지 ──
+    //   교차(③)로 안 잡히는 "시간축 무결성 이상"(예: 총액이 이전 대비 정확히 N배로 급증=이중집계 누적) 포착.
+    //   판정: 최초=참고(기준선) / 안정(≤5%)=정상 / 정수배 급변=주의(FAIL) / 그 외 큰 변동=참고(데이터 변경 가능).
+    for (const m of snapMetrics.filter((x) => /^비용집계_/.test(x.metric))) {
+      const prev = loadPrevBudgetSnapshot(COURSE_SUBDOMAIN, m.metric);
+      const label = m.metric.replace('비용집계_', '');
+      const cm = { name: `이력 드리프트(B): 비용집계 ${label}`, tcId: `RECON-B-${label.replace(/[^가-힣]/g, '').slice(0, 4)}` };
+      if (m.value == null) { rec({ ...cm, ok: true, na: true, detail: '현재값 없음 — 판정 제외' }, cm.tcId); continue; }
+      if (!prev || prev.value == null) { rec({ ...cm, ok: true, na: true, detail: `최초 스냅샷(기준선) ${m.value.toLocaleString()} 저장 — 다음 실행부터 드리프트 감지` }, cm.tcId); continue; }
+      const delta = m.value - prev.value; const pct = prev.value ? delta / prev.value * 100 : (m.value ? Infinity : 0);
+      const ratio = prev.value ? m.value / prev.value : null;
+      const isMult = ratio != null && Math.abs(ratio - Math.round(ratio)) < 0.02 && Math.round(ratio) >= 2;
+      const prevTs = (prev.ts || '').slice(0, 16).replace('T', ' ');
+      if (isMult) rec({ ...cm, ok: false, detail: `★급변: ${prev.value.toLocaleString()}(${prevTs}) → ${m.value.toLocaleString()} = 정확히 ${Math.round(ratio as number)}배. 이중/중복 집계 누적 의심(조용한 변조 — 교차로는 미포착).` }, cm.tcId);
+      else if (Math.abs(pct) <= 5) rec({ ...cm, ok: true, detail: `안정 — 직전 ${prev.value.toLocaleString()} → ${m.value.toLocaleString()} (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)` }, cm.tcId);
+      else rec({ ...cm, ok: true, na: true, detail: `변동 ${pct >= 0 ? '+' : ''}${pct.toFixed(1)}% (${prev.value.toLocaleString()} → ${m.value.toLocaleString()}, ${prevTs} 대비) — 참고(데이터 변경 가능, 급변 시 확인)` }, cm.tcId);
+    }
+    appendBudgetSnapshot(COURSE_SUBDOMAIN, snapMetrics);
   }
 
   // ── Tier E: 원천 단가/임률/시간당비용 정상성 ──

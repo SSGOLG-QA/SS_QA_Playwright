@@ -45,8 +45,51 @@ function open(): InstanceType<typeof import('node:sqlite').DatabaseSync> {
     );
     CREATE INDEX IF NOT EXISTS idx_runs_title_ts ON runs (title, ts);
     CREATE INDEX IF NOT EXISTS idx_run_menus_run ON run_menus (run_id);
+    CREATE TABLE IF NOT EXISTS budget_snapshot (
+      id     INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts     TEXT    NOT NULL,
+      sub    TEXT    NOT NULL,
+      metric TEXT    NOT NULL,
+      value  REAL
+    );
+    CREATE INDEX IF NOT EXISTS idx_bsnap ON budget_snapshot (sub, metric, ts);
   `);
   return db;
+}
+
+// ── P2 이력 스냅샷(핵심 총액 시점 저장 → 조용한 드리프트/변조 감지) ──
+export type SnapRow = { ts: string; value: number | null };
+
+/** 직전(가장 최근) 스냅샷 값 — 이번 append 이전 기준. 없으면 null. */
+export function loadPrevBudgetSnapshot(sub: string, metric: string): SnapRow | null {
+  const db = open();
+  try {
+    const r = db.prepare(
+      `SELECT ts, value FROM budget_snapshot WHERE sub = ? AND metric = ? ORDER BY ts DESC LIMIT 1`,
+    ).get(sub, metric) as SnapRow | undefined;
+    return r ?? null;
+  } finally { db.close(); }
+}
+
+/** 현재 시점 핵심 총액 스냅샷 저장(metric→value 다건). */
+export function appendBudgetSnapshot(sub: string, entries: { metric: string; value: number | null }[]): void {
+  const db = open();
+  try {
+    const ts = new Date().toISOString();
+    const ins = db.prepare(`INSERT INTO budget_snapshot (ts, sub, metric, value) VALUES (?, ?, ?, ?)`);
+    for (const e of entries) ins.run(ts, sub, e.metric, e.value == null ? null : e.value);
+    console.log(`[history] 예산 스냅샷 ${entries.length}건 저장(sub=${sub})`);
+  } finally { db.close(); }
+}
+
+/** 특정 metric 시계열(오름차순, 최근 N). 대시보드/추이용. */
+export function loadBudgetSeries(sub: string, metric: string, limit = 60): SnapRow[] {
+  const db = open();
+  try {
+    return db.prepare(
+      `SELECT ts, value FROM budget_snapshot WHERE sub = ? AND metric = ? ORDER BY ts ASC LIMIT ?`,
+    ).all(sub, metric, limit) as SnapRow[];
+  } finally { db.close(); }
 }
 
 export type RunRow  = { id: number; title: string; ts: string; total: number; pass: number; fail: number; skip: number; pass_rate: number };

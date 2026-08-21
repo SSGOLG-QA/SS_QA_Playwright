@@ -1,5 +1,5 @@
 import { Page } from '@playwright/test';
-import { gotoCourseMenu, killAlarms } from './courseHelpers';
+import { gotoCourseMenu, killAlarms, setCourseOneYear } from './courseHelpers';
 
 // ──────────────────────────────────────────────────────────────
 //  예산·비용 원천 화면 캡처 공통 헬퍼(비파괴) — 테이블/카드 수집 + 페이지네이션 순회 + rowspan 격자 재구성.
@@ -47,9 +47,11 @@ export function gridOf(T: Tbl | undefined): { cols: number; grid: string[][] } {
 }
 
 // 페이지네이션 전 페이지 순회 수집(원천 화면=인력/장비/자재는 페이지 분할) — 다음 페이지 클릭하며 행 누적.
-export async function grabPaged(admin: Page, menu: string, sub: string, maxPages = 25): Promise<Grab | null> {
+export async function grabPaged(admin: Page, menu: string, sub: string, maxPages = 25, oneYear = false): Promise<Grab | null> {
   if (!(await gotoCourseMenu(admin, menu, sub).then(() => true).catch(() => false))) return null;
   await admin.waitForTimeout(1500); await killAlarms(admin);
+  // 비용 화면(datepicker 기본 3개월→빈값)은 검색기간 1년 설정 후 수집(작업별 비용 등).
+  if (oneYear) { await setCourseOneYear(admin).catch(() => {}); await admin.waitForTimeout(1200); await killAlarms(admin); }
   const first = await grab(admin);
   if (!first.tables[0]) return first;
   const combined: Grab = { cards: first.cards, tables: [{ heads: first.tables[0].heads, cells: [...first.tables[0].cells] }] };

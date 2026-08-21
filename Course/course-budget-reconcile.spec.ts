@@ -66,7 +66,7 @@ test('P1 독립 재집계(A) + 이상치(E) — 예산·비용 교차 맹점 보
   // ── 원자 원천: 작업별 비용(작업지시별 발생 비용 = 비용집계의 실제 원천) ──
   //   ⚠ 실측: 비용집계 관리비유형은 작업지시(work order)에서 파생 → 마스터(자재수불/장비운용) 단순합 아님.
   //     독립 재집계의 참 원자 = 작업별 비용(작업지시 단위 비용). Σ(작업별 비용) = 비용집계 총계 여야 함.
-  const taskG = await grabPaged(admin, '비용 관리', '작업별 비용');
+  const taskG = await grabPaged(admin, '비용 관리', '작업별 비용', 25, true);   // oneYear: 기본 3개월→빈값 방지
   probe['작업별비용'] = dumpScreen('작업별비용', taskG);
   // 참고 마스터(단가·정상성용 + 향후 유형별 재집계 설계 근거) 덤프.
   const eqG = await grabPaged(admin, '장비 관리', '장비 총괄');
@@ -79,17 +79,27 @@ test('P1 독립 재집계(A) + 이상치(E) — 예산·비용 교차 맹점 보
   try { fs.mkdirSync(path.join(process.cwd(), 'analysis'), { recursive: true }); fs.writeFileSync(path.join(process.cwd(), 'analysis', '_source_atoms.json'), JSON.stringify({ agg, probe }, null, 1).slice(0, 3_000_000)); } catch { /* */ }
   console.log(`\n[reconcile] 표시 집계 ${JSON.stringify(agg)} → analysis/_source_atoms.json (구조 덤프)`);
 
-  // ── Tier A: 작업별 비용 원자 합 = 비용집계 총계 (진짜 독립 재집계) ──
-  //   작업별 비용 = 작업지시 단위 원자 비용 리스트 → 합이 비용집계 총계와 일치해야 함.
-  //   (4개 축 집계/분류별/위치별/기간별과 무관하게 원자에서 다시 쌓음 → 같은 오값 통과 방지)
+  // ── Tier A: 작업별 비용(작업지시 원자) → 총계·유형별 독립 재집계 = 비용집계 대조 ──
+  //   작업별 비용 = 작업지시 단위 원자 비용(총 비용 + 유형별 컬럼) → 원자에서 다시 쌓아 비용집계와 대조.
+  //   ⚠ 스코프: 작업별=날짜필터(1년) / 비용집계=시작연도 → 크로스이어 경계 항목 차이 가능(불일치 시 상세에 명시).
   {
     const T = taskG?.tables[0]; const { grid } = gridOf(T); const heads = T?.heads || [];
-    const costCol = findCol(heads, /비용|금액|합계|총액/);
-    const nameCol = findCol(heads, /작업|지시|W-|내용|명/);
-    const atoms: Atom[] = costCol >= 0
-      ? grid.map((r) => ({ label: nameCol >= 0 ? r[nameCol] || '' : '', qty: 1, unit: num(r[costCol]) ?? 0 })).filter((a) => a.unit !== 0)
-      : [];
-    rec(reconcileIndependent('비용집계 총계 = Σ(작업별 비용 원자)  [독립 재집계 A]', atoms, 총계), 'RECON-A-TASK');
+    // 빈 화면("비용 발생 내역이 없습니다") 필터
+    const rows = grid.filter((r) => !r.some((c) => /비용 발생 내역이 없습니다/.test(c)));
+    const nameCol = findCol(heads, /작업명|작업번호/);
+    const colOf = (re: RegExp) => heads.findIndex((h) => re.test(norm(h)));
+    // 총계 = Σ(작업별 총 비용)
+    const totalCol = colOf(/^총비용$|^총액$|^합계$/);
+    const totalAtoms: Atom[] = totalCol >= 0 ? rows.map((r) => ({ label: nameCol >= 0 ? r[nameCol] || '' : '', qty: 1, unit: num(r[totalCol]) ?? 0 })).filter((a) => a.unit !== 0) : [];
+    rec(reconcileIndependent('비용집계 총계 = Σ(작업별 총 비용)  [독립 재집계 A·스코프주의]', totalAtoms, 총계), 'RECON-A-TASK-TOT');
+    // 유형별 = Σ(작업별 유형 컬럼) vs 비용집계 유형
+    const types: [string, RegExp][] = [['코스 자재비', /코스자재비|자재비/], ['장비 관리비', /장비관리비/], ['고정직 인건비', /고정직인건비/], ['임시직 인건비', /임시직인건비/], ['기타 관리비', /기타관리비/]];
+    for (const [label, re] of types) {
+      const ci = colOf(re); const disp = agg[label] ?? null;
+      const atoms: Atom[] = (ci >= 0 && rows.length) ? rows.map((r) => ({ label: nameCol >= 0 ? r[nameCol] || '' : '', qty: 1, unit: num(r[ci]) ?? 0 })).filter((a) => a.unit !== 0) : [];
+      // s를 직접 쓰기보다 reconcileIndependent로 원자합=표시 대조(원자 없으면 na)
+      rec(reconcileIndependent(`${label} = Σ(작업별 ${label} 컬럼)  [유형별 독립 재집계 A]`, atoms, disp), `RECON-A-${label.replace(/[^가-힣]/g, '').slice(0, 4)}`);
+    }
   }
 
   // ── Tier E: 원천 단가/임률/시간당비용 정상성 ──

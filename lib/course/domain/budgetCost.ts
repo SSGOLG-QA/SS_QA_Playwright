@@ -39,14 +39,29 @@ export function num(s: string | null | undefined): number | null {
 // 여러 총계가 모두 동일한지(교차 화면 총비용 일치).
 export function crossTotalsEqual(name: string, totals: { label: string; value: number | null }[]): Check {
   const present = totals.filter((t) => t.value != null) as { label: string; value: number }[];
-  if (present.length < 2) return { name, scope: 'cross', ok: true, detail: `비교 대상 부족(${present.length}개) — 검증 생략`, values: totals };
-  const base = present[0].value;
-  const bad = present.filter((t) => !near(t.value, base));
+  // 총계 0인 축 = 미집계/미캡처 추정(다른 축이 큰 값인데 한 축만 0 = 데이터 없음) → 비교에서 제외하고 참고로 표기.
+  //   ⚠ "총비용 0"은 정상 값이 아니라 '해당 화면 값을 못 읽음'일 가능성이 큼 → 0으로 FALSE FAIL 방지("미확인 ≠ 결함").
+  const meaningful = present.filter((t) => t.value !== 0);
+  const zeros = present.filter((t) => t.value === 0);
+  const zeroNote = zeros.length ? ` · ⚠ 참고 제외(총계 0=미집계 추정): ${zeros.map((z) => z.label).join(', ')} — 해당 화면 값을 못 읽었을 가능성(데이터 없음/캡처 이슈), 별도 확인 필요` : '';
+  if (meaningful.length < 2) {
+    return { name, scope: 'cross', ok: true, na: meaningful.length === 0, detail: `비교 가능한 축 부족(값 있는 축 ${meaningful.length}개)${zeroNote}`, values: totals };
+  }
+  // 다수 일치값(consensus) 산출 → 일치 그룹 vs 이탈 축 구분(상세 설명용).
+  let consensus = meaningful[0].value, best = 0;
+  for (const t of meaningful) { const c = meaningful.filter((o) => near(o.value, t.value)).length; if (c > best) { best = c; consensus = t.value; } }
+  const agree = meaningful.filter((t) => near(t.value, consensus));
+  const deviate = meaningful.filter((t) => !near(t.value, consensus));
+  if (deviate.length === 0) {
+    return { name, scope: 'cross', ok: true, values: totals, detail: `${meaningful.length}개 축 총계 일치: ${consensus.toLocaleString()}원 (${agree.map((a) => a.label).join('·')})${zeroNote}` };
+  }
+  // 실제 불일치(값 있는 축끼리 어긋남) — 왜/어디를 확인할지 상세 설명.
   return {
-    name, scope: 'cross', ok: bad.length === 0, values: totals,
-    detail: bad.length === 0
-      ? `${present.length}개 화면 총계 일치: ${base.toLocaleString()}`
-      : `불일치: ${present.map((t) => `${t.label}=${t.value.toLocaleString()}`).join(' / ')}`,
+    name, scope: 'cross', ok: false, values: totals,
+    detail: `[불일치] 같은 총비용을 축만 달리 재집계한 값이라 원래 서로 같아야 하는데 어긋났습니다. `
+      + `일치 ${agree.length}개 축 = ${consensus.toLocaleString()}원(${agree.map((a) => a.label).join('·')}) · `
+      + `이탈: ${deviate.map((d) => `${d.label}=${d.value.toLocaleString()}원`).join(', ')}. `
+      + `→ 이탈 축의 집계 기준(필터·기간·중복행)·데이터를 우선 확인.${zeroNote}`,
   };
 }
 

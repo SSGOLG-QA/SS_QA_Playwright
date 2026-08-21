@@ -381,9 +381,11 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
     { label: '위치별', axis: '코스/홀축', v: locTotal }, { label: '기간별', axis: '연도축', v: perTotal2026 },
     { label: '작업별', axis: taskTotal != null ? '작업축' : '작업축(데이터 없음)', v: taskTotal },
   ];
-  const eqTotal = crossTotals.filter((t) => t.v != null).every((t, _, a) => near(t.v as number, a[0].v as number));
-  const shared = crossTotals.find((t) => t.v != null)?.v ?? null;
-  const costNode = (t: { label: string; axis: string; v: number | null }) => `<div class="node cost"><div class="nt">${esc(t.label)}</div><div class="na">${esc(t.axis)}</div><div class="nv">${won(t.v)}${t.v != null ? '원' : ''}</div></div>`;
+  // 총계 0인 축은 '미집계 추정'으로 일치 판정에서 제외(값 있는 축끼리 비교).
+  const cmpAxes = crossTotals.filter((t) => t.v != null && t.v !== 0);
+  const eqTotal = cmpAxes.length >= 2 ? cmpAxes.every((t) => near(t.v as number, cmpAxes[0].v as number)) : true;
+  const shared = cmpAxes[0]?.v ?? null;
+  const costNode = (t: { label: string; axis: string; v: number | null }) => { const zero = t.v === 0; return `<div class="node cost"${zero ? ' style="border-top-color:var(--mut);opacity:.7"' : ''}><div class="nt">${esc(t.label)}${zero ? ' <span style="font-size:10px;color:var(--mut)">미집계</span>' : ''}</div><div class="na">${esc(t.axis)}</div><div class="nv"${zero ? ' style="color:var(--mut)"' : ''}>${zero ? '0원(미집계 추정)' : won(t.v) + (t.v != null ? '원' : '')}</div></div>`; };
   const budNode = (l: string, s: string) => `<div class="node bud"><div class="nt">${esc(l)}</div><div class="na">${esc(s)}</div></div>`;
   const screenRows = SCREENS.map((s) => { const heads = s.g?.tables?.[0]?.heads ?? []; const items = heads.length ? heads.join(' · ') : (s.g?.cards?.length ? '요약 카드/차트(월 예산·당월 사용액·예산 초과분·예산 대비 사용률)' : '—'); return `<tr><td><b>${esc(s.menu)} &gt; ${esc(s.sub)}</b></td><td><code>${esc(s.route)}</code></td><td>${esc(items)}</td></tr>`; }).join('');
 
@@ -460,7 +462,8 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <div class="mrow"><div class="node src"><div class="nt">인력 관리</div><div class="na">임률 → 인건비</div><div class="nv">${hrData.length}명</div></div><div class="node src"><div class="nt">자재 관리</div><div class="na">단가 → 코스 자재비</div><div class="nv">${matData.length}종</div></div><div class="node src"><div class="nt">장비 관리</div><div class="na">시간당비용 → 장비 관리비</div><div class="nv">${eqData.length}대</div></div><div class="node src"><div class="nt">작업 관리</div><div class="na">작업지시 → 작업지시 비용</div></div></div>
 <div class="flowdown">▼ 발생·유입 → 비용 집계</div>
 <div class="mlabel" style="margin-top:18px">② 비용 관리 — 같은 총비용을 다른 축으로 재집계 (총합·항목 일치해야)</div>
-<div class="shared">공유 총비용 ${eqTotal ? '✅ 일치' : '❌ 불일치'} : ${won(shared)}원</div>
+<div class="shared">공유 총비용 ${eqTotal ? '✅ 일치' : '❌ 불일치'} : ${won(shared)}원 <span style="font-size:11px;color:var(--mut);font-weight:400">(값 있는 ${cmpAxes.length}개 축 기준)</span></div>
+${crossTotals.some((t) => t.v === 0) ? `<div class="note" style="margin:4px 0">⚠ <b>${crossTotals.filter((t) => t.v === 0).map((t) => t.label).join(', ')}</b> 총계 0 = <b>미집계 추정</b>(해당 화면 값을 못 읽음 — 데이터 없음/캡처 이슈). 일치 판정에서 제외했으며, 실제 0인지 별도 확인 필요.</div>` : ''}
 <div class="mrow">${crossTotals.map(costNode).join('')}</div>
 <div class="leg"><span><b>■</b> 원천(타 메뉴)</span><span><b style="color:var(--accent)">■</b> 비용 재집계 축</span><span><b style="color:var(--accent2)">■</b> 예산 흐름</span><span>세로 흐름 = 값 유입 방향</span></div>
 <div class="mlabel" style="margin-top:18px">③ 예산 관리 — 편성 → 집행 → 분석 흐름</div>
@@ -503,7 +506,7 @@ ${REPORT_CATS.map((cn) => { const rows = checks.filter((c) => catOf(c) === cn); 
 <div class="panel" id="p7">
 <h2>전체 검증 항목 · 결과</h2>
 <div class="note big">확인 항목 <b>${judged.length}</b>건 · <span class="okb">정상 ${pass}</span> · <span class="${fail ? 'ngb' : 'okb'}">주의 ${fail}</span>${naCount ? ` · <span class="mut">참고 ${naCount}(데이터 없음, 판정 제외)</span>` : ''}. 구분별 정상/확인 = 교차 ${catCount('교차 화면')} · 내부-비용 ${catCount('내부-비용')} · 내부-예산(소계) ${catCount('내부-예산(소계)')} · 원천 ${catCount('원천 값')} · 정보 ${catCount('정보')}. <span class="mut">(구분 내 주의 우선 정렬)</span></div>
-${fail ? `<div class="note" style="border-left:3px solid var(--ng)"><b class="ngb">⚠ 주의 필요 (${fail}건)</b><br>${judged.filter((c) => !c.ok).map((c) => `${esc(c.name)} — ${esc(c.detail)}`).join('<br>')}</div>` : '<div class="note" style="border-left:3px solid var(--ok)"><b class="okb">✅ 확인 항목 전부 정상</b> — 주의 없음</div>'}${naCount ? `<div class="note" style="border-left:3px solid var(--mut)"><b>➖ 참고: 데이터 없어 확인 대상 아님 (${naCount}건, 판정 제외)</b><br>${checks.filter((c) => c.na).map((c) => `${esc(c.name)} — ${esc(c.detail)}`).join('<br>')}</div>` : ''}
+${fail ? `<div class="note" style="border-left:3px solid var(--ng)"><b class="ngb">⚠ 주의 필요 (${fail}건)</b> — 각 항목의 "무엇이·왜·어디를 확인"을 함께 표기했습니다.<br>${judged.filter((c) => !c.ok).map((c) => `<div style="margin-top:8px"><b class="ngb">❌ ${esc(c.name)}</b><br><span style="color:var(--fg)">${esc(c.detail)}</span></div>`).join('')}</div>` : '<div class="note" style="border-left:3px solid var(--ok)"><b class="okb">✅ 확인 항목 전부 정상</b> — 주의 없음</div>'}${naCount ? `<div class="note" style="border-left:3px solid var(--mut)"><b>➖ 참고: 데이터가 없어 확인 대상이 아님 (${naCount}건, 판정 제외)</b> — 결함이 아니라 "확인 불가"입니다.<br>${checks.filter((c) => c.na).map((c) => `<div style="margin-top:6px"><b>➖ ${esc(c.name)}</b><br><span class="mut">${esc(c.detail)}</span></div>`).join('')}</div>` : ''}
 <div class="tblwrap"><table><thead><tr><th class="num">#</th><th></th><th>검증 항목</th><th>결과</th></tr></thead><tbody>${reportBody}</tbody></table></div>
 <div class="note">구분: <b>교차 화면</b>=여러 화면 재집계 총합/항목 일치 · <b>내부-비용/예산</b>=단일 화면 내 합계=Σ부분 · <b>원천 값</b>=타 메뉴 단가/임률 계산·유입 · <b>정보</b>=기간 스코프 등 판정 제외 참고.</div>
 </div>

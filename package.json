@@ -104,7 +104,8 @@
     "course:control-battery": "playwright test --config=Course/playwright.config.ts --project=course Course/course-control-battery.spec.ts",
     "course:chart-integrity": "playwright test --config=Course/playwright.config.ts --project=course Course/course-chart-integrity.spec.ts",
     "course:reconcile": "playwright test --config=Course/playwright.config.ts --project=course Course/course-budget-reconcile.spec.ts",
-    "course:transition-battery": "playwright test --config=Course/playwright.config.ts --project=course Course/course-transition-battery.spec.ts"
+    "course:transition-battery": "playwright test --config=Course/playwright.config.ts --project=course Course/course-transition-battery.spec.ts",
+    "course:quality": "playwright test --config=Course/playwright.config.ts --project=course Course/course-quality-suite.spec.ts"
   },
   "keywords": [],
   "author": "",

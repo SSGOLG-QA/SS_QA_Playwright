@@ -101,7 +101,9 @@
     "course:display-verify": "playwright test --config=Course/playwright.config.ts --project=course Course/course-display-verify.spec.ts",
     "course:figma-extract": "node scripts/extractFigmaCourseTexts.js",
     "course:figma-checktext": "playwright test --config=Course/playwright.config.ts --project=course Course/course-figma-checktext.spec.ts",
-    "course:control-battery": "playwright test --config=Course/playwright.config.ts --project=course Course/course-control-battery.spec.ts"
+    "course:control-battery": "playwright test --config=Course/playwright.config.ts --project=course Course/course-control-battery.spec.ts",
+    "course:chart-integrity": "playwright test --config=Course/playwright.config.ts --project=course Course/course-chart-integrity.spec.ts",
+    "course:transition-battery": "playwright test --config=Course/playwright.config.ts --project=course Course/course-transition-battery.spec.ts"
   },
   "keywords": [],
   "author": "",

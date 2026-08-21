@@ -459,10 +459,25 @@ ${screensHtml}
 </div>
 <script>
 const q=document.getElementById('q'),onlyunc=document.getElementById('onlyunc'),cfs=[...document.querySelectorAll('.cf')];
-function apply(){const term=(q.value||'').replace(/\\s+/g,'').toLowerCase();const cats=cfs.filter(c=>c.checked).map(c=>c.value);const uo=onlyunc.checked;
-document.querySelectorAll('.comp').forEach(el=>{const lbl=el.querySelector('.lbl').textContent.replace(/\\s+/g,'').toLowerCase();const cat=el.dataset.cat;const cov=el.dataset.cov==='1';
-let show=true;if(term&&!lbl.includes(term))show=false;if(uo&&cov)show=false;if(cov&&cat&&!cats.includes(cat))show=false;el.classList.toggle('hide',!show);});
-document.querySelectorAll('.sub').forEach(s=>{const vis=s.querySelectorAll('.comp:not(.hide)').length;s.classList.toggle('hide',vis===0&&(term||uo));});
+function apply(){
+  const term=(q.value||'').replace(/\\s+/g,'').toLowerCase();
+  const cats=cfs.filter(c=>c.checked).map(c=>c.value);
+  const uo=onlyunc.checked;
+  const active=!!term||uo||cats.length<cfs.length;   // 필터 활성 여부(빈 섹션 접기용)
+  document.querySelectorAll('.comp').forEach(el=>{
+    const lblEl=el.querySelector('.lbl');
+    const lbl=(lblEl?lblEl.textContent:'').replace(/\\s+/g,'').toLowerCase();
+    const cat=el.dataset.cat;              // 커버/미커버 comp엔 있음. 제외·감사 블록엔 없음(undefined)
+    const cov=el.dataset.cov;              // '1'(커버)/'0'(미커버)/undefined(제외·감사)
+    let show=true;
+    if(term&&!lbl.includes(term))show=false;               // 검색어
+    if(uo&&cov!=='0')show=false;                           // 미커버만 = data-cov==0 만
+    if(cat&&!cats.includes(cat))show=false;                // 카테고리 = 커버·미커버 공통 적용
+    el.classList.toggle('hide',!show);
+  });
+  // 빈 소메뉴·대메뉴 자동 접기(필터 활성 시)
+  document.querySelectorAll('.sub').forEach(s=>{const vis=s.querySelectorAll('.comp:not(.hide)').length;s.classList.toggle('hide',active&&vis===0);});
+  document.querySelectorAll('.grp').forEach(g=>{const vis=g.querySelectorAll('.sub:not(.hide)').length;g.classList.toggle('hide',active&&vis===0);});
 }
 q.addEventListener('input',apply);onlyunc.addEventListener('change',apply);cfs.forEach(c=>c.addEventListener('change',apply));
 </script></body></html>`;

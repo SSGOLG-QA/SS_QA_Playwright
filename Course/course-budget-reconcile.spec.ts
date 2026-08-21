@@ -125,8 +125,12 @@ test('P1 독립 재집계(A) + 이상치(E) — 예산·비용 교차 맹점 보
       const sums = scopes.map((s) => ({ key: s.key, v: sumScope(ci, s.f) as number }));
       const hit = sums.find((s) => near(s.v, disp) || nearRel(s.v, disp, 0.005));
       const brief = sums.map((s) => `${s.key} ${Math.round(s.v).toLocaleString()}`).join(' / ');
-      if (hit) rec({ name: `${label}: Σ작업별=비용집계 [집계 정합 A-2]`, ok: true, detail: `정합 — 스코프 '${hit.key}'에서 Σ작업별 = 비용집계 ${disp.toLocaleString()} 일치(원자 재구성=집계 → 교차 맹점 닫힘). [${brief}]` }, tcId);
-      else rec({ name: `${label}: Σ작업별=비용집계 [집계 정합 A-2]`, ok: false, detail: `[불일치] 어느 기간 스코프에서도 비용집계 ${disp.toLocaleString()}와 안 맞음 — 원자 재구성값: ${brief}. → 실제 집계·배분 정합 이슈이거나 비용집계 스코프 정의 상이. 확인 필요.` }, tcId);
+      if (hit) { rec({ name: `${label}: Σ작업별=비용집계 [집계 정합 A-2]`, ok: true, detail: `정합 — 스코프 '${hit.key}'에서 Σ작업별 = 비용집계 ${disp.toLocaleString()} 일치(원자 재구성=집계 → 교차 맹점 닫힘). [${brief}]` }, tcId); return; }
+      // 정확한 정수배 관계 진단(이중/N중 집계 의심) — 시작연도 스코프 기준.
+      const base = sums[0].v; const ratio = base ? disp / base : null;
+      const mult = ratio != null && Math.abs(ratio - Math.round(ratio)) < 0.02 && Math.round(ratio) >= 2 ? Math.round(ratio) : null;
+      const multNote = mult ? ` ★진단: 비용집계 = (작업별 ${sums[0].key}) × 정확히 ${mult}배 → 비용집계 ${mult}중 집계(중복 계상) 의심. 교차(③)는 전 축이 같은 값이라 못 잡음 — 독립 재집계로 포착.` : '';
+      rec({ name: `${label}: Σ작업별=비용집계 [집계 정합 A-2]`, ok: false, detail: `[불일치] 어느 기간 스코프에서도 비용집계 ${disp.toLocaleString()}와 안 맞음 — 원자 재구성값: ${brief}.${multNote} → 실제 집계·배분 정합 이슈이거나 비용집계 스코프 정의 상이. 확인 필요.` }, tcId);
     };
     matchTotal('총계', 총계, totalCol, 'RECON-A2-TOT');
     types.forEach(([label], i) => matchTotal(label, agg[label] ?? null, typeCols[i], `RECON-A2-${label.replace(/[^가-힣]/g, '').slice(0, 4)}`));

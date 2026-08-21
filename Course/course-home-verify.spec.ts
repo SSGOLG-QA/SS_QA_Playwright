@@ -275,7 +275,13 @@ details.aux>summary::after{content:" ▾";color:var(--mut)}details.aux[open]>sum
 details.aux[open]>summary{border-bottom:1px solid var(--line)}
 .auxbody{padding:12px 16px;font-size:13px;line-height:1.7}
 .persp,.honest{background:none;border:none;border-radius:0;padding:0;margin:0;font-size:13px;color:var(--fg)}
-.honest{border-top:1px dashed var(--line);margin-top:10px;padding-top:10px}.honest b,.persp b{color:var(--fg)}
+.honest{border-top:1px dashed var(--line);margin-top:10px;padding-top:12px}.honest b,.persp b{color:var(--fg)}
+.honest>.htitle{font-weight:700;margin-bottom:8px}
+.hrow{display:flex;gap:9px;align-items:flex-start;margin:9px 0}
+.hrow .hic{flex:0 0 auto;font-size:14px;line-height:1.4}
+.hrow .hbody{flex:1}.hrow .hlbl{display:block;font-weight:700;margin-bottom:3px}
+.hrow ul{margin:0;padding-left:16px}.hrow li{margin:2px 0;line-height:1.55}
+.hrow.ok .hlbl{color:var(--ok)}.hrow.warn .hlbl{color:var(--ng)}.hrow.info .hlbl{color:var(--mut)}
 details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px}details.gloss summary{cursor:pointer;font-weight:700;color:var(--fg)}details.gloss dt{font-weight:700;color:var(--fg);margin-top:8px}details.gloss dd{margin:0 0 2px 0}
 </style>
 <div class="wrap">
@@ -286,10 +292,15 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 이 리포트는 <b>"지금 화면 값이 맞는가"</b>를 봅니다 — 사용자가 보는 화면 기준 확인이며, 앱 내부 코드 검사는 아닙니다.</div>
 <details class="aux"><summary>💡 리포트 검증 관점 및 참고사항 보기</summary><div class="auxbody">
 <div class="persp">📏 <b>보는 관점:</b> 화면에 <b>표시된 값</b>을 원천 화면과 맞대어 봅니다(앱 내부 코드 커버리지가 아님). 확인 중 화면을 바꾸거나 저장하지 않습니다.</div>
-<div class="honest"><b>이 검증이 잡는 것과 못 잡는 것(중요).</b><br>
-✅ <b>잡음:</b> HOME에 보이는 값이 <b>원천 화면과 다른</b> 경우(등급=목표설정·작업=작업지시·연간예산=예산관리) · 비용 탭 <b>계산 항등이 깨진</b> 경우(잔여=연간예산−누적·사용률%·전체=Σ카테고리).<br>
-⚠ <b>못 잡음(한계):</b> HOME은 원천 값을 <b>가져다 보여주는</b> 화면이라, <b>원천 자체가 틀리면</b> HOME도 같이 틀린 채 일치로 통과합니다(원천 정확성은 예산·비용/인력 등 각 원천 검증이 담당). 또 HOME '이번 달' vs 목록 '전체기간'처럼 <b>집계 범위가 다른</b> 항목은 총계 직접 일치가 아니라 자기정합(≥0)만 봅니다.<br>
-➖ <b>참고(데이터 없음):</b> 데이터가 없어 확인 대상이 아닌 항목은 판정에서 제외했습니다(결함 아님).</div>
+<div class="honest"><div class="htitle">이 검증이 잡는 것과 못 잡는 것</div>
+<div class="hrow ok"><span class="hic">✅</span><div class="hbody"><span class="hlbl">잡아냅니다</span><ul>
+  <li>HOME 값이 <b>원천 화면과 다름</b> <span class="mut">(등급=목표설정 · 작업=작업지시 · 연간예산=예산관리)</span></li>
+  <li>비용 탭 <b>계산 항등이 깨짐</b> <span class="mut">(잔여=연간예산−누적 · 사용률% · 전체=Σ카테고리)</span></li></ul></div></div>
+<div class="hrow warn"><span class="hic">⚠️</span><div class="hbody"><span class="hlbl">못 잡습니다 (한계)</span><ul>
+  <li>HOME은 원천을 <b>가져다 보여주는</b> 화면 — <b>원천 자체가 틀리면</b> 같이 틀린 채 통과 <span class="mut">(원천 정확성은 각 원천 검증 담당)</span></li>
+  <li><b>집계 범위가 다른</b> 항목(이번 달 vs 전체기간)은 직접 일치가 아니라 자기정합(≥0)만 확인</li></ul></div></div>
+<div class="hrow info"><span class="hic">ℹ️</span><div class="hbody"><span class="hlbl">참고</span><ul>
+  <li>데이터 없는 항목은 <b>판정 제외</b>(결함 아님)</li></ul></div></div></div>
 </div></details>
 <div class="cards"><div class="card"><div class="n">${judged.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">주의 필요</div></div>${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}</div>
 

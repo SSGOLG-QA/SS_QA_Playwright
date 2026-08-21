@@ -354,10 +354,18 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
     const head = `<tr>${heads.map((h) => `<th class="${/^\d+월$|합계|비용|예산|사용|율|스코어|타수/.test(h) ? 'num' : ''}">${esc(h)}</th>`).join('')}</tr>`;
     let prev: string[] = [];
     const body = gr.map((r) => {
+      // 빈 데이터 행(전 열이 동일한 '내역 없음' 안내) → colspan 1회 중앙 노출(반복 노이즈 제거).
+      const nonEmpty = r.map((c) => (c || '').trim()).filter(Boolean);
+      const distinct = [...new Set(nonEmpty)];
+      if (distinct.length === 1 && nonEmpty.length >= 3 && /없습니다|내역이\s*없|데이터가?\s*없/.test(distinct[0])) {
+        return `<tr><td colspan="${cols}" style="text-align:center;color:var(--mut);padding:16px 8px">${esc(distinct[0])}</td></tr>`;
+      }
       const hot = r.some((c) => /소계|전체|합계|총계|차액/.test(c || ''));
       const tds = r.map((c, i) => {
-        const merge = i < labelCols && !hot && prev[i] === c && c !== '';
-        return `<td class="${numish(c) ? 'num' : ''}">${merge ? '' : esc(c)}</td>`;
+        const merge = i < labelCols && !hot && prev[i] === c && c !== '';       // 상위 분류 반복 → 병합(공백)
+        const empty = (c || '').trim() === '';
+        const inner = merge ? '' : (empty ? '<span style="color:var(--mut)">-</span>' : esc(c));
+        return `<td class="${numish(c) ? 'num' : (empty && !merge ? 'ctr' : '')}">${inner}</td>`;
       }).join('');
       prev = r.slice();
       return `<tr class="${hot ? 'hot' : ''}">${tds}</tr>`;
@@ -409,13 +417,13 @@ h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:24px 0 10px;border-bot
 .sub{color:var(--mut);font-size:13px;margin-bottom:8px}
 .cards{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}.card{flex:1 1 100px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}.card .n{font-size:23px;font-weight:700}.card .l{font-size:12px;color:var(--mut)}
 table{border-collapse:collapse;width:100%;font-size:13.5px;margin:6px 0}th,td{text-align:left;padding:6px 9px;border-bottom:1px solid var(--line);white-space:nowrap}th{color:var(--mut);font-size:11.5px;background:var(--card)}
-td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}tr.hot td{background:var(--hot);font-weight:700}tr.mt td{font-weight:700}tr.ng td{color:var(--ng);font-weight:600}tr.na td{color:var(--mut)}.na-n{color:var(--mut);font-weight:700}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}td.ctr{text-align:center}tr.hot td{background:var(--hot);font-weight:700;border-top:2px solid var(--accent)}tr.mt td{font-weight:700;border-top:2px solid var(--fg);background:var(--card)}tr.ng td{color:var(--ng);font-weight:600}tr.na td{color:var(--mut)}.na-n{color:var(--mut);font-weight:700}
 .ok-n{color:var(--ok);font-weight:700}.ng-n{color:var(--ng);font-weight:700}
 .note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 15px;font-size:13.5px;color:var(--mut);margin:8px 0}.note.big{border-left:3px solid var(--accent)}
 code{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12px}kbd{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:2px 7px;font:12.5px monospace}
 .tblwrap{overflow-x:auto;max-width:100%;border:1px solid var(--line);border-radius:8px;margin:6px 0}.sys{min-width:100%;margin:0}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.chip{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:3px 10px;font-size:12px;color:var(--mut)}
-.tabin{position:absolute;left:-9999px}.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin:14px 0 0;flex-wrap:wrap}
+.tabin{position:absolute;left:-9999px}.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin:40px 0 0;flex-wrap:wrap}
 .tabs label{padding:9px 14px;cursor:pointer;font-weight:600;font-size:13.5px;color:var(--mut);border:1px solid transparent;border-bottom:none;border-radius:8px 8px 0 0}
 #t1:checked~.tabs label[for=t1],#t2:checked~.tabs label[for=t2],#t3:checked~.tabs label[for=t3],#t4:checked~.tabs label[for=t4],#t5:checked~.tabs label[for=t5],#t6:checked~.tabs label[for=t6],#t7:checked~.tabs label[for=t7]{color:var(--fg);border-color:var(--line);background:var(--card)}
 .panel{display:none;padding-top:14px}#t1:checked~#p1,#t2:checked~#p2,#t3:checked~#p3,#t4:checked~#p4,#t5:checked~#p5,#t6:checked~#p6,#t7:checked~#p7{display:block}
@@ -428,9 +436,15 @@ code{background:var(--card);border:1px solid var(--line);border-radius:4px;paddi
 .arrow{display:flex;align-items:center;color:var(--mut);font-size:12px;padding:0 2px}.arrow b{color:var(--fg)}
 .bg{margin:12px 0}.bgname{font-weight:700;font-size:13.5px;margin:4px 0}.okb{color:var(--ok)}.ngb{color:var(--ng)}
 .scr{margin:14px 0 22px}.scr h3{margin-bottom:2px}.scr .rt{color:var(--mut);font-size:12px;margin-bottom:4px}
-.lead{font-size:16px;line-height:1.75;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:16px 18px;margin:12px 0}.lead b{font-size:18px}.lead .em{color:var(--accent);font-weight:700}
-.persp{font-size:12.5px;color:var(--mut);background:var(--card);border:1px dashed var(--line);border-radius:8px;padding:9px 13px;margin:8px 0}
-.honest{font-size:13px;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:8px;padding:11px 14px;margin:8px 0}.honest b{color:var(--fg)}
+.lead{font-size:16.5px;line-height:1.8;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:14px 0 10px}.lead b{font-size:18px}.lead .em{color:var(--accent);font-weight:700}
+details.aux{margin:0 0 40px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+details.aux>summary{cursor:pointer;list-style:none;padding:10px 14px;font-size:13px;font-weight:600;color:var(--mut)}
+details.aux>summary::-webkit-details-marker{display:none}
+details.aux>summary::after{content:" ▾";color:var(--mut)}details.aux[open]>summary::after{content:" ▴"}
+details.aux[open]>summary{border-bottom:1px solid var(--line)}
+.auxbody{padding:12px 16px;font-size:13px;line-height:1.7}
+.persp,.honest{background:none;border:none;border-radius:0;padding:0;margin:0;font-size:13px;color:var(--fg)}
+.honest{border-top:1px dashed var(--line);margin-top:10px;padding-top:10px}.honest b,.persp b{color:var(--fg)}
 details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px}details.gloss summary{cursor:pointer;font-weight:700;color:var(--fg)}details.gloss dt{font-weight:700;color:var(--fg);margin-top:8px}details.gloss dd{margin:0 0 2px 0}
 </style>
 <div class="wrap">
@@ -441,11 +455,13 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <b>② 합계가 부분의 합과 맞나</b> — 총계 = 항목들의 합, 소계 = 하위 분류들의 합(산술 검산).<br>
 <b>③ 화면마다 일관되나</b> — 같은 총비용을 여러 화면이 다른 기준으로 재집계해도 총합이 일치하는지(교차).<br>
 확인 항목 <b>${judged.length}개</b> 중 <span class="ok-n">정상 ${pass}개</span>${fail ? ` · <span class="ng-n">주의 ${fail}개</span>` : ' · 주의 0개'} (그중 화면 간 교차 ${cross.length}건)${naCount ? ` · <span class="na-n">참고 ${naCount}개</span>(데이터 없어 판정 제외)` : ''}.</div>
+<details class="aux"><summary>💡 리포트 검증 관점 및 참고사항 보기</summary><div class="auxbody">
 <div class="persp">📏 <b>보는 관점:</b> 화면에 <b>표시된 값</b>을 공식·합계·화면 간으로 검산합니다(앱 내부 코드 커버리지가 아님). 확인 중 저장·변경하지 않습니다.</div>
 <div class="honest"><b>이 검증이 잡는 것과 못 잡는 것(중요).</b><br>
 ✅ <b>잡음:</b> 원천 단가·임률이 <b>공식과 다르게</b> 계산된 경우(①) · 총계·소계가 <b>부분의 합과 어긋난</b> 경우(②) · 한 화면 값이 <b>다른 화면과 다른</b> 경우(③).<br>
 ⚠ <b>못 잡음(한계):</b> <b>③ 화면 간 일관성만으로는</b> "모든 화면이 <b>똑같이 틀린 값</b>"이면 통과합니다(재집계 일관성 검사이지 원값의 절대 정확성 검사가 아님) — 그래서 <b>①(공식)·②(합계)</b>로 원값·산술을 함께 봅니다. 다만 <b>애초에 입력 데이터 자체가 틀린 경우</b>(예: 매입가를 잘못 입력)는 공식·합계·일관성이 모두 통과하므로 <b>이 리포트로는 못 잡습니다</b> — 원본 대장과의 대조가 별도로 필요합니다.<br>
 ℹ️ 그 외: <b>'참고' 항목</b>은 데이터가 없어 판정 제외입니다. <b>회계상 비용과 작업지시 집계</b>처럼 원래 차이가 날 수 있는 경우는 각 항목에 사유를 표기했습니다.</div>
+</div></details>
 <div class="cards"><div class="card"><div class="n">${judged.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">주의 필요</div></div>${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}<div class="card"><div class="n">${cross.length}</div><div class="l">교차 확인</div></div></div>
 
 <input class="tabin" type="radio" name="tab" id="t1" checked><input class="tabin" type="radio" name="tab" id="t2"><input class="tabin" type="radio" name="tab" id="t3"><input class="tabin" type="radio" name="tab" id="t7"><input class="tabin" type="radio" name="tab" id="t4"><input class="tabin" type="radio" name="tab" id="t5"><input class="tabin" type="radio" name="tab" id="t6">

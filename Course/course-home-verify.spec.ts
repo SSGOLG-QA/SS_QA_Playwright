@@ -255,21 +255,27 @@ h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:22px 0 10px;border-bot
 .sub{color:var(--mut);font-size:13px;margin-bottom:8px}
 .cards{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}.card{flex:1 1 100px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}.card .n{font-size:23px;font-weight:700}.card .l{font-size:12px;color:var(--mut)}
 table{border-collapse:collapse;width:100%;font-size:13.5px;margin:6px 0}th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}th{color:var(--mut);font-size:11.5px;background:var(--card)}
-td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}tr.mt td{font-weight:700}tr.ng td{color:var(--ng);font-weight:600}tr.na td{color:var(--mut)}.ok-n{color:var(--ok);font-weight:700}.ng-n{color:var(--ng);font-weight:700}.na-n{color:var(--mut);font-weight:700}.mut{color:var(--mut)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}tr.mt td{font-weight:700;border-top:2px solid var(--fg);background:var(--card)}tr.ng td{color:var(--ng);font-weight:600}tr.na td{color:var(--mut)}.ok-n{color:var(--ok);font-weight:700}.ng-n{color:var(--ng);font-weight:700}.na-n{color:var(--mut);font-weight:700}.mut{color:var(--mut)}
 .note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 15px;font-size:13.5px;color:var(--mut);margin:8px 0}.note.big{border-left:3px solid var(--accent)}
 code{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12px}kbd{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:2px 7px;font:12.5px monospace}
 .tblwrap{overflow-x:auto;max-width:100%;border:1px solid var(--line);border-radius:8px;margin:6px 0}.sys{min-width:100%;margin:0}
 .map{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin:8px 0}.mrow{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;margin-top:8px}
 .node{border:1px solid var(--line);border-radius:9px;padding:8px 12px;background:var(--bg);text-align:center;min-width:118px}.node .nt{font-weight:700;font-size:13px}.node .na{font-size:11px;color:var(--mut);margin-top:1px}
 .node.hi{border-top:3px solid var(--accent)}.arrow{color:var(--mut);font-size:12px}.arrow b{color:var(--fg)}.mlabel{font-size:12.5px;color:var(--mut);font-weight:700;margin:14px 0 2px}
-.tabin{position:absolute;left:-9999px}.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin:14px 0 0;flex-wrap:wrap}
+.tabin{position:absolute;left:-9999px}.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin:40px 0 0;flex-wrap:wrap}
 .tabs label{padding:9px 13px;cursor:pointer;font-weight:600;font-size:13px;color:var(--mut);border:1px solid transparent;border-bottom:none;border-radius:8px 8px 0 0}
 #t1:checked~.tabs label[for=t1],#t2:checked~.tabs label[for=t2],#t3:checked~.tabs label[for=t3],#t4:checked~.tabs label[for=t4],#t5:checked~.tabs label[for=t5],#t6:checked~.tabs label[for=t6]{color:var(--fg);border-color:var(--line);background:var(--card)}
 .panel{display:none;padding-top:14px}#t1:checked~#p1,#t2:checked~#p2,#t3:checked~#p3,#t4:checked~#p4,#t5:checked~#p5,#t6:checked~#p6{display:block}
 .badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:var(--card);border:1px solid var(--line);color:var(--mut);margin-left:6px}
-.lead{font-size:16px;line-height:1.75;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px;padding:16px 18px;margin:12px 0}.lead b{font-size:18px}.lead .em{color:var(--accent);font-weight:700}
-.persp{font-size:12.5px;color:var(--mut);background:var(--card);border:1px dashed var(--line);border-radius:8px;padding:9px 13px;margin:8px 0}
-.honest{font-size:13px;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--ok);border-radius:8px;padding:11px 14px;margin:8px 0}.honest b{color:var(--fg)}
+.lead{font-size:16.5px;line-height:1.8;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:14px 0 10px}.lead b{font-size:18px}.lead .em{color:var(--accent);font-weight:700}
+details.aux{margin:0 0 40px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+details.aux>summary{cursor:pointer;list-style:none;padding:10px 14px;font-size:13px;font-weight:600;color:var(--mut)}
+details.aux>summary::-webkit-details-marker{display:none}
+details.aux>summary::after{content:" ▾";color:var(--mut)}details.aux[open]>summary::after{content:" ▴"}
+details.aux[open]>summary{border-bottom:1px solid var(--line)}
+.auxbody{padding:12px 16px;font-size:13px;line-height:1.7}
+.persp,.honest{background:none;border:none;border-radius:0;padding:0;margin:0;font-size:13px;color:var(--fg)}
+.honest{border-top:1px dashed var(--line);margin-top:10px;padding-top:10px}.honest b,.persp b{color:var(--fg)}
 details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px}details.gloss summary{cursor:pointer;font-weight:700;color:var(--fg)}details.gloss dt{font-weight:700;color:var(--fg);margin-top:8px}details.gloss dd{margin:0 0 2px 0}
 </style>
 <div class="wrap">
@@ -278,11 +284,13 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <div class="lead"><b>한눈에 보기.</b> 코스관리 <span class="em">첫 화면(홈)</span>에 보이는 <b>등급·작업·비용</b> 숫자가 그 값이 나오는 <b>원천 화면</b>과 어긋나지 않는지 확인했습니다.<br>
 확인 항목 <b>${judged.length}개</b> 중 <span class="ok-n">정상 ${pass}개</span>${fail ? ` · <span class="ng-n">주의 ${fail}개</span>` : ' · 주의 0개'}${naCount ? ` · <span class="na-n">참고 ${naCount}개</span>(데이터 없어 판정 제외)` : ''}.<br>
 이 리포트는 <b>"지금 화면 값이 맞는가"</b>를 봅니다 — 사용자가 보는 화면 기준 확인이며, 앱 내부 코드 검사는 아닙니다.</div>
+<details class="aux"><summary>💡 리포트 검증 관점 및 참고사항 보기</summary><div class="auxbody">
 <div class="persp">📏 <b>보는 관점:</b> 화면에 <b>표시된 값</b>을 원천 화면과 맞대어 봅니다(앱 내부 코드 커버리지가 아님). 확인 중 화면을 바꾸거나 저장하지 않습니다.</div>
 <div class="honest"><b>이 검증이 잡는 것과 못 잡는 것(중요).</b><br>
 ✅ <b>잡음:</b> HOME에 보이는 값이 <b>원천 화면과 다른</b> 경우(등급=목표설정·작업=작업지시·연간예산=예산관리) · 비용 탭 <b>계산 항등이 깨진</b> 경우(잔여=연간예산−누적·사용률%·전체=Σ카테고리).<br>
 ⚠ <b>못 잡음(한계):</b> HOME은 원천 값을 <b>가져다 보여주는</b> 화면이라, <b>원천 자체가 틀리면</b> HOME도 같이 틀린 채 일치로 통과합니다(원천 정확성은 예산·비용/인력 등 각 원천 검증이 담당). 또 HOME '이번 달' vs 목록 '전체기간'처럼 <b>집계 범위가 다른</b> 항목은 총계 직접 일치가 아니라 자기정합(≥0)만 봅니다.<br>
 ➖ <b>참고(데이터 없음):</b> 데이터가 없어 확인 대상이 아닌 항목은 판정에서 제외했습니다(결함 아님).</div>
+</div></details>
 <div class="cards"><div class="card"><div class="n">${judged.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">주의 필요</div></div>${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}</div>
 
 <input class="tabin" type="radio" name="tab" id="t1" checked><input class="tabin" type="radio" name="tab" id="t2"><input class="tabin" type="radio" name="tab" id="t3"><input class="tabin" type="radio" name="tab" id="t4"><input class="tabin" type="radio" name="tab" id="t5"><input class="tabin" type="radio" name="tab" id="t6">

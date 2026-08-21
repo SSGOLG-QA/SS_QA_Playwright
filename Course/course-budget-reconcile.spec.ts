@@ -4,7 +4,7 @@ import * as path from 'path';
 import { openCourseAdmin, killAlarms } from '../lib/course/courseHelpers';
 import { grab, gridOf, grabPaged, Grab } from '../lib/course/budgetCapture';
 import { num } from '../lib/course/domain/budgetCost';
-import { Atom, reconcileIndependent, sanityBatch, findCol, atomsFromGrid } from '../lib/course/domain/budgetReconcile';
+import { Atom, reconcileIndependent, sanityBatch, findCol } from '../lib/course/domain/budgetReconcile';
 import { resetResults, resetNoTC, resetDiff, resetReview, resetIA, record, skip, writeReport, CheckMeta } from '../lib/reporter';
 
 // ──────────────────────────────────────────────────────────────
@@ -23,22 +23,18 @@ const norm = (s: string) => (s || '').replace(/\s+/g, '').trim();
 // 관리비유형 라벨 → 비용집계 표시 총액 매칭.
 const MGMT = ['고정직 인건비', '임시직 인건비', '코스 자재비', '장비 관리비', '기타 관리비'];
 
-// 비용 집계 grid에서 관리비유형별 표시 총액 추출(행에 유형 라벨 포함 → 그 행 최대 숫자=총액 추정).
+// 비용 집계 grid에서 관리비유형/합계 표시 총액 추출.
+//   ⚠ 실측(프로브): 관리비유형은 '컬럼'(항목·합계·고정직 인건비·…·기타 관리비), 행은 발생원(작업지시 비용 합계 등).
+//   → 유형별 총액 = 해당 컬럼의 본문 행 합. '합계' 컬럼 = 총계.
 function aggTotals(g: Grab | null): Record<string, number> {
   const out: Record<string, number> = {};
   if (!g) return out;
   for (const T of g.tables) {
-    const { grid } = gridOf(T);
-    for (const r of grid) {
-      const rowTxt = norm(r.join(' '));
-      for (const m of MGMT) {
-        if (out[m] != null) continue;
-        if (rowTxt.includes(norm(m))) {
-          const nums = r.map((c) => num(c)).filter((v): v is number => v != null);
-          if (nums.length) out[m] = Math.max(...nums);   // 총액 추정(행 내 최대) — 프로브로 검증
-        }
-      }
-    }
+    const { grid } = gridOf(T); const heads = T.heads || [];
+    const colFor = (label: RegExp) => heads.findIndex((h) => label.test(norm(h)));
+    const sumCol = (ci: number) => ci < 0 ? null : grid.reduce((a, r) => { const v = num(r[ci]); return v == null ? a : a + v; }, 0);
+    const map: [string, RegExp][] = [['합계', /^합계$|^총계$|^전체$/], ['고정직 인건비', /고정직인건비/], ['임시직 인건비', /임시직인건비/], ['코스 자재비', /코스자재비|자재비/], ['장비 관리비', /장비관리비/], ['기타 관리비', /기타관리비/]];
+    for (const [k, re] of map) { if (out[k] != null) continue; const ci = colFor(re); const s = sumCol(ci); if (s != null) out[k] = s; }
   }
   return out;
 }
@@ -61,16 +57,18 @@ test('P1 독립 재집계(A) + 이상치(E) — 예산·비용 교차 맹점 보
     if (c.na) skip(cm, c.detail); else record(cm, c.ok ? 'PASS' : 'FAIL', c.ok ? { actual: c.detail } : { error: c.detail });
   };
 
-  // ── 표시 집계(비용 집계 관리비유형 총액) ──
+  // ── 표시 집계(비용 집계) ──
   const aggG = await grabPaged(admin, '비용 관리', '비용 집계');
   probe['비용집계'] = dumpScreen('비용집계', aggG);
   const agg = aggTotals(aggG);
-  const 자재비 = agg['코스 자재비'] ?? null;
-  const 장비비 = agg['장비 관리비'] ?? null;
+  const 총계 = agg['합계'] ?? null;
 
-  // ── 원자 원천 수집 ──
-  const matG = await grabPaged(admin, '자재 관리', '자재 수불(품목별)');
-  probe['자재수불'] = dumpScreen('자재수불', matG);
+  // ── 원자 원천: 작업별 비용(작업지시별 발생 비용 = 비용집계의 실제 원천) ──
+  //   ⚠ 실측: 비용집계 관리비유형은 작업지시(work order)에서 파생 → 마스터(자재수불/장비운용) 단순합 아님.
+  //     독립 재집계의 참 원자 = 작업별 비용(작업지시 단위 비용). Σ(작업별 비용) = 비용집계 총계 여야 함.
+  const taskG = await grabPaged(admin, '비용 관리', '작업별 비용');
+  probe['작업별비용'] = dumpScreen('작업별비용', taskG);
+  // 참고 마스터(단가·정상성용 + 향후 유형별 재집계 설계 근거) 덤프.
   const eqG = await grabPaged(admin, '장비 관리', '장비 총괄');
   probe['장비총괄'] = dumpScreen('장비총괄', eqG);
   const matSumG = await grabPaged(admin, '자재 관리', '자재 총괄');
@@ -81,31 +79,17 @@ test('P1 독립 재집계(A) + 이상치(E) — 예산·비용 교차 맹점 보
   try { fs.mkdirSync(path.join(process.cwd(), 'analysis'), { recursive: true }); fs.writeFileSync(path.join(process.cwd(), 'analysis', '_source_atoms.json'), JSON.stringify({ agg, probe }, null, 1).slice(0, 3_000_000)); } catch { /* */ }
   console.log(`\n[reconcile] 표시 집계 ${JSON.stringify(agg)} → analysis/_source_atoms.json (구조 덤프)`);
 
-  // ── Tier A: 자재비 독립 재집계 ──
-  //   원자 후보: 행별 '출고금액'(직접 합) 우선, 없으면 '출고량 × 단위당원가'.
+  // ── Tier A: 작업별 비용 원자 합 = 비용집계 총계 (진짜 독립 재집계) ──
+  //   작업별 비용 = 작업지시 단위 원자 비용 리스트 → 합이 비용집계 총계와 일치해야 함.
+  //   (4개 축 집계/분류별/위치별/기간별과 무관하게 원자에서 다시 쌓음 → 같은 오값 통과 방지)
   {
-    const T = matG?.tables[0]; const { grid } = gridOf(T); const heads = T?.heads || [];
-    const amtCol = findCol(heads, /출고금액|출고액|금액/);
-    const qtyCol = findCol(heads, /출고량|출고수량|사용량/);
-    const unitCol = findCol(heads, /단위당원가|단가|단위원가/);
-    const nameCol = findCol(heads, /자재명|품목|품명/);
-    let atoms: Atom[] = [];
-    if (amtCol >= 0) atoms = grid.map((r) => ({ label: nameCol >= 0 ? r[nameCol] || '' : '', qty: 1, unit: num(r[amtCol]) ?? 0 })).filter((a) => a.unit !== 0);
-    else atoms = atomsFromGrid(grid, nameCol, qtyCol, unitCol);
-    rec(reconcileIndependent('코스 자재비 독립 재집계(A) = Σ원자 vs 비용집계 표시', atoms, 자재비), 'RECON-A-MAT');
-  }
-
-  // ── Tier A: 장비 관리비 독립 재집계 ──
-  {
-    const T = eqG?.tables[0]; const { grid } = gridOf(T); const heads = T?.heads || [];
-    const amtCol = findCol(heads, /관리비|유지비|발생비용|비용/);
-    const qtyCol = findCol(heads, /운용시간|가동시간|사용시간/);
-    const unitCol = findCol(heads, /시간당비용|시간당|단가/);
-    const nameCol = findCol(heads, /장비명|장비|자산명/);
-    let atoms: Atom[] = [];
-    if (amtCol >= 0) atoms = grid.map((r) => ({ label: nameCol >= 0 ? r[nameCol] || '' : '', qty: 1, unit: num(r[amtCol]) ?? 0 })).filter((a) => a.unit !== 0);
-    else atoms = atomsFromGrid(grid, nameCol, qtyCol, unitCol);
-    rec(reconcileIndependent('장비 관리비 독립 재집계(A) = Σ원자 vs 비용집계 표시', atoms, 장비비), 'RECON-A-EQ');
+    const T = taskG?.tables[0]; const { grid } = gridOf(T); const heads = T?.heads || [];
+    const costCol = findCol(heads, /비용|금액|합계|총액/);
+    const nameCol = findCol(heads, /작업|지시|W-|내용|명/);
+    const atoms: Atom[] = costCol >= 0
+      ? grid.map((r) => ({ label: nameCol >= 0 ? r[nameCol] || '' : '', qty: 1, unit: num(r[costCol]) ?? 0 })).filter((a) => a.unit !== 0)
+      : [];
+    rec(reconcileIndependent('비용집계 총계 = Σ(작업별 비용 원자)  [독립 재집계 A]', atoms, 총계), 'RECON-A-TASK');
   }
 
   // ── Tier E: 원천 단가/임률/시간당비용 정상성 ──
@@ -119,7 +103,7 @@ test('P1 독립 재집계(A) + 이상치(E) — 예산·비용 교차 맹점 보
   {
     // 장비 시간당비용
     const T = eqG?.tables[0]; const { grid } = gridOf(T); const heads = T?.heads || [];
-    const hi = findCol(heads, /시간당비용|시간당/), ni = findCol(heads, /장비명|장비/);
+    const hi = findCol(heads, /시간당비용|시간당/), ni = findCol(heads, /장비명/);
     const vals = hi >= 0 ? grid.map((r) => ({ label: ni >= 0 ? r[ni] || '' : '', v: num(r[hi]) })) : [];
     rec(sanityBatch('장비 시간당비용 정상성(E)', vals, { min: 1, max: 10_000_000 }), 'RECON-E-EQ');
   }

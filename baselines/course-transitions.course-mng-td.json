@@ -1,0 +1,1732 @@
+{
+  "Home": [
+    {
+      "trigger": "평가기준 설정하기",
+      "type": "페이지 전환",
+      "url": "https://course-mng-td.smartscore.kr/info/eval",
+      "components": [
+        {
+          "kind": "table",
+          "label": "테이블"
+        },
+        {
+          "kind": "column",
+          "label": "대분류"
+        },
+        {
+          "kind": "column",
+          "label": "대분류 가중치"
+        },
+        {
+          "kind": "column",
+          "label": "소분류"
+        },
+        {
+          "kind": "column",
+          "label": "소분류 가중치"
+        },
+        {
+          "kind": "input",
+          "label": "비중 입력"
+        },
+        {
+          "kind": "button",
+          "label": "저장"
+        },
+        {
+          "kind": "title",
+          "label": "관리 기준 정보"
+        },
+        {
+          "kind": "title",
+          "label": "관리 기준"
+        },
+        {
+          "kind": "title",
+          "label": "관리 기준 중요도 설정"
+        },
+        {
+          "kind": "text",
+          "label": "PC 권한 ex 1. 그린 항목별 배점의 합 = 100 ex 2. 그린, 그린칼라, 티, 페어웨이/ 러프, "
+        },
+        {
+          "kind": "text",
+          "label": "PC 권한"
+        },
+        {
+          "kind": "text",
+          "label": "ex 1. 그린 항목별 배점의 합 = 100"
+        },
+        {
+          "kind": "text",
+          "label": "ex 2. 그린, 그린칼라, 티, 페어웨이/ 러프, 벙커, 폰드, 조경 총점 비중의 합 = 100"
+        }
+      ],
+      "count": 14
+    },
+    {
+      "trigger": "목표 설정",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "dropdown",
+          "label": "A+"
+        },
+        {
+          "kind": "dropdown",
+          "label": "A"
+        },
+        {
+          "kind": "dropdown",
+          "label": "A-"
+        },
+        {
+          "kind": "dropdown",
+          "label": "B+"
+        },
+        {
+          "kind": "dropdown",
+          "label": "C"
+        },
+        {
+          "kind": "dropdown",
+          "label": "E"
+        },
+        {
+          "kind": "dropdown",
+          "label": "E-"
+        },
+        {
+          "kind": "button",
+          "label": "취소"
+        },
+        {
+          "kind": "button",
+          "label": "저장"
+        },
+        {
+          "kind": "text",
+          "label": "전체"
+        },
+        {
+          "kind": "text",
+          "label": "그린"
+        },
+        {
+          "kind": "text",
+          "label": "티박스"
+        },
+        {
+          "kind": "text",
+          "label": "페어웨이"
+        },
+        {
+          "kind": "text",
+          "label": "그린칼라"
+        },
+        {
+          "kind": "text",
+          "label": "러프"
+        },
+        {
+          "kind": "text",
+          "label": "벙커"
+        }
+      ],
+      "count": 16
+    },
+    {
+      "trigger": "평가내역 보기",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "button",
+          "label": "평가서 확인"
+        },
+        {
+          "kind": "button",
+          "label": "확인"
+        }
+      ],
+      "count": 2
+    }
+  ],
+  "코스 현황 관리 > 코스 모니터": [],
+  "코스 현황 관리 > 식생 분석": [],
+  "코스 현황 관리 > 코스 영역 설정": [
+    {
+      "trigger": "추가",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "dropdown",
+          "label": "코스"
+        },
+        {
+          "kind": "dropdown",
+          "label": "드롭"
+        },
+        {
+          "kind": "button",
+          "label": "취소"
+        },
+        {
+          "kind": "button",
+          "label": "그리기 시작"
+        },
+        {
+          "kind": "text",
+          "label": "설정할 영역의 정보를 선택해주세요"
+        }
+      ],
+      "count": 5
+    }
+  ],
+  "코스 현황 관리 > 드론사진 업로드": [
+    {
+      "trigger": "영상정보 등록",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "datepicker",
+          "label": "날짜"
+        },
+        {
+          "kind": "input",
+          "label": "입력"
+        },
+        {
+          "kind": "button",
+          "label": "취소"
+        },
+        {
+          "kind": "button",
+          "label": "등록"
+        },
+        {
+          "kind": "text",
+          "label": "드론 촬영 일자"
+        },
+        {
+          "kind": "text",
+          "label": "제목"
+        },
+        {
+          "kind": "text",
+          "label": "*일자를 등록해야 이미지 업로드가 가능합니다"
+        }
+      ],
+      "count": 7
+    }
+  ],
+  "코스 현황 관리 > 3D": [],
+  "코스 현황 관리 > 그린 분석": [],
+  "정보 관리 > 코스 기본 정보": [],
+  "정보 관리 > 코스 리뉴얼 정보": [
+    {
+      "trigger": "신규 등록",
+      "type": "페이지 전환",
+      "url": "https://course-mng-td.smartscore.kr/info/renewal/edit",
+      "components": [
+        {
+          "kind": "datepicker",
+          "label": "날짜"
+        },
+        {
+          "kind": "dropdown",
+          "label": "드롭"
+        },
+        {
+          "kind": "input",
+          "label": "입력"
+        },
+        {
+          "kind": "input",
+          "label": "비용 입력"
+        },
+        {
+          "kind": "button",
+          "label": "항목 추가"
+        },
+        {
+          "kind": "button",
+          "label": "파일 선택"
+        },
+        {
+          "kind": "button",
+          "label": "취소"
+        },
+        {
+          "kind": "button",
+          "label": "저장"
+        },
+        {
+          "kind": "title",
+          "label": "코스 리뉴얼 정보"
+        },
+        {
+          "kind": "text",
+          "label": "내용 0/500자 이내"
+        },
+        {
+          "kind": "text",
+          "label": "코스 조성 시 작성한 각종 도면 및 설계도를 등록하여 체계적으로 관리할 수 있습니다. 업로드 용량은 최대 1"
+        }
+      ],
+      "count": 11
+    }
+  ],
+  "정보 관리 > 홀 별 정보": [
+    {
+      "trigger": "보기",
+      "type": "페이지 전환",
+      "url": "https://course-mng-td.smartscore.kr/monitor/view?csi=926&hi=7853",
+      "components": [
+        {
+          "kind": "image",
+          "label": "이미지"
+        },
+        {
+          "kind": "datepicker",
+          "label": "날짜"
+        },
+        {
+          "kind": "toggle",
+          "label": "West East South 홀번호"
+        }
+      ],
+      "count": 3
+    }
+  ],
+  "정보 관리 > 잔디 측정 정보": [
+    {
+      "trigger": "신규 등록",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "datepicker",
+          "label": "날짜"
+        },
+        {
+          "kind": "dropdown",
+          "label": "드롭"
+        },
+        {
+          "kind": "input",
+          "label": "내용 입력"
+        },
+        {
+          "kind": "button",
+          "label": "지도에서 위치 등록"
+        },
+        {
+          "kind": "button",
+          "label": "취소"
+        },
+        {
+          "kind": "button",
+          "label": "등록하기"
+        },
+        {
+          "kind": "text",
+          "label": "잔디 측정일"
+        },
+        {
+          "kind": "text",
+          "label": "위치"
+        },
+        {
+          "kind": "text",
+          "label": "그린스피드"
+        },
+        {
+          "kind": "text",
+          "label": "예고"
+        },
+        {
+          "kind": "text",
+          "label": "뿌리 길이"
+        },
+        {
+          "kind": "text",
+          "label": "예지물량"
+        },
+        {
+          "kind": "text",
+          "label": "밀도"
+        },
+        {
+          "kind": "text",
+          "label": "관수량"
+        }
+      ],
+      "count": 14
+    }
+  ],
+  "정보 관리 > 토양 측정 정보": [
+    {
+      "trigger": "신규 등록",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "datepicker",
+          "label": "날짜"
+        },
+        {
+          "kind": "dropdown",
+          "label": "드롭"
+        },
+        {
+          "kind": "input",
+          "label": "내용 입력"
+        },
+        {
+          "kind": "button",
+          "label": "지도에서 위치 등록"
+        },
+        {
+          "kind": "button",
+          "label": "취소"
+        },
+        {
+          "kind": "button",
+          "label": "등록"
+        },
+        {
+          "kind": "text",
+          "label": "토양 측정일"
+        },
+        {
+          "kind": "text",
+          "label": "위치"
+        },
+        {
+          "kind": "title",
+          "label": "토양상태"
+        },
+        {
+          "kind": "text",
+          "label": "토양 온도"
+        },
+        {
+          "kind": "text",
+          "label": "토양습도"
+        },
+        {
+          "kind": "text",
+          "label": "투수계수"
+        },
+        {
+          "kind": "text",
+          "label": "대취두께"
+        },
+        {
+          "kind": "text",
+          "label": "표면경도"
+        },
+        {
+          "kind": "title",
+          "label": "토심별 경도"
+        },
+        {
+          "kind": "text",
+          "label": "2.5cm"
+        },
+        {
+          "kind": "text",
+          "label": "5.0cm"
+        },
+        {
+          "kind": "text",
+          "label": "7.5cm"
+        },
+        {
+          "kind": "text",
+          "label": "10.0cm"
+        },
+        {
+          "kind": "text",
+          "label": "12.5cm"
+        },
+        {
+          "kind": "text",
+          "label": "15.0cm"
+        },
+        {
+          "kind": "text",
+          "label": "17.5cm"
+        },
+        {
+          "kind": "text",
+          "label": "20.0cm"
+        },
+        {
+          "kind": "title",
+          "label": "토양성분"
+        },
+        {
+          "kind": "text",
+          "label": "질소(N)"
+        },
+        {
+          "kind": "text",
+          "label": "인산(P)"
+        },
+        {
+          "kind": "text",
+          "label": "칼륨(K)"
+        },
+        {
+          "kind": "text",
+          "label": "칼슘(Ca)"
+        },
+        {
+          "kind": "text",
+          "label": "마그네슘(Mg)"
+        },
+        {
+          "kind": "text",
+          "label": "황(S)"
+        },
+        {
+          "kind": "text",
+          "label": "구리(Cu)"
+        },
+        {
+          "kind": "text",
+          "label": "철(Fe)"
+        },
+        {
+          "kind": "text",
+          "label": "망간(Mn)"
+        },
+        {
+          "kind": "text",
+          "label": "아연(Zn)"
+        },
+        {
+          "kind": "title",
+          "label": "기타"
+        },
+        {
+          "kind": "text",
+          "label": "PH"
+        },
+        {
+          "kind": "text",
+          "label": "EC"
+        },
+        {
+          "kind": "text",
+          "label": "CEC"
+        }
+      ],
+      "count": 38
+    },
+    {
+      "trigger": "보기",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "button",
+          "label": "수정"
+        },
+        {
+          "kind": "button",
+          "label": "삭제"
+        },
+        {
+          "kind": "button",
+          "label": "확인"
+        },
+        {
+          "kind": "title",
+          "label": "토양상태"
+        },
+        {
+          "kind": "title",
+          "label": "토심별 경도"
+        },
+        {
+          "kind": "title",
+          "label": "토양성분"
+        },
+        {
+          "kind": "title",
+          "label": "기타"
+        }
+      ],
+      "count": 7
+    }
+  ],
+  "정보 관리 > 발병 정보": [
+    {
+      "trigger": "신규 등록",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "datepicker",
+          "label": "날짜"
+        },
+        {
+          "kind": "dropdown",
+          "label": "드롭"
+        },
+        {
+          "kind": "input",
+          "label": "병충해명 입력"
+        },
+        {
+          "kind": "input",
+          "label": "입력"
+        },
+        {
+          "kind": "button",
+          "label": "항목 추가"
+        },
+        {
+          "kind": "button",
+          "label": "위치 저장"
+        },
+        {
+          "kind": "button",
+          "label": "취소"
+        },
+        {
+          "kind": "button",
+          "label": "등록"
+        },
+        {
+          "kind": "text",
+          "label": "제목"
+        },
+        {
+          "kind": "text",
+          "label": "설명"
+        },
+        {
+          "kind": "text",
+          "label": "최초 발견일"
+        },
+        {
+          "kind": "text",
+          "label": "발병 처리 완료일"
+        },
+        {
+          "kind": "text",
+          "label": "발병 기간"
+        },
+        {
+          "kind": "title",
+          "label": "발병 위치"
+        },
+        {
+          "kind": "title",
+          "label": "사진 첨부"
+        },
+        {
+          "kind": "text",
+          "label": "한 장당 5MB, 3장까지 추가할 수 있습니다. (jpg, jpeg, png 지원)"
+        }
+      ],
+      "count": 16
+    }
+  ],
+  "정보 관리 > 코스 운영 정보": [],
+  "정보 관리 > 기상 정보": [],
+  "정보 관리 > 거래처 정보": [
+    {
+      "trigger": "거래처 등록",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "dropdown",
+          "label": "드롭"
+        },
+        {
+          "kind": "input",
+          "label": "상호명 입력"
+        },
+        {
+          "kind": "input",
+          "label": "대표자명 입력"
+        },
+        {
+          "kind": "input",
+          "label": "사업자등록번호 입력"
+        },
+        {
+          "kind": "input",
+          "label": "업종 입력"
+        },
+        {
+          "kind": "input",
+          "label": "업태 입력"
+        },
+        {
+          "kind": "input",
+          "label": "주소 입력"
+        },
+        {
+          "kind": "button",
+          "label": "단건 등록"
+        },
+        {
+          "kind": "button",
+          "label": "일괄 등록"
+        },
+        {
+          "kind": "button",
+          "label": "취소"
+        },
+        {
+          "kind": "button",
+          "label": "등록"
+        },
+        {
+          "kind": "text",
+          "label": "상호명"
+        },
+        {
+          "kind": "text",
+          "label": "대표자명"
+        },
+        {
+          "kind": "text",
+          "label": "사업자등록번호"
+        },
+        {
+          "kind": "text",
+          "label": "업종"
+        },
+        {
+          "kind": "text",
+          "label": "업태"
+        },
+        {
+          "kind": "text",
+          "label": "주소"
+        },
+        {
+          "kind": "text",
+          "label": "주요 거래 항목"
+        }
+      ],
+      "count": 18
+    }
+  ],
+  "정보 관리 > 관리 기준 정보": [],
+  "정보 관리 > 일상 점검": [
+    {
+      "trigger": "신규 등록",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "dropdown",
+          "label": "드롭"
+        },
+        {
+          "kind": "input",
+          "label": "제목 입력"
+        },
+        {
+          "kind": "input",
+          "label": "입력"
+        },
+        {
+          "kind": "button",
+          "label": "항목 추가"
+        },
+        {
+          "kind": "button",
+          "label": "위치 저장"
+        },
+        {
+          "kind": "button",
+          "label": "취소"
+        },
+        {
+          "kind": "button",
+          "label": "등록"
+        },
+        {
+          "kind": "text",
+          "label": "제목"
+        },
+        {
+          "kind": "text",
+          "label": "설명"
+        },
+        {
+          "kind": "text",
+          "label": "분류"
+        },
+        {
+          "kind": "title",
+          "label": "중요도"
+        },
+        {
+          "kind": "title",
+          "label": "점검 위치"
+        },
+        {
+          "kind": "title",
+          "label": "사진 첨부"
+        },
+        {
+          "kind": "text",
+          "label": "한 장당 5MB, 3장까지 추가할 수 있습니다. (jpg, jpeg, png 지원)"
+        }
+      ],
+      "count": 14
+    },
+    {
+      "trigger": "보기",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "image",
+          "label": "이미지"
+        },
+        {
+          "kind": "dropdown",
+          "label": "East · 1홀 · 그린"
+        },
+        {
+          "kind": "button",
+          "label": "작업 지시 만들기"
+        },
+        {
+          "kind": "button",
+          "label": "수정"
+        },
+        {
+          "kind": "button",
+          "label": "삭제"
+        },
+        {
+          "kind": "button",
+          "label": "조치사항 등록하기"
+        },
+        {
+          "kind": "button",
+          "label": "닫기"
+        },
+        {
+          "kind": "text",
+          "label": "점검번호 C-00077 제목 일상점검_MR 분류 장비 - FPV드론 중요도 상 등록일 2026-08-20 등"
+        },
+        {
+          "kind": "title",
+          "label": "등록자가 첨부한 사진 정보"
+        },
+        {
+          "kind": "title",
+          "label": "조치사항"
+        },
+        {
+          "kind": "title",
+          "label": "점검 위치"
+        }
+      ],
+      "count": 11
+    }
+  ],
+  "사진 관리 > 정보별 사진": [],
+  "사진 관리 > 위치별 사진": [],
+  "작업 관리 > 작업 지시": [
+    {
+      "trigger": "신규 작업 지시 등록",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "datepicker",
+          "label": "날짜"
+        },
+        {
+          "kind": "dropdown",
+          "label": "드롭"
+        },
+        {
+          "kind": "toggle",
+          "label": "중요한 작업으로 월간계획 및 예측정보에 포함"
+        },
+        {
+          "kind": "toggle",
+          "label": "토요일 제외"
+        },
+        {
+          "kind": "toggle",
+          "label": "일요일 제외"
+        },
+        {
+          "kind": "toggle",
+          "label": "휴식시간 설정"
+        },
+        {
+          "kind": "toggle",
+          "label": "작업장소 해당사항 없음"
+        },
+        {
+          "kind": "input",
+          "label": "작업명 입력"
+        },
+        {
+          "kind": "input",
+          "label": "입력"
+        },
+        {
+          "kind": "button",
+          "label": "종료된 작업 불러오기"
+        },
+        {
+          "kind": "button",
+          "label": "이슈 연결"
+        },
+        {
+          "kind": "button",
+          "label": "발병정보 연결"
+        },
+        {
+          "kind": "button",
+          "label": "일상점검 연결"
+        },
+        {
+          "kind": "button",
+          "label": "항목 추가"
+        },
+        {
+          "kind": "button",
+          "label": "위치 저장"
+        },
+        {
+          "kind": "button",
+          "label": "취소"
+        },
+        {
+          "kind": "button",
+          "label": "등록"
+        },
+        {
+          "kind": "text",
+          "label": "작업명"
+        },
+        {
+          "kind": "text",
+          "label": "작업 분류"
+        },
+        {
+          "kind": "title",
+          "label": "작업 유형"
+        },
+        {
+          "kind": "text",
+          "label": "작업일"
+        },
+        {
+          "kind": "title",
+          "label": "시간 설정"
+        },
+        {
+          "kind": "title",
+          "label": "일자별 상세 설정"
+        },
+        {
+          "kind": "title",
+          "label": "작업 참여자"
+        },
+        {
+          "kind": "text",
+          "label": "고정직 및 장기 임시직"
+        },
+        {
+          "kind": "text",
+          "label": "단기 임시직"
+        },
+        {
+          "kind": "title",
+          "label": "작업 장소"
+        },
+        {
+          "kind": "title",
+          "label": "기타"
+        }
+      ],
+      "count": 28
+    },
+    {
+      "trigger": "보기",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "image",
+          "label": "이미지"
+        },
+        {
+          "kind": "button",
+          "label": "확인"
+        },
+        {
+          "kind": "text",
+          "label": "작업번호 W-00228 작업명 위치 테스트1 상태 작업완료 작업기간 2026-08-14 ~ 2026-08-1"
+        },
+        {
+          "kind": "title",
+          "label": "East 1홀 그린"
+        },
+        {
+          "kind": "text",
+          "label": "2026-08-13"
+        }
+      ],
+      "count": 5
+    }
+  ],
+  "작업 관리 > 작업 계획": [],
+  "작업 관리 > 이슈 관리": [
+    {
+      "trigger": "신규 이슈 등록",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "input",
+          "label": "입력"
+        },
+        {
+          "kind": "button",
+          "label": "취소"
+        },
+        {
+          "kind": "button",
+          "label": "등록하기"
+        },
+        {
+          "kind": "text",
+          "label": "이슈를 등록하는 아래의 방법 중 하나를 선택하세요."
+        }
+      ],
+      "count": 4
+    }
+  ],
+  "작업 관리 > 예측 정보": [],
+  "작업 관리 > 작업 일보": [],
+  "예산 관리 > 예산 총괄": [],
+  "예산 관리 > 예산 상세": [],
+  "예산 관리 > 실적 관리": [],
+  "예산 관리 > 예산 분석": [],
+  "비용 관리 > 비용 집계": [],
+  "비용 관리 > 작업별 비용": [],
+  "비용 관리 > 분류별 비용": [],
+  "비용 관리 > 위치별 비용": [],
+  "비용 관리 > 기간별 비용": [],
+  "인력 관리 > 권한관리": [],
+  "인력 관리 > 인력 관리": [
+    {
+      "trigger": "표준 근무시간 설정",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "button",
+          "label": "정 고정직 정규 / 계약 등"
+        },
+        {
+          "kind": "button",
+          "label": "임 임시직 일용 / 단기 등"
+        },
+        {
+          "kind": "button",
+          "label": "취소"
+        },
+        {
+          "kind": "title",
+          "label": "고정직"
+        },
+        {
+          "kind": "text",
+          "label": "정규 / 계약 등"
+        },
+        {
+          "kind": "title",
+          "label": "임시직"
+        },
+        {
+          "kind": "text",
+          "label": "일용 / 단기 등"
+        },
+        {
+          "kind": "text",
+          "label": "고정직과 임시직의 시간당 임률 계산을 위하여 기본적으로 적용될 표준 근무시간을 설정하세요. 해당 표준 근무시"
+        }
+      ],
+      "count": 8
+    },
+    {
+      "trigger": "신규 등록",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "input",
+          "label": "입력"
+        },
+        {
+          "kind": "button",
+          "label": "취소"
+        },
+        {
+          "kind": "button",
+          "label": "다음"
+        },
+        {
+          "kind": "title",
+          "label": "인력 구분"
+        }
+      ],
+      "count": 4
+    },
+    {
+      "trigger": "보기",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "table",
+          "label": "테이블"
+        },
+        {
+          "kind": "column",
+          "label": "연봉"
+        },
+        {
+          "kind": "column",
+          "label": "퇴직 급여"
+        },
+        {
+          "kind": "column",
+          "label": "기타 급여"
+        },
+        {
+          "kind": "column",
+          "label": "연간 인건비"
+        },
+        {
+          "kind": "column",
+          "label": "연간 근무시간"
+        },
+        {
+          "kind": "column",
+          "label": "시간당 인건비"
+        },
+        {
+          "kind": "button",
+          "label": "삭제"
+        },
+        {
+          "kind": "button",
+          "label": "수정"
+        },
+        {
+          "kind": "button",
+          "label": "확인"
+        }
+      ],
+      "count": 10
+    }
+  ],
+  "인력 관리 > 근태 관리": [],
+  "인력 관리 > 투입 관리": [],
+  "장비 관리 > 장비 총괄": [
+    {
+      "trigger": "표준 유류비 설정",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "input",
+          "label": "0"
+        },
+        {
+          "kind": "button",
+          "label": "이력관리"
+        },
+        {
+          "kind": "button",
+          "label": "취소"
+        },
+        {
+          "kind": "button",
+          "label": "저장"
+        },
+        {
+          "kind": "text",
+          "label": "휘발유"
+        },
+        {
+          "kind": "text",
+          "label": "경유"
+        },
+        {
+          "kind": "text",
+          "label": "기타"
+        }
+      ],
+      "count": 7
+    },
+    {
+      "trigger": "장비등록",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "datepicker",
+          "label": "날짜"
+        },
+        {
+          "kind": "dropdown",
+          "label": "드롭"
+        },
+        {
+          "kind": "input",
+          "label": "장비명 입력 (최대 50자)"
+        },
+        {
+          "kind": "input",
+          "label": "브랜드명 입력 (최대 50자)"
+        },
+        {
+          "kind": "input",
+          "label": "입력"
+        },
+        {
+          "kind": "input",
+          "label": "매입가 입력"
+        },
+        {
+          "kind": "input",
+          "label": "내용연수 입력"
+        },
+        {
+          "kind": "input",
+          "label": "예상 운용 시간 입력"
+        },
+        {
+          "kind": "input",
+          "label": "시간당 예상 비용 입력"
+        },
+        {
+          "kind": "input",
+          "label": "표준연비 입력"
+        },
+        {
+          "kind": "button",
+          "label": "취소"
+        },
+        {
+          "kind": "button",
+          "label": "등록"
+        },
+        {
+          "kind": "text",
+          "label": "장비명"
+        },
+        {
+          "kind": "text",
+          "label": "분류"
+        },
+        {
+          "kind": "text",
+          "label": "장비구분"
+        },
+        {
+          "kind": "text",
+          "label": "브랜드명"
+        },
+        {
+          "kind": "title",
+          "label": "상태"
+        },
+        {
+          "kind": "text",
+          "label": "매입일"
+        },
+        {
+          "kind": "text",
+          "label": "거래처"
+        },
+        {
+          "kind": "text",
+          "label": "매입가"
+        },
+        {
+          "kind": "text",
+          "label": "내용연수"
+        },
+        {
+          "kind": "text",
+          "label": "연간 운용 시간"
+        },
+        {
+          "kind": "text",
+          "label": "시간당 비용"
+        },
+        {
+          "kind": "title",
+          "label": "사용연료"
+        },
+        {
+          "kind": "text",
+          "label": "표준연비"
+        },
+        {
+          "kind": "title",
+          "label": "사진 첨부 한 장 당 5MB, 최대 10장까지 추가할 수 있습니다. (JPG, JPEG, PNG 지원)"
+        },
+        {
+          "kind": "text",
+          "label": "한 장 당 5MB, 최대 10장까지 추가할 수 있습니다. (JPG, JPEG, PNG 지원)"
+        },
+        {
+          "kind": "text",
+          "label": "메모"
+        }
+      ],
+      "count": 28
+    },
+    {
+      "trigger": "보기",
+      "type": "페이지 전환",
+      "url": "https://course-mng-td.smartscore.kr/equipment/detail?equipmentIdx=131",
+      "components": [
+        {
+          "kind": "table",
+          "label": "테이블"
+        },
+        {
+          "kind": "column",
+          "label": "번호"
+        },
+        {
+          "kind": "column",
+          "label": "운용일"
+        },
+        {
+          "kind": "column",
+          "label": "작업명"
+        },
+        {
+          "kind": "column",
+          "label": "상태"
+        },
+        {
+          "kind": "column",
+          "label": "총 운용 시간"
+        },
+        {
+          "kind": "column",
+          "label": "관련 작업"
+        },
+        {
+          "kind": "image",
+          "label": "이미지"
+        },
+        {
+          "kind": "datepicker",
+          "label": "날짜"
+        },
+        {
+          "kind": "input",
+          "label": "입력"
+        },
+        {
+          "kind": "button",
+          "label": "적용"
+        },
+        {
+          "kind": "button",
+          "label": "삭제"
+        },
+        {
+          "kind": "button",
+          "label": "수정"
+        },
+        {
+          "kind": "button",
+          "label": "초기화"
+        },
+        {
+          "kind": "button",
+          "label": "확인"
+        },
+        {
+          "kind": "title",
+          "label": "장비 총괄 장비 상세"
+        },
+        {
+          "kind": "title",
+          "label": "상태"
+        },
+        {
+          "kind": "title",
+          "label": "기본 정보"
+        },
+        {
+          "kind": "title",
+          "label": "요약"
+        },
+        {
+          "kind": "title",
+          "label": "장비 이력"
+        },
+        {
+          "kind": "text",
+          "label": "기간"
+        }
+      ],
+      "count": 21
+    }
+  ],
+  "장비 관리 > 장비 관제": [],
+  "자재 관리 > 자재 총괄": [
+    {
+      "trigger": "신규 등록",
+      "type": "모달",
+      "components": [
+        {
+          "kind": "datepicker",
+          "label": "날짜"
+        },
+        {
+          "kind": "dropdown",
+          "label": "드롭"
+        },
+        {
+          "kind": "input",
+          "label": "자재명 입력 (최대 50자)"
+        },
+        {
+          "kind": "input",
+          "label": "가격 입력"
+        },
+        {
+          "kind": "input",
+          "label": "수량 입력"
+        },
+        {
+          "kind": "input",
+          "label": "단위당 매입가 입력"
+        },
+        {
+          "kind": "button",
+          "label": "취소"
+        },
+        {
+          "kind": "button",
+          "label": "등록"
+        },
+        {
+          "kind": "text",
+          "label": "분류"
+        },
+        {
+          "kind": "text",
+          "label": "자재명"
+        },
+        {
+          "kind": "text",
+          "label": "단위"
+        },
+        {
+          "kind": "text",
+          "label": "거래처"
+        },
+        {
+          "kind": "text",
+          "label": "입고일"
+        },
+        {
+          "kind": "title",
+          "label": "매입가"
+        },
+        {
+          "kind": "text",
+          "label": "수량"
+        },
+        {
+          "kind": "text",
+          "label": "단위당 매입가"
+        },
+        {
+          "kind": "title",
+          "label": "사진 첨부 한 장당 5MB, 3장까지 추가할 수 있습니다. (JPG, JPEG, PNG 지원)"
+        },
+        {
+          "kind": "text",
+          "label": "한 장당 5MB, 3장까지 추가할 수 있습니다. (JPG, JPEG, PNG 지원)"
+        },
+        {
+          "kind": "text",
+          "label": "메모"
+        }
+      ],
+      "count": 19
+    }
+  ],
+  "자재 관리 > 자재 수불(품목별)": [
+    {
+      "trigger": "보기",
+      "type": "페이지 전환",
+      "url": "https://course-mng-td.smartscore.kr/material/ledger/358/detail",
+      "components": [
+        {
+          "kind": "table",
+          "label": "테이블"
+        },
+        {
+          "kind": "column",
+          "label": "일자"
+        },
+        {
+          "kind": "column",
+          "label": "구분"
+        },
+        {
+          "kind": "column",
+          "label": "수량"
+        },
+        {
+          "kind": "column",
+          "label": "금액"
+        },
+        {
+          "kind": "column",
+          "label": "상세"
+        },
+        {
+          "kind": "column",
+          "label": "기초"
+        },
+        {
+          "kind": "column",
+          "label": "입고"
+        },
+        {
+          "kind": "column",
+          "label": "출고"
+        },
+        {
+          "kind": "column",
+          "label": "기말"
+        },
+        {
+          "kind": "image",
+          "label": "이미지"
+        },
+        {
+          "kind": "datepicker",
+          "label": "날짜"
+        },
+        {
+          "kind": "dropdown",
+          "label": "드롭"
+        },
+        {
+          "kind": "button",
+          "label": "초기화"
+        },
+        {
+          "kind": "button",
+          "label": "적용"
+        },
+        {
+          "kind": "button",
+          "label": "보기"
+        },
+        {
+          "kind": "title",
+          "label": "기본 정보"
+        },
+        {
+          "kind": "title",
+          "label": "수불 이력"
+        },
+        {
+          "kind": "text",
+          "label": "기간"
+        }
+      ],
+      "count": 19
+    }
+  ],
+  "자재 관리 > 자재 수불(일자별)": [],
+  "시설 관리 > 시설 총괄": [
+    {
+      "trigger": "시설 등록",
+      "type": "페이지 전환",
+      "url": "https://course-mng-td.smartscore.kr/facility/reg",
+      "components": [
+        {
+          "kind": "image",
+          "label": "이미지"
+        },
+        {
+          "kind": "datepicker",
+          "label": "날짜"
+        },
+        {
+          "kind": "dropdown",
+          "label": "드롭"
+        },
+        {
+          "kind": "input",
+          "label": "시설명 입력(최대 50자)"
+        },
+        {
+          "kind": "input",
+          "label": "제품명 입력(최대 50자)"
+        },
+        {
+          "kind": "input",
+          "label": "제품 규격 입력(최대 50자)"
+        },
+        {
+          "kind": "input",
+          "label": "설치비 입력"
+        },
+        {
+          "kind": "button",
+          "label": "초기화"
+        },
+        {
+          "kind": "button",
+          "label": "등록"
+        },
+        {
+          "kind": "title",
+          "label": "시설 총괄 시설 등록"
+        },
+        {
+          "kind": "title",
+          "label": "지상 지하"
+        },
+        {
+          "kind": "text",
+          "label": "시설명"
+        },
+        {
+          "kind": "text",
+          "label": "분류"
+        },
+        {
+          "kind": "text",
+          "label": "제품명"
+        },
+        {
+          "kind": "text",
+          "label": "제품 규격"
+        },
+        {
+          "kind": "text",
+          "label": "관리 담당자"
+        },
+        {
+          "kind": "text",
+          "label": "최초 설치일"
+        },
+        {
+          "kind": "text",
+          "label": "공사 업체"
+        },
+        {
+          "kind": "text",
+          "label": "설치 비용"
+        },
+        {
+          "kind": "title",
+          "label": "사진 첨부 한 장당 5MB, 3장까지 추가할 수 있습니다. (JPG, JPEG, PNG 지원)"
+        },
+        {
+          "kind": "text",
+          "label": "한 장당 5MB, 3장까지 추가할 수 있습니다. (JPG, JPEG, PNG 지원)"
+        },
+        {
+          "kind": "text",
+          "label": "메모"
+        }
+      ],
+      "count": 22
+    },
+    {
+      "trigger": "보기",
+      "type": "페이지 전환",
+      "url": "https://course-mng-td.smartscore.kr/facility/detail?facilityIdx=116",
+      "components": [
+        {
+          "kind": "table",
+          "label": "테이블"
+        },
+        {
+          "kind": "column",
+          "label": "번호"
+        },
+        {
+          "kind": "column",
+          "label": "작업기간"
+        },
+        {
+          "kind": "column",
+          "label": "작업명"
+        },
+        {
+          "kind": "column",
+          "label": "지시자"
+        },
+        {
+          "kind": "column",
+          "label": "조장"
+        },
+        {
+          "kind": "column",
+          "label": "상세"
+        },
+        {
+          "kind": "image",
+          "label": "이미지"
+        },
+        {
+          "kind": "datepicker",
+          "label": "날짜"
+        },
+        {
+          "kind": "button",
+          "label": "삭제"
+        },
+        {
+          "kind": "button",
+          "label": "수정"
+        },
+        {
+          "kind": "button",
+          "label": "초기화"
+        },
+        {
+          "kind": "button",
+          "label": "적용"
+        },
+        {
+          "kind": "title",
+          "label": "시설 총괄 시설 상세"
+        },
+        {
+          "kind": "title",
+          "label": "기본 정보"
+        },
+        {
+          "kind": "title",
+          "label": "점검 이력"
+        },
+        {
+          "kind": "text",
+          "label": "기간"
+        }
+      ],
+      "count": 17
+    }
+  ],
+  "시설 관리 > 시설 관제": []
+}

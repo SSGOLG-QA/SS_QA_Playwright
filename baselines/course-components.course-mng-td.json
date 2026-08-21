@@ -1,1764 +1,6982 @@
 {
   "Home": [
     {
-      "kind": "button",
-      "label": "평가 작성하기"
+      "kind": "chart",
+      "label": "관리 목표 및 현황 작업 비용",
+      "tab": ""
+    },
+    {
+      "kind": "chart",
+      "label": "관리 현황 추세",
+      "tab": ""
+    },
+    {
+      "kind": "chart",
+      "label": "차트/그래프",
+      "tab": ""
+    },
+    {
+      "kind": "chart",
+      "label": "그린 등급 추세",
+      "tab": ""
+    },
+    {
+      "kind": "chart",
+      "label": "티박스 등급 추세",
+      "tab": ""
+    },
+    {
+      "kind": "chart",
+      "label": "페어웨이 등급 추세",
+      "tab": ""
+    },
+    {
+      "kind": "chart",
+      "label": "그린칼라 등급 추세",
+      "tab": ""
+    },
+    {
+      "kind": "chart",
+      "label": "러프 등급 추세",
+      "tab": ""
+    },
+    {
+      "kind": "chart",
+      "label": "벙커 등급 추세",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "관리 목표 및 현황",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "작업",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "비용",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "평가기준 설정하기"
+      "label": "평가 작성하기",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "목표 설정"
+      "label": "평가기준 설정하기",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "평가내역 보기"
+      "label": "목표 설정",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "평가내역 보기",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "관리 목표 및 현황",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "작업",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "비용",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "관리 목표",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "전체",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "그린",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "티박스",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "페어웨이",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "그린칼라",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "러프",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "벙커",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "관리 현황",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "목표 등급",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "기준일 등급",
+      "tab": ""
+    },
+    {
+      "kind": "table",
+      "label": "테이블: 최근 작업 일보 전체 보기",
+      "tab": "작업"
+    },
+    {
+      "kind": "column",
+      "label": "일자",
+      "tab": "작업"
+    },
+    {
+      "kind": "column",
+      "label": "단일 작업",
+      "tab": "작업"
+    },
+    {
+      "kind": "column",
+      "label": "반복 작업",
+      "tab": "작업"
+    },
+    {
+      "kind": "column",
+      "label": "고정직",
+      "tab": "작업"
+    },
+    {
+      "kind": "column",
+      "label": "임시직",
+      "tab": "작업"
+    },
+    {
+      "kind": "calendar",
+      "label": "달력",
+      "tab": "작업"
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: 이번 달 작업",
+      "tab": "작업"
+    },
+    {
+      "kind": "section",
+      "label": "장비 수리 - 트럭 2",
+      "tab": "작업"
+    },
+    {
+      "kind": "section",
+      "label": "여름더위",
+      "tab": "작업"
+    },
+    {
+      "kind": "input",
+      "label": "입력",
+      "tab": "작업"
+    },
+    {
+      "kind": "button",
+      "label": "작업 계획 보기",
+      "tab": "작업"
+    },
+    {
+      "kind": "button",
+      "label": "전체 보기",
+      "tab": "작업"
+    },
+    {
+      "kind": "nav",
+      "label": "이전",
+      "tab": "작업"
+    },
+    {
+      "kind": "nav",
+      "label": "다음",
+      "tab": "작업"
+    },
+    {
+      "kind": "title",
+      "label": "예측 정보 요약",
+      "tab": "작업"
+    },
+    {
+      "kind": "text",
+      "label": "특정 날짜를 선택하여 직접 작업지시 등록이 가능합니다.",
+      "tab": "작업"
+    },
+    {
+      "kind": "text",
+      "label": "7일 내로 West 1 그린(West 코스 1번)에 폭염 주의가 발생할 가능성이 있습니다. 주의를 기울여주세요.",
+      "tab": "작업"
+    },
+    {
+      "kind": "title",
+      "label": "최근 작업 일보",
+      "tab": "작업"
+    },
+    {
+      "kind": "title",
+      "label": "오늘의 작업",
+      "tab": "작업"
+    },
+    {
+      "kind": "text",
+      "label": "단일",
+      "tab": "작업"
+    },
+    {
+      "kind": "text",
+      "label": "지시",
+      "tab": "작업"
+    },
+    {
+      "kind": "text",
+      "label": "조장",
+      "tab": "작업"
+    },
+    {
+      "kind": "text",
+      "label": "최건수",
+      "tab": "작업"
+    },
+    {
+      "kind": "text",
+      "label": "강빛찬",
+      "tab": "작업"
+    },
+    {
+      "kind": "title",
+      "label": "이번 달 작업",
+      "tab": "작업"
+    },
+    {
+      "kind": "text",
+      "label": "지시 조장 최건수",
+      "tab": "작업"
+    },
+    {
+      "kind": "text",
+      "label": "지시 강빛찬 조장 강빛찬",
+      "tab": "작업"
+    },
+    {
+      "kind": "tab",
+      "label": "예산 대비 실적 분석",
+      "tab": "비용"
+    },
+    {
+      "kind": "tab",
+      "label": "작업지시에 근거한 비용 분석",
+      "tab": "비용"
+    },
+    {
+      "kind": "button",
+      "label": "예산 대비 실적 분석",
+      "tab": "비용"
+    },
+    {
+      "kind": "button",
+      "label": "작업지시에 근거한 비용 분석",
+      "tab": "비용"
+    },
+    {
+      "kind": "text",
+      "label": "수립된 예산과 실제로 집행된 회계상 비용을 비교분석하여 제공되는 정보입니다. 해당값은 [예산관리] 메뉴에서 입력 관리합니다. 비용은 작업지시를 통하여 집계된 비용과 차이가 있을 수 있습니다.",
+      "tab": "비용"
+    },
+    {
+      "kind": "title",
+      "label": "전체",
+      "tab": "비용"
+    },
+    {
+      "kind": "title",
+      "label": "고정직 인건비",
+      "tab": "비용"
+    },
+    {
+      "kind": "title",
+      "label": "임시직 인건비",
+      "tab": "비용"
+    },
+    {
+      "kind": "title",
+      "label": "코스 자재비",
+      "tab": "비용"
+    },
+    {
+      "kind": "title",
+      "label": "장비 관리비",
+      "tab": "비용"
+    },
+    {
+      "kind": "title",
+      "label": "기타 관리비",
+      "tab": "비용"
     }
   ],
   "코스 현황 관리 > 코스 모니터": [
     {
-      "kind": "tab",
-      "label": "전체"
+      "kind": "calendar",
+      "label": "달력",
+      "tab": ""
     },
     {
       "kind": "tab",
-      "label": "작업"
+      "label": "전체",
+      "tab": ""
     },
     {
       "kind": "tab",
-      "label": "이슈"
+      "label": "작업",
+      "tab": ""
     },
     {
       "kind": "tab",
-      "label": "점검"
+      "label": "이슈",
+      "tab": ""
     },
     {
       "kind": "tab",
-      "label": "인력"
+      "label": "점검",
+      "tab": ""
     },
     {
       "kind": "tab",
-      "label": "관심"
+      "label": "인력",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "관심",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "West East South 홀번호"
+      "label": "West East South 홀번호",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "홀번호"
+      "label": "홀번호",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "YYYY-MM-DD"
+      "label": "YYYY-MM-DD",
+      "tab": ""
     },
     {
       "kind": "zoom",
-      "label": "Leaflet"
+      "label": "줌",
+      "tab": ""
     },
     {
       "kind": "zoom",
-      "label": "줌"
+      "label": "Leaflet",
+      "tab": ""
     },
     {
-      "kind": "input",
-      "label": "YYYY-MM-DD"
+      "kind": "zoom",
+      "label": "추가",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "추가",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "전체",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "작업",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "이슈",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "점검",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "인력",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "관심",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "지상",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "지하",
+      "tab": ""
     }
   ],
   "코스 현황 관리 > 식생 분석": [
     {
+      "kind": "calendar",
+      "label": "달력",
+      "tab": ""
+    },
+    {
       "kind": "datepicker",
-      "label": "YYYY-MM-DD"
+      "label": "YYYY-MM-DD",
+      "tab": ""
     },
     {
       "kind": "zoom",
-      "label": "Leaflet"
+      "label": "Leaflet",
+      "tab": ""
     },
     {
       "kind": "zoom",
-      "label": "줌"
+      "label": "추가",
+      "tab": ""
+    },
+    {
+      "kind": "zoom",
+      "label": "줌",
+      "tab": ""
     },
     {
       "kind": "input",
-      "label": "입력"
-    },
-    {
-      "kind": "input",
-      "label": "YYYY-MM-DD"
+      "label": "입력",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "스와이프 비교"
+      "label": "스와이프 비교",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "값 표시(hover)"
+      "label": "값 표시(hover)",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "배수 분석 →"
+      "label": "배수 분석 →",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "비교 분석 →"
+      "label": "비교 분석 →",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "추가",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "식생",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "레이어",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "투명도",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "색상 범위",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "-1",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "0.2",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "0.8",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "창밖=배경 · 낮음=빨강(나지) · 높음=초록(건강)",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "범위밖 ↓3% ↑55%",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "대비",
+      "tab": ""
     }
   ],
   "코스 현황 관리 > 코스 영역 설정": [
     {
-      "kind": "zoom",
-      "label": "Leaflet"
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "구분",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "코스 - 홀 - 구역",
+      "tab": ""
     },
     {
       "kind": "zoom",
-      "label": "줌"
+      "label": "Leaflet",
+      "tab": ""
+    },
+    {
+      "kind": "zoom",
+      "label": "추가",
+      "tab": ""
+    },
+    {
+      "kind": "zoom",
+      "label": "줌",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "추가"
+      "label": "추가",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "수정",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "삭제",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "코스 영역 설정",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "코스, 홀, 세부 구역 등 관리에 필요한 영역을 설정합니다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "이 메뉴에서 설정한 영역은 모든 메뉴에서 공통으로 적용되어, 다른 메뉴에서 데이터를 저장할 때 이 영역 기준으로 저장됩니다. 영역 설정은 언제든지 변경할 수 있습니다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "아래 버튼을 누르고 지도에서 영역을 선택해주세요",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "코스를 선택한 후 원하는 영역을 누르면, 해당 영역이 코스로 지정됩니다",
+      "tab": ""
     }
   ],
   "코스 현황 관리 > 드론사진 업로드": [
     {
       "kind": "button",
-      "label": "영상정보 등록"
+      "label": "영상정보 등록",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "3D",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "삭제",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "수정",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "추가",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "드론사진 업로드",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "영상정보 리스트",
+      "tab": ""
     }
   ],
   "코스 현황 관리 > 3D": [
     {
-      "kind": "toggle",
-      "label": "지점 거리 높이 각도 넓이"
+      "kind": "chart",
+      "label": "차트/그래프",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "Orbit"
+      "label": "지점 거리 높이 각도 넓이",
+      "tab": ""
+    },
+    {
+      "kind": "toggle",
+      "label": "Orbit",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "지점"
+      "label": "지점",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "거리"
+      "label": "거리",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "높이"
+      "label": "높이",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "각도"
+      "label": "각도",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "넓이"
+      "label": "넓이",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "Loading Entwine-generated EPT format",
+      "tab": ""
     }
   ],
   "코스 현황 관리 > 그린 분석": [
     {
-      "kind": "button",
-      "label": "좌"
+      "kind": "image",
+      "label": "이미지: hole map",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "West",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "East",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "South",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "우"
+      "label": "좌",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "우",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "West",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "East",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "South",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "그린 분석",
+      "tab": ""
     }
   ],
   "정보 관리 > 코스 기본 정보": [
     {
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "항목/면적",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "합계",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "West",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "East",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "South",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "항목/정보",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "그린",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "그린칼라",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "티박스",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "페어웨이",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "러프",
+      "tab": ""
+    },
+    {
+      "kind": "image",
+      "label": "이미지: image",
+      "tab": ""
+    },
+    {
       "kind": "button",
-      "label": "수정"
+      "label": "수정",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "테스트2.png",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "테스트3.png",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "테스트1.png",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "코스 기본 정보",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "0 m²",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "21313313 m²",
+      "tab": ""
     }
   ],
   "정보 관리 > 코스 리뉴얼 정보": [
     {
-      "kind": "button",
-      "label": "신규 등록"
+      "kind": "image",
+      "label": "이미지: image",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "1차",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "2차",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "3차",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "4차",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "5차",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "6차",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "수정"
+      "label": "신규 등록",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "수정",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "1차",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "2차",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "3차",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "4차",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "5차",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "6차",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "추가",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "테스트1.png",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "테스트3.png",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "코스 리뉴얼 정보",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "전체",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "South - 1홀",
+      "tab": ""
     }
   ],
   "정보 관리 > 홀 별 정보": [
     {
-      "kind": "button",
-      "label": "내보내기"
+      "kind": "table",
+      "label": "테이블: 홀 별 정보 내보내기",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "홀",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "Par",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "총면적",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "그린 개수 및 면적",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "폰드 면적 및 담수량",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "벙커 개수 및 면적",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "위치",
+      "tab": ""
+    },
+    {
+      "kind": "table",
+      "label": "테이블: 홀 별 티박스 정보",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "T1",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "T2",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "T3",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "T4",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "T5",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "T6",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "T7",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "T8",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "South",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "East",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "West",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "보기"
+      "label": "내보내기",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "수정"
+      "label": "보기",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "수정",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "South",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "East",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "West",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "다운로드",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "홀 별 정보",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "홀 별 티박스 정보",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "단위:",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "미터",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "거리표시:",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "그린 중앙",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "야드",
+      "tab": "East"
     }
   ],
   "정보 관리 > 잔디 측정 정보": [
     {
+      "kind": "table",
+      "label": "테이블: 신규 등록",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "일자",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "위치",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "그린스피드",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "예고",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "뿌리 길이",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "예지물량",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "밀도",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "관수량",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "편집",
+      "tab": ""
+    },
+    {
       "kind": "dropdown",
-      "label": "Loading..."
+      "label": "Loading...",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "(무텍스트)"
+      "label": "토글",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "기간 토 목"
+      "label": "기간 토 목",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "YYYY-MM-DD"
-    },
-    {
-      "kind": "input",
-      "label": "YYYY-MM-DD"
+      "label": "YYYY-MM-DD",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "초기화"
+      "label": "초기화",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "적용"
+      "label": "적용",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "신규 등록"
+      "label": "신규 등록",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "수정"
+      "label": "수정",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "삭제"
+      "label": "삭제",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "추가",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "1"
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "잔디 측정 정보",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "그린, 페어웨이, 러프, 티박스 등 주요 구역의 잔디 정보를 일별로 기록합니다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "담당자가 모바일을 통해서 입력하거나 PC에서 입력 가능하며 이는 작업일보에도 자동으로 반영됩니다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "기간",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "그린, 페어웨이, 러프, 티박스 등 주요 구역의 잔디 정보를 일별로 기록합니다 담당자가 모바일을 통해서 입력하거나 PC에서 입력 가능하며 이는 작업일보에도 자동으로 반영됩니다",
+      "tab": ""
     }
   ],
   "정보 관리 > 토양 측정 정보": [
     {
+      "kind": "table",
+      "label": "테이블: 신규 등록",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "일자",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "위치",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "입력정보",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "보기",
+      "tab": ""
+    },
+    {
       "kind": "dropdown",
-      "label": "Loading..."
+      "label": "Loading...",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "(무텍스트)"
+      "label": "토글",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "기간 토 목"
+      "label": "기간 토 목",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "YYYY-MM-DD"
-    },
-    {
-      "kind": "input",
-      "label": "YYYY-MM-DD"
+      "label": "YYYY-MM-DD",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "초기화"
+      "label": "초기화",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "적용"
+      "label": "적용",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "신규 등록"
+      "label": "신규 등록",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "보기"
+      "label": "보기",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "추가",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "1"
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "토양 측정 정보",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "토양온도, 습도,배수력 등 토양 측정 정보를 기록합니다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "담당자가 모바일을 통해서 입력하거나 PC에서 입력 가능합니다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "기간",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "토양온도, 습도,배수력 등 토양 측정 정보를 기록합니다 담당자가 모바일을 통해서 입력하거나 PC에서 입력 가능합니다",
+      "tab": ""
     }
   ],
   "정보 관리 > 발병 정보": [
     {
+      "kind": "table",
+      "label": "테이블: 신규 등록",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "번호",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "병충해명",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "최초 발견일",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "발병 기간",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "편집",
+      "tab": ""
+    },
+    {
       "kind": "dropdown",
-      "label": "Loading..."
+      "label": "Loading...",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "(무텍스트)"
+      "label": "토글",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "기간 토 목"
+      "label": "기간 토 목",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "YYYY-MM-DD"
+      "label": "YYYY-MM-DD",
+      "tab": ""
     },
     {
       "kind": "input",
-      "label": "YYYY-MM-DD"
-    },
-    {
-      "kind": "input",
-      "label": "검색어 입력"
+      "label": "검색어 입력",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "ico-search"
+      "label": "검색",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "초기화"
+      "label": "초기화",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "적용"
+      "label": "적용",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "신규 등록"
+      "label": "신규 등록",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "수정"
+      "label": "수정",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "삭제"
+      "label": "삭제",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "추가",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "1"
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "발병 정보",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "코스에서 병해 발병시, 발병 정보를 등록하고 관련 작업 및 이슈로 연결하여 관리할 수 있습니다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "기간",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "위치",
+      "tab": ""
     }
   ],
   "정보 관리 > 코스 운영 정보": [
     {
-      "kind": "button",
-      "label": "(무텍스트)"
+      "kind": "calendar",
+      "label": "달력",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "코스 운영 정보",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "일요일",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "월요일",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "화요일",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "수요일",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "목요일",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "금요일",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "토요일",
+      "tab": ""
     }
   ],
   "정보 관리 > 기상 정보": [
     {
-      "kind": "datepicker",
-      "label": "기간 토 목"
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "일자",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "오전",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "오후",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "기온",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "시간",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "날씨",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "강수확률",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "최저",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "최고",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "일출",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "일몰",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "YYYY-MM-DD"
+      "label": "기간 토 목",
+      "tab": ""
     },
     {
-      "kind": "input",
-      "label": "YYYY-MM-DD"
-    },
-    {
-      "kind": "button",
-      "label": "초기화"
-    },
-    {
-      "kind": "button",
-      "label": "적용"
+      "kind": "datepicker",
+      "label": "YYYY-MM-DD",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "초기화",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "1"
+      "label": "적용",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "기상 정보",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "기간",
+      "tab": ""
     }
   ],
   "정보 관리 > 거래처 정보": [
     {
       "kind": "dropdown",
-      "label": "전체"
+      "label": "전체",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "전체"
+      "label": "전체",
+      "tab": ""
     },
     {
       "kind": "input",
-      "label": "거래처 검색"
+      "label": "거래처 검색",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "거래처 등록"
+      "label": "거래처 등록",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "ico-search"
+      "label": "검색",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "초기화"
+      "label": "초기화",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "거래처 정보",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "작업 등록 시 외주업체 등록, 인력등록, 자재등록, 장비등록, 시설등록을 위해서는 먼저 거래처등록이 필요합니다.",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "1위",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "삭제예정22",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "업종 정보",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "삭제예정",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "주요 거래 항목",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "시설",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "총 거래금액",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "2위",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "스스",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "감블라32",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "골프",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "시설, 자재",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "3위",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "불멸의거래처",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "공사, 인력, 장비, 시설, 자재",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "또링",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "또리링",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "기타",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "농자재상사1",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "김대표2",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "농자재 도소매",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "농자재상사",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "전대표1",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "감블라12",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "킹즈락",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "김블라",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "프린세스",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "스스10",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "호잇",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "덥다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "여름",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "공사, 시설",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "여름122",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "테마파크",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "ㅎㅎ",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "자재",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "봄3",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "경운기",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "공사, 자재",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "또링2",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "또리",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "봄2222",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "봄22",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "음식점",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "또릴ㅇ2",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "또리네치킨",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "하이...",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "헤이",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "집집",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "집가고싶다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "농자재상사2",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "이대표",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "공사",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "왜수정만",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "숮ㅇ정",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "등록2",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "아 왜 안돼",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "왜수정만안돼",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "등록",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "E2ECRUD거래처",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "TEST",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "왜안돼",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "왜!!!!",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "공사, 인력, 자재",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "테스트11",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "거래처를 선택하세요",
+      "tab": ""
     }
   ],
   "정보 관리 > 관리 기준 정보": [
     {
+      "kind": "table",
+      "label": "테이블: 관리 기준",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "대분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "대분류 가중치",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "소분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "소분류 가중치",
+      "tab": ""
+    },
+    {
       "kind": "input",
-      "label": "비중 입력"
+      "label": "비중 입력",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "ico-color-close"
+      "label": "저장",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "저장"
+      "kind": "title",
+      "label": "관리 기준 정보",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "관리 기준 중요도 설정",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "PC 권한",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "ex 1. 그린 항목별 배점의 합 = 100",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "ex 2. 그린, 그린칼라, 티, 페어웨이/ 러프, 벙커, 폰드, 조경 총점 비중의 합 = 100",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "PC 권한 ex 1. 그린 항목별 배점의 합 = 100 ex 2. 그린, 그린칼라, 티, 페어웨이/ 러프, 벙커, 폰드, 조경 총점 비중의 합 = 100",
+      "tab": ""
     }
   ],
   "정보 관리 > 일상 점검": [
     {
+      "kind": "table",
+      "label": "테이블: 신규 등록",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "번호",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "제목",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "등록일",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "등록자",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "상태",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "상세",
+      "tab": ""
+    },
+    {
       "kind": "dropdown",
-      "label": "Loading..."
+      "label": "Loading...",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "(무텍스트)"
+      "label": "토글",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "기간 수 목"
+      "label": "기간 수 목",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "YYYY-MM-DD"
+      "label": "YYYY-MM-DD",
+      "tab": ""
     },
     {
       "kind": "input",
-      "label": "YYYY-MM-DD"
-    },
-    {
-      "kind": "input",
-      "label": "검색어 입력"
+      "label": "검색어 입력",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "6개월"
+      "label": "1개월",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "1년"
+      "label": "3개월",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "ico-search"
+      "label": "6개월",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "초기화"
+      "label": "1년",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "적용"
+      "label": "검색",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "신규 등록"
+      "label": "초기화",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "보기"
+      "label": "적용",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "신규 등록",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "1"
+      "label": "보기",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "대기 중 4",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "대기 중",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "단순참고 0",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "단순참고",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "작업지시완료 0",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "작업지시완료",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "작업완료 0",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "작업완료",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "이슈등록완료 0",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "이슈등록완료",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "추가",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "일상 점검",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "기간",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "위치",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "총 4건",
+      "tab": ""
     }
   ],
   "사진 관리 > 정보별 사진": [
     {
       "kind": "dropdown",
-      "label": "작업"
+      "label": "작업",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "작업"
+      "label": "작업",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "YYYY-MM-DD"
+      "label": "YYYY-MM-DD",
+      "tab": ""
     },
     {
-      "kind": "input",
-      "label": "YYYY-MM-DD"
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "(무텍스트)"
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "정보별 사진",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "등록된 사진을 작업, 이슈, 점검, 발병 등 정보별로 확인할 수 있습니다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "사진이 없습니다",
+      "tab": ""
     }
   ],
   "사진 관리 > 위치별 사진": [
     {
       "kind": "dropdown",
-      "label": "East"
+      "label": "East",
+      "tab": ""
     },
     {
       "kind": "dropdown",
-      "label": "홀 1"
+      "label": "홀 1",
+      "tab": ""
     },
     {
       "kind": "dropdown",
-      "label": "그린(East 코스 1번)"
+      "label": "그린(East 코스 1번)",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "East"
+      "label": "East",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "홀 1"
+      "label": "홀 1",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "그린(East 코스 1번)"
+      "label": "그린(East 코스 1번)",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "토 목"
+      "label": "토 목",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "YYYY-MM-DD"
+      "label": "YYYY-MM-DD",
+      "tab": ""
     },
     {
       "kind": "zoom",
-      "label": "Leaflet"
+      "label": "Leaflet",
+      "tab": ""
     },
     {
-      "kind": "input",
-      "label": "YYYY-MM-DD"
+      "kind": "text",
+      "label": "위치별 사진",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "등록된 사진을 위치별로 확인할 수 있습니다",
+      "tab": ""
     }
   ],
   "작업 관리 > 작업 지시": [
     {
-      "kind": "dropdown",
-      "label": "전체"
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "작업번호",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "작업명",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "1분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "2분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "비용",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "시작일",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "종료일",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "작업 지시",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "조장",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "사진 정보",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "연결 이슈",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "상태",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "편집",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "편집 내역",
+      "tab": ""
+    },
+    {
+      "kind": "section",
+      "label": "장비 수리 - 트럭 2",
+      "tab": ""
+    },
+    {
+      "kind": "section",
+      "label": "여름더위",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "전체",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "단일",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "반복",
+      "tab": ""
     },
     {
       "kind": "dropdown",
-      "label": "코스 전체"
+      "label": "전체",
+      "tab": ""
     },
     {
       "kind": "dropdown",
-      "label": "홀 전체"
-    },
-    {
-      "kind": "dropdown",
-      "label": "구역 전체"
-    },
-    {
-      "kind": "dropdown",
-      "label": "Loading..."
+      "label": "Loading...",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "전체"
+      "label": "전체",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "코스 전체"
-    },
-    {
-      "kind": "toggle",
-      "label": "홀 전체"
-    },
-    {
-      "kind": "toggle",
-      "label": "구역 전체"
-    },
-    {
-      "kind": "toggle",
-      "label": "(무텍스트)"
+      "label": "토글",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "수 목"
+      "label": "수 목",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "YYYY-MM-DD"
+      "label": "YYYY-MM-DD",
+      "tab": ""
     },
     {
       "kind": "input",
-      "label": "YYYY-MM-DD"
-    },
-    {
-      "kind": "input",
-      "label": "검색어 입력"
+      "label": "검색어 입력",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "신규 작업 지시 등록"
+      "label": "신규 작업 지시 등록",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "6개월"
+      "label": "6개월",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "1년"
+      "label": "1년",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "초기화"
+      "label": "초기화",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "적용"
+      "label": "적용",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "ico-search"
+      "label": "검색",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "보기"
+      "label": "보기",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "삭제"
+      "label": "삭제",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "수정"
+      "label": "수정",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "전체",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "단일",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "반복",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "완료 확정 0",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "완료 확정",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "작업완료 2",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "작업완료",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "진행중 5",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "진행중",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "대기 중 0",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "대기 중",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "총 7건",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "오늘의 작업",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "지시",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "최건수",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "강빛찬",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "지시 조장 최건수",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "지시 강빛찬 조장 강빛찬",
+      "tab": ""
     }
   ],
   "작업 관리 > 작업 계획": [
     {
+      "kind": "calendar",
+      "label": "달력",
+      "tab": ""
+    },
+    {
+      "kind": "section",
+      "label": "여름더위",
+      "tab": ""
+    },
+    {
+      "kind": "section",
+      "label": "장비 수리 - 트럭 2",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
+    },
+    {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "주간",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "월간",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "연간",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "작업 계획",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "주간 작업계획에는 등록된 모든 작업지시가 자동으로 반영되어 표시됩니다.",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "단일",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "지시",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "강빛찬",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "조장",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "최건수",
+      "tab": ""
     }
   ],
   "작업 관리 > 이슈 관리": [
     {
-      "kind": "dropdown",
-      "label": "코스 전체"
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "이슈번호",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "이슈명",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "이슈 요약",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "관련시기",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "등록일",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "상태",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "중요도",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "등록자",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "사진 정보",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "연결작업",
+      "tab": ""
+    },
+    {
+      "kind": "section",
+      "label": "코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "section",
+      "label": "코스 주의(88)",
+      "tab": ""
+    },
+    {
+      "kind": "section",
+      "label": "1111",
+      "tab": ""
+    },
+    {
+      "kind": "section",
+      "label": "1112",
+      "tab": ""
+    },
+    {
+      "kind": "section",
+      "label": "1113",
+      "tab": ""
+    },
+    {
+      "kind": "section",
+      "label": "열사병/일사병",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "전체",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "상",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "중",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "하",
+      "tab": ""
     },
     {
       "kind": "dropdown",
-      "label": "홀 전체"
+      "label": "Loading...",
+      "tab": ""
     },
     {
       "kind": "dropdown",
-      "label": "구역 전체"
-    },
-    {
-      "kind": "dropdown",
-      "label": "Loading..."
-    },
-    {
-      "kind": "dropdown",
-      "label": "활성"
+      "label": "활성",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "코스 전체"
+      "label": "토글",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "홀 전체"
-    },
-    {
-      "kind": "toggle",
-      "label": "구역 전체"
-    },
-    {
-      "kind": "toggle",
-      "label": "(무텍스트)"
-    },
-    {
-      "kind": "toggle",
-      "label": "활성"
+      "label": "활성",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "등록일 목"
+      "label": "등록일 목",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "YYYY-MM-DD"
+      "label": "YYYY-MM-DD",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "기간"
+      "label": "기간",
+      "tab": ""
     },
     {
       "kind": "input",
-      "label": "YYYY-MM-DD"
-    },
-    {
-      "kind": "input",
-      "label": "검색어 입력"
+      "label": "검색어 입력",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "신규 이슈 등록"
+      "label": "신규 이슈 등록",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "최근 3개월"
+      "label": "최근 3개월",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "최근 6개월"
+      "label": "최근 6개월",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "이후 1개월"
+      "label": "이후 1개월",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "이후 3개월"
+      "label": "이후 3개월",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "이후 6개월"
+      "label": "이후 6개월",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "초기화"
+      "label": "초기화",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "검색"
+      "label": "검색",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "ico-search"
+      "label": "보기",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "보기"
+      "label": "전체",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "상",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "1"
+      "label": "중",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "2"
+      "label": "하",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "3"
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "4"
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "5"
+      "kind": "text",
+      "label": "이슈 관리",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "6"
+      "kind": "text",
+      "label": "일반적인 골프장 코스관리의 범위를 벗어나, 우리 골프장의 성공적인 코스관리를 위하여 특별하고 예외적인 관리나 주의가 필요한 정보들을 '이슈'로 관리하여 코스관리에 활용하기 위합입니다.모든년도에 해당되는 이슈는 자동으로 다음해 이슈로도 이월 생성됩니다. 특정연도에 해당되는 이슈도 선택하여 다음해 이슈로 이월 생성시킬 수 있습니다.",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "7"
+      "kind": "text",
+      "label": "전체 활성 이슈",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "총 73 건",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "오늘의 이슈",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "(2025-07-30)",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "(2025-07-31)",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "(2025-08-01)",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "(2025-08-04)",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "(2025-08-08)",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "(2025-08-10)",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "(2025-08-11)",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "(2025-08-12)",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "(2025-08-13)",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "(2025-08-14)",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "(2025-08-18)",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "(2025-09-25)",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "권미란(2026-08-20)",
+      "tab": ""
     }
   ],
   "작업 관리 > 예측 정보": [
     {
-      "kind": "dropdown",
-      "label": "전체"
+      "kind": "calendar",
+      "label": "달력",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00002 - 폭염 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00012 - 코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00013 - 코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00014 - 코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00017 - 코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00019 - 코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00020 - 코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00021 - 코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00022 - 코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00023 - 코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00024 - 코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00025 - 코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00026 - 코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00027 - 코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00028 - 코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00029 - 코스 주의(88)",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00031 - 코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00034 - 코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00043 - 1111",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00049 - 코스 주의",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00060 - aaa",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00061 - 1111",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00067 - 열사병/일사병",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00114 - 1111",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00030 - 코스 주의aa",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00044 - 1112",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00062 - 2222",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00112 - ㄴㄴㄴ",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00045 - 1113",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00058 - 예측정보 수정",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: I-00063 - 3333",
+      "tab": ""
     },
     {
       "kind": "dropdown",
-      "label": "Loading..."
+      "label": "전체",
+      "tab": ""
     },
     {
       "kind": "dropdown",
-      "label": "코스 전체"
-    },
-    {
-      "kind": "dropdown",
-      "label": "홀 전체"
-    },
-    {
-      "kind": "dropdown",
-      "label": "구역 전체"
+      "label": "Loading...",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "전체"
+      "label": "전체",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "(무텍스트)"
+      "label": "토글",
+      "tab": ""
     },
     {
-      "kind": "toggle",
-      "label": "코스 전체"
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
     },
     {
-      "kind": "toggle",
-      "label": "홀 전체"
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
     },
     {
-      "kind": "toggle",
-      "label": "구역 전체"
+      "kind": "text",
+      "label": "예측 정보",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "(무텍스트)"
+      "kind": "text",
+      "label": "코스관리 과정에서 등록된 이슈와 작업 중, 차년도 이후에도 참고가 필요하다고 판단되어 선별된 항목이 노출됩니다. 이를 바탕으로 향후 코스관리를 계획하고 실행할 수 있습니다.",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "분류",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "코스분류",
+      "tab": ""
     }
   ],
   "작업 관리 > 작업 일보": [
     {
-      "kind": "button",
-      "label": "(무텍스트)"
+      "kind": "calendar",
+      "label": "달력: 작업 일보",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "작업 일보",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "일요일",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "월요일",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "화요일",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "수요일",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "목요일",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "금요일",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "토요일",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "작업",
+      "tab": ""
     }
   ],
   "예산 관리 > 예산 총괄": [
     {
-      "kind": "dropdown",
-      "label": "2026"
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "대분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "중분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "1월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "2월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "3월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "4월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "5월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "6월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "7월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "8월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "9월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "10월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "11월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "12월",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "월간",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "연간",
+      "tab": ""
     },
     {
       "kind": "dropdown",
-      "label": "Loading..."
+      "label": "2026",
+      "tab": ""
+    },
+    {
+      "kind": "dropdown",
+      "label": "Loading...",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "2026"
+      "label": "2026",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "(무텍스트)"
+      "label": "토글",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "내보내기"
+      "label": "내보내기",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "월간",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "연간",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "다운로드",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "예산 총괄",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "2024년",
+      "tab": "연간"
+    },
+    {
+      "kind": "column",
+      "label": "2025년 (YoY)",
+      "tab": "연간"
+    },
+    {
+      "kind": "column",
+      "label": "2026년 (YoY)",
+      "tab": "연간"
     }
   ],
   "예산 관리 > 예산 상세": [
     {
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "대분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "중분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "소분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "적요",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "합계",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "1월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "2월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "3월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "4월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "5월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "6월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "7월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "8월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "9월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "10월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "11월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "12월",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "전체",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "고정직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "임시직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "코스 자재비",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "장비 관리비",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "기타 관리비",
+      "tab": ""
+    },
+    {
       "kind": "dropdown",
-      "label": "2026"
+      "label": "2026",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "2026"
+      "label": "2026",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "엑셀 업로드"
+      "label": "엑셀 업로드",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "내보내기"
+      "label": "내보내기",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "전체",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "고정직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "임시직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "코스 자재비",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "장비 관리비",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "기타 관리비",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "다운로드",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "예산 상세",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "상세 항목별로 예산을 수립할 수 있습니다. 먼저 골프장의 상황에 맞도록 각 분류를 수정한 후, 엑셀양식으로 다운받은 후 숫자를 채워서 다시 엑셀을 업로드 하면 편리하게 입력이 가능합니다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "전체 탭은 5개 분류를 한 표로 확인하는 조회 화면입니다. 데이터 수정은 각 분류 탭에서, 엑셀 업로드/내보내기는 이 탭에서만 가능합니다.",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "분류 수정",
+      "tab": "고정직 인건비"
+    },
+    {
+      "kind": "button",
+      "label": "수정",
+      "tab": "고정직 인건비"
+    },
+    {
+      "kind": "text",
+      "label": "지난 연도는 예산을 수립할 수 없습니다.",
+      "tab": "고정직 인건비"
+    },
+    {
+      "kind": "column",
+      "label": "내용",
+      "tab": "임시직 인건비"
+    },
+    {
+      "kind": "button",
+      "label": "분류 수정",
+      "tab": "임시직 인건비"
+    },
+    {
+      "kind": "button",
+      "label": "수정",
+      "tab": "임시직 인건비"
+    },
+    {
+      "kind": "text",
+      "label": "지난 연도는 예산을 수립할 수 없습니다.",
+      "tab": "임시직 인건비"
+    },
+    {
+      "kind": "column",
+      "label": "구분",
+      "tab": "코스 자재비"
+    },
+    {
+      "kind": "column",
+      "label": "품명",
+      "tab": "코스 자재비"
+    },
+    {
+      "kind": "column",
+      "label": "규격",
+      "tab": "코스 자재비"
+    },
+    {
+      "kind": "column",
+      "label": "단가",
+      "tab": "코스 자재비"
+    },
+    {
+      "kind": "column",
+      "label": "내용",
+      "tab": "코스 자재비"
+    },
+    {
+      "kind": "button",
+      "label": "분류 수정",
+      "tab": "코스 자재비"
+    },
+    {
+      "kind": "button",
+      "label": "수정",
+      "tab": "코스 자재비"
+    },
+    {
+      "kind": "text",
+      "label": "지난 연도는 예산을 수립할 수 없습니다.",
+      "tab": "코스 자재비"
+    },
+    {
+      "kind": "column",
+      "label": "구분",
+      "tab": "장비 관리비"
+    },
+    {
+      "kind": "column",
+      "label": "품명",
+      "tab": "장비 관리비"
+    },
+    {
+      "kind": "column",
+      "label": "단가",
+      "tab": "장비 관리비"
+    },
+    {
+      "kind": "column",
+      "label": "내용",
+      "tab": "장비 관리비"
+    },
+    {
+      "kind": "button",
+      "label": "분류 수정",
+      "tab": "장비 관리비"
+    },
+    {
+      "kind": "button",
+      "label": "수정",
+      "tab": "장비 관리비"
+    },
+    {
+      "kind": "text",
+      "label": "지난 연도는 예산을 수립할 수 없습니다.",
+      "tab": "장비 관리비"
+    },
+    {
+      "kind": "column",
+      "label": "품명",
+      "tab": "기타 관리비"
+    },
+    {
+      "kind": "column",
+      "label": "단가",
+      "tab": "기타 관리비"
+    },
+    {
+      "kind": "column",
+      "label": "내용",
+      "tab": "기타 관리비"
+    },
+    {
+      "kind": "button",
+      "label": "분류 수정",
+      "tab": "기타 관리비"
+    },
+    {
+      "kind": "button",
+      "label": "수정",
+      "tab": "기타 관리비"
+    },
+    {
+      "kind": "text",
+      "label": "지난 연도는 예산을 수립할 수 없습니다.",
+      "tab": "기타 관리비"
     }
   ],
   "예산 관리 > 실적 관리": [
     {
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "대분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "중분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "소분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "1월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "2월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "3월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "4월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "5월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "6월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "7월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "8월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "9월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "10월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "11월",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "12월",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "전체",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "고정직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "임시직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "코스 자재비",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "장비 관리비",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "기타 관리비",
+      "tab": ""
+    },
+    {
       "kind": "dropdown",
-      "label": "2026"
+      "label": "2026",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "2026"
+      "label": "2026",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "엑셀 업로드"
+      "label": "엑셀 업로드",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "내보내기"
+      "label": "내보내기",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "전체",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "고정직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "임시직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "코스 자재비",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "장비 관리비",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "기타 관리비",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "다운로드",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "실적 관리",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "실제 회계상 집계된 전체 비용을 입력하여 예산 대비 실적 분석에 활용될 수 있습니다. 작업지시를 통하여 자동으로 집계 비용과는 차이가 있을 수 있습니다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "전체 탭은 5개 분류의 실적을 한 표로 확인하며, 대분류별 소계가 표시됩니다. 데이터 수정은 각 분류 탭에서, 엑셀 업로드·내보내기는 이 탭에서만 가능합니다.",
+      "tab": ""
+    },
+    {
+      "kind": "input",
+      "label": "예산 입력",
+      "tab": "고정직 인건비"
+    },
+    {
+      "kind": "button",
+      "label": "취소",
+      "tab": "고정직 인건비"
+    },
+    {
+      "kind": "button",
+      "label": "저장",
+      "tab": "고정직 인건비"
+    },
+    {
+      "kind": "input",
+      "label": "예산 입력",
+      "tab": "임시직 인건비"
+    },
+    {
+      "kind": "button",
+      "label": "취소",
+      "tab": "임시직 인건비"
+    },
+    {
+      "kind": "button",
+      "label": "저장",
+      "tab": "임시직 인건비"
+    },
+    {
+      "kind": "input",
+      "label": "예산 입력",
+      "tab": "코스 자재비"
+    },
+    {
+      "kind": "button",
+      "label": "취소",
+      "tab": "코스 자재비"
+    },
+    {
+      "kind": "button",
+      "label": "저장",
+      "tab": "코스 자재비"
+    },
+    {
+      "kind": "input",
+      "label": "예산 입력",
+      "tab": "장비 관리비"
+    },
+    {
+      "kind": "button",
+      "label": "취소",
+      "tab": "장비 관리비"
+    },
+    {
+      "kind": "button",
+      "label": "저장",
+      "tab": "장비 관리비"
+    },
+    {
+      "kind": "input",
+      "label": "예산 입력",
+      "tab": "기타 관리비"
+    },
+    {
+      "kind": "button",
+      "label": "취소",
+      "tab": "기타 관리비"
+    },
+    {
+      "kind": "button",
+      "label": "저장",
+      "tab": "기타 관리비"
     }
   ],
   "예산 관리 > 예산 분석": [
     {
-      "kind": "dropdown",
-      "label": "2026"
+      "kind": "chart",
+      "label": "차트/그래프",
+      "tab": ""
+    },
+    {
+      "kind": "chart",
+      "label": "전체",
+      "tab": ""
+    },
+    {
+      "kind": "chart",
+      "label": "고정직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "chart",
+      "label": "임시직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "chart",
+      "label": "코스 자재비",
+      "tab": ""
+    },
+    {
+      "kind": "chart",
+      "label": "장비 관리비",
+      "tab": ""
+    },
+    {
+      "kind": "chart",
+      "label": "기타 관리비",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "월간 그래프",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "월간 테이블",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "연간 그래프",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "연간 테이블",
+      "tab": ""
     },
     {
       "kind": "dropdown",
-      "label": "대분류 전체"
+      "label": "2026",
+      "tab": ""
+    },
+    {
+      "kind": "dropdown",
+      "label": "대분류 전체",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "2026"
+      "label": "2026",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "대분류 전체"
+      "label": "대분류 전체",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "내보내기"
+      "label": "내보내기",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "월간 그래프",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "월간 테이블",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "연간 그래프",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "연간 테이블",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "다운로드",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "예산 분석",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "수립한 예산 대비 실제 발생한 총비용을 비교하고 분석한 정보를 제공합니다. 실제 발생한 총비용은 작업지시를 통하여 자동으로 집계되는 비용과는 차이가 있을 수 있습니다. 작업지시를 통하여 집계되는 비용의 분석은 '비용 관리' 메뉴에게 제공됩니다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "월 예산",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "당월 사용액",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "예산 초과분",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "예산 대비 사용률",
+      "tab": ""
+    },
+    {
+      "kind": "table",
+      "label": "테이블",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "대분류",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "중분류",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "소분류",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "1월",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "2월",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "3월",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "4월",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "5월",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "6월",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "7월",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "8월",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "9월",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "10월",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "11월",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "12월",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "당월 예산",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "당월 사용",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "당월 절감/초과",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "당월 사용률",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "누적 예산",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "누적 사용",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "누적 절감/초과",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "누적 사용률",
+      "tab": "월간 테이블"
+    },
+    {
+      "kind": "text",
+      "label": "누적 사용",
+      "tab": "연간 그래프"
+    },
+    {
+      "kind": "text",
+      "label": "잔여 예산",
+      "tab": "연간 그래프"
+    },
+    {
+      "kind": "table",
+      "label": "테이블",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "대분류",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "중분류",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "소분류",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "연간예산",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "누적 사용",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "잔여 예산",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "전체 예산 절감/초과",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "예산 사용률",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "누적 예산",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "누적 예산 대비 누적 사용",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "누적 예산 절감/초과",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "(1.1~12.31) 1",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "(1.1~현재) 2",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "1 - 2",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "2 - 1",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "2 / 1",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "(1.1~현재) 3",
+      "tab": "연간 테이블"
+    },
+    {
+      "kind": "column",
+      "label": "2 / 3",
+      "tab": "연간 테이블"
     }
   ],
   "비용 관리 > 비용 집계": [
     {
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "항목",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "합계",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "고정직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "임시직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "코스 자재비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "장비 관리비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "기타 관리비",
+      "tab": ""
+    },
+    {
+      "kind": "chart",
+      "label": "차트/그래프",
+      "tab": ""
+    },
+    {
       "kind": "dropdown",
-      "label": "2026 년"
+      "label": "2026 년",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "2026 년"
+      "label": "2026 년",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "내보내기"
+      "label": "내보내기",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "다운로드",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "비용 집계",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "실제 발생하여 입력된 비용(예산관리>실적관리)과, 작업지시서를 통하여 자동으로 집계된 비용을 비교 분석합니다. 현장에서 작업지시를 얼마나 적극적으로 활용하고 있는지 및 실제 투입된 비용이 얼마나 효과적으로 집행되고 있는지를 확인할 수 있습니다.",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "작업비용 실제비용 비교",
+      "tab": ""
     }
   ],
   "비용 관리 > 작업별 비용": [
     {
+      "kind": "table",
+      "label": "테이블: 내보내기",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "작업번호",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "작업명",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "기간",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "구분",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "작업",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "총 비용",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "고정직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "임시직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "코스 자재비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "장비 관리비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "기타 관리비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "기타",
+      "tab": ""
+    },
+    {
       "kind": "dropdown",
-      "label": "Loading..."
+      "label": "Loading...",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "(무텍스트)"
+      "label": "토글",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "기간 수 목"
+      "label": "기간 수 목",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "YYYY-MM-DD"
+      "label": "YYYY-MM-DD",
+      "tab": ""
     },
     {
       "kind": "input",
-      "label": "YYYY-MM-DD"
-    },
-    {
-      "kind": "input",
-      "label": "검색어 입력"
+      "label": "검색어 입력",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "초기화"
+      "label": "초기화",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "적용"
+      "label": "적용",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "내보내기"
+      "label": "내보내기",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "다운로드",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "작업별 비용",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "비용 관리의 비용은 '작업지시서' 를 통해서 자동으로 집계된 비용만을 포함합니다. 따라서, 실제 발생한 회계상 모든 비용과는 차이가 발생할 수 있습니다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "검색",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "총 건수 0",
+      "tab": ""
     }
   ],
   "비용 관리 > 분류별 비용": [
     {
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "1분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "2분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "3분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "합계",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "고정직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "임시직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "코스 자재비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "장비 관리비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "기타 관리비",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "연간",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "월간",
+      "tab": ""
+    },
+    {
       "kind": "dropdown",
-      "label": "2026 년"
+      "label": "2026 년",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "2026 년"
+      "label": "2026 년",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "정렬 초기화"
+      "label": "정렬 초기화",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "내보내기"
+      "label": "내보내기",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "그린",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "그린"
+      "label": "그린칼라",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "그린칼라"
+      "label": "연간",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "월간",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "다운로드",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "분류별 비용",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "비용 관리의 비용은 '작업지시서' 를 통해서 자동으로 집계된 비용만을 포함합니다. 따라서, 실제 발생한 회계상 모든 비용과는 차이가 발생할 수 있습니다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "집계된 총 비용",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "/ 63.1% / 1,174,246",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "/ 20.1% / 375,000",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "/ 0.6% / 11,323",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "/ 16.1% / 300,596",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "/ 0.1% / 1,000",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "1월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "2월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "3월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "4월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "5월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "6월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "7월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "8월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "9월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "10월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "11월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "12월",
+      "tab": "월간"
     }
   ],
   "비용 관리 > 위치별 비용": [
     {
-      "kind": "dropdown",
-      "label": "2026 년"
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "코스",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "홀",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "총 비용",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "그린",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "그린칼라",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "티박스",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "페어웨이",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "러프",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "벙커",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "법면",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "폰드",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "묘포장",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "조경",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "시설",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "장비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "기타",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "고정직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "임시직 인건비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "코스 자재비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "장비 관리비",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "기타 관리비",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "연간",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "월간",
+      "tab": ""
     },
     {
       "kind": "dropdown",
-      "label": "Loading..."
+      "label": "2026 년",
+      "tab": ""
+    },
+    {
+      "kind": "dropdown",
+      "label": "Loading...",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "2026 년"
+      "label": "2026 년",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "(무텍스트)"
+      "label": "토글",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "정렬 초기화"
+      "label": "정렬 초기화",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "내보내기"
+      "label": "내보내기",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "연간",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "East"
+      "label": "월간",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "다운로드",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "위치별 비용",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "비용 관리의 비용은 '작업지시서' 를 통해서 자동으로 집계된 비용만을 포함합니다. 따라서, 실제 발생한 회계상 모든 비용과는 차이가 발생할 수 있습니다",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "코스별 비용 분포",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "전체 비용",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "비용 발생 내역이 없습니다",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "코스별 홀별 비용 분포",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "합계",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "1월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "2월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "3월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "4월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "5월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "6월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "7월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "8월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "9월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "10월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "11월",
+      "tab": "월간"
+    },
+    {
+      "kind": "column",
+      "label": "12월",
+      "tab": "월간"
     }
   ],
   "비용 관리 > 기간별 비용": [
     {
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "1분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "2분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "3분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "2024",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "2025(YoY)",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "2026(YoY)",
+      "tab": ""
+    },
+    {
+      "kind": "chart",
+      "label": "차트/그래프",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "분류",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "위치",
+      "tab": ""
+    },
+    {
       "kind": "dropdown",
-      "label": "2026 년"
+      "label": "2026 년",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "2026 년"
+      "label": "2026 년",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "정렬 초기화"
+      "label": "정렬 초기화",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "내보내기"
+      "label": "내보내기",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "그린",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "그린"
+      "label": "그린칼라",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "그린칼라"
+      "label": "티박스",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "티박스"
+      "label": "러프",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "러프"
+      "label": "장비",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "장비"
+      "label": "분류",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "위치",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "다운로드",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "기간별 비용",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "비용 관리의 비용은 '작업지시서' 를 통해서 자동으로 집계된 비용만을 포함합니다. 따라서, 실제 발생한 회계상 모든 비용과는 차이가 발생할 수 있습니다",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "전체 및 1분류별 3년 비교",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "코스",
+      "tab": "위치"
+    },
+    {
+      "kind": "column",
+      "label": "홀",
+      "tab": "위치"
+    },
+    {
+      "kind": "column",
+      "label": "구분",
+      "tab": "위치"
+    },
+    {
+      "kind": "title",
+      "label": "코스 3년 비교",
+      "tab": "위치"
+    },
+    {
+      "kind": "title",
+      "label": "전체",
+      "tab": "위치"
     }
   ],
   "인력 관리 > 권한관리": [
     {
-      "kind": "toggle",
-      "label": "코스 현황 관리"
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "그룹",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "PC 권한",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "모바일 권한",
+      "tab": ""
+    },
+    {
+      "kind": "table",
+      "label": "테이블: 저장하기",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "이름",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "아이디",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "전체",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "코스 영역 설정"
+      "label": "코스 현황 관리",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "드론사진 업로드"
+      "label": "코스 영역 설정",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "코스 모니터"
+      "label": "드론사진 업로드",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "3D"
+      "label": "코스 모니터",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "그린 분석"
+      "label": "3D",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "정보 관리"
+      "label": "그린 분석",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "코스 기본 정보"
+      "label": "정보 관리",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "코스 리뉴얼 정보"
+      "label": "코스 기본 정보",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "홀 별 정보"
+      "label": "코스 리뉴얼 정보",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "잔디 측정 정보"
+      "label": "홀 별 정보",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "토양 측정 정보"
+      "label": "잔디 측정 정보",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "발병 정보"
+      "label": "토양 측정 정보",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "코스 운영 정보"
+      "label": "발병 정보",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "기상 정보"
+      "label": "코스 운영 정보",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "거래처 정보"
+      "label": "기상 정보",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "관리 기준 정보"
+      "label": "거래처 정보",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "일상 점검"
+      "label": "관리 기준 정보",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "작업 관리"
+      "label": "일상 점검",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "작업 지시"
+      "label": "작업 관리",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "작업 계획"
+      "label": "작업 지시",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "이슈 관리"
+      "label": "작업 계획",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "예측 정보"
+      "label": "이슈 관리",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "작업 일보"
+      "label": "예측 정보",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "예산 관리"
+      "label": "작업 일보",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "예산 총괄"
+      "label": "예산 관리",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "예산 상세"
+      "label": "예산 총괄",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "실적 관리"
+      "label": "예산 상세",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "예산 분석"
+      "label": "실적 관리",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "비용 관리"
+      "label": "예산 분석",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "작업별 비용"
+      "label": "비용 관리",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "분류별 비용"
+      "label": "작업별 비용",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "위치별 비용"
+      "label": "분류별 비용",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "기간별 비용"
+      "label": "위치별 비용",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "인력 관리"
+      "label": "기간별 비용",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "권한관리"
+      "label": "인력 관리",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "근태 관리"
+      "label": "권한관리",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "투입 관리"
+      "label": "근태 관리",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "장비 관리"
+      "label": "투입 관리",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "총괄관리"
+      "label": "장비 관리",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "장비 관제"
+      "label": "총괄관리",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "자재 관리"
+      "label": "장비 관제",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "자재 총괄"
+      "label": "자재 관리",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "자재 수불"
+      "label": "자재 총괄",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "시설 관리"
+      "label": "자재 수불",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "시설 총괄"
+      "label": "시설 관리",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "시설 관제"
+      "label": "시설 총괄",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "사진 관리"
+      "label": "시설 관제",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "정보별 사진"
+      "label": "사진 관리",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "위치별 사진"
+      "label": "정보별 사진",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "코스뷰"
+      "label": "위치별 사진",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "코스 정보 입력"
+      "label": "코스뷰",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "이슈/예측"
+      "label": "코스 정보 입력",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "전체"
+      "label": "이슈/예측",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "(무텍스트)"
+      "label": "전체",
+      "tab": ""
+    },
+    {
+      "kind": "toggle",
+      "label": "토글",
+      "tab": ""
     },
     {
       "kind": "input",
-      "label": "이름 입력"
+      "label": "이름 입력",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "수정",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "그룹 추가"
+      "label": "삭제",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "ico-search"
+      "label": "그룹 추가",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "저장하기"
+      "label": "검색",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "저장하기",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "전체",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "권한관리 메뉴는 SMARTSCORE CLOUD 에서 골프장의 마스터관리자 또는 서비스별 관리자로 지정된 임직원에게만 노출됩니다.특정 메뉴의 권한만 부여하는 그룹을 직접 생성하고, 오른쪽 체크박스의 선택/해제로 해당 그룹에 속하는 사용자를 편집할 수 있습니다. 관리자그룹과 사용자그룹은 최초에 설정되어 있으며, 마스터관리자 및 관리자가 편집 가능합니다.",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "권한관리 메뉴는 SMARTSCORE CLOUD 에서 골프장의 마스터관리자 또는 서비스별 관리자로 지정된 임직원에게만 노출됩니다. 특정 메뉴의 권한만 부여하는 그룹을 직접 생성하고, 오른쪽 체크박스의 선택/해제로 해당 그룹에 속하는 사용자를 편집할 수 있습니다. 관리자그룹과 사용자그룹은 최초에 설정되어 있으며, 마스터관리자 및 관리자가 편집 가능합니다.",
+      "tab": ""
     }
   ],
   "인력 관리 > 인력 관리": [
     {
-      "kind": "dropdown",
-      "label": "전체"
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "번호",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "이름",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "생년월일",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "입사일",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "근속연수",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "성별",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "구분",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "파견업체",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "담당 업무",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "상태",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "급여 정보",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "시간당 임률",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "상세",
+      "tab": ""
     },
     {
       "kind": "dropdown",
-      "label": "1"
+      "label": "전체",
+      "tab": ""
+    },
+    {
+      "kind": "dropdown",
+      "label": "1",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "전체"
+      "label": "전체",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "1"
+      "label": "1",
+      "tab": ""
     },
     {
       "kind": "input",
-      "label": "이름 검색"
+      "label": "이름 검색",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "표준 근무시간 설정"
+      "label": "표준 근무시간 설정",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "신규 등록"
+      "label": "신규 등록",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "초기화"
+      "label": "초기화",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "적용"
+      "label": "적용",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "보기"
+      "label": "보기",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "(무텍스트)"
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "1"
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "인력 관리",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "골프장 코스관리에 투입된 인력의 현황을 관리하고, 시간당 임률에 근거한 인건비를 정확히 집계하여 각 작업별로 투입된 비용을 산정할 수 있습니다.",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "인력",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "검색",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "총 9 명",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "(퇴사자 제외)",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "고정직 정규",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "고정직 계약",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "임시직 장기",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "임시직 단기",
+      "tab": ""
     }
   ],
   "인력 관리 > 근태 관리": [
     {
-      "kind": "toggle",
-      "label": "전일 근무"
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "번호",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "이름",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "담당 업무",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "계약형태",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "월요일 08.17",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "화요일 08.18",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "수요일 08.19",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "목요일 08.20",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "금요일 08.21",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "토요일 08.22",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "일요일 08.23",
+      "tab": ""
+    },
+    {
+      "kind": "image",
+      "label": "이미지: profile image",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "근태 기록(고정직)",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "근태 기록(임시직)",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "근태 통계",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "오전 근무"
+      "label": "전일 근무",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "오후 근무"
+      "label": "오전 근무",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "휴가"
+      "label": "오후 근무",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "결근"
+      "label": "휴가",
+      "tab": ""
+    },
+    {
+      "kind": "toggle",
+      "label": "결근",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "YYYY-MM-DD"
-    },
-    {
-      "kind": "input",
-      "label": "YYYY-MM-DD"
+      "label": "YYYY-MM-DD",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "근태 기록(고정직)",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "근태 기록(임시직)",
+      "tab": ""
+    },
+    {
+      "kind": "button",
+      "label": "근태 통계",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "근태 관리",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "재직자 근태 등록 (고정직)",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "재직자 근태 등록 (임시직)",
+      "tab": "근태 기록(임시직)"
+    },
+    {
+      "kind": "text",
+      "label": "송해",
+      "tab": "근태 기록(임시직)"
+    },
+    {
+      "kind": "text",
+      "label": "임시직 장기",
+      "tab": "근태 기록(임시직)"
+    },
+    {
+      "kind": "table",
+      "label": "테이블: 주간 근무자 현황",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "column",
+      "label": "월요일 17",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "column",
+      "label": "화요일 18",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "column",
+      "label": "수요일 19",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "column",
+      "label": "목요일 20",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "column",
+      "label": "금요일 21",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "column",
+      "label": "토요일 22",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "column",
+      "label": "일요일 23",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: 주간 근무자 현황",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "chart",
+      "label": "주간 근무자 현황",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "chart",
+      "label": "차트/그래프",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "title",
+      "label": "오늘 근무자 현황",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "text",
+      "label": "고정직",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "text",
+      "label": "임시직",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "text",
+      "label": "08.17",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "text",
+      "label": "08.18",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "text",
+      "label": "08.19",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "text",
+      "label": "08.20",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "text",
+      "label": "08.21",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "text",
+      "label": "08.22",
+      "tab": "근태 통계"
+    },
+    {
+      "kind": "text",
+      "label": "08.23",
+      "tab": "근태 통계"
     }
   ],
   "인력 관리 > 투입 관리": [
     {
+      "kind": "calendar",
+      "label": "달력",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: 장비 수리 - 트럭 2",
+      "tab": ""
+    },
+    {
+      "kind": "calendar",
+      "label": "달력: 여름더위",
+      "tab": ""
+    },
+    {
+      "kind": "image",
+      "label": "이미지: profile image",
+      "tab": ""
+    },
+    {
       "kind": "dropdown",
-      "label": "전체"
+      "label": "전체",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "전체"
+      "label": "전체",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "YYYY-MM-DD"
+      "label": "YYYY-MM-DD",
+      "tab": ""
     },
     {
-      "kind": "input",
-      "label": "YYYY-MM-DD"
+      "kind": "text",
+      "label": "투입 관리",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "작업지시서 상에 근거하여, 각각의 인원이 투입되어 작업한 시간 및 해당 작업이력을 직접 확인할 수 있습니다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "인력",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "고정직",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "강빛찬",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "장비 수리 - 트럭 2",
+      "tab": ""
+    },
+    {
+      "kind": "title",
+      "label": "여름더위",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "강현지",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "개발테스터",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "손기웅",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "염가희",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "최건수",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "테스트 유저임11",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "테스트유저",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "임시직",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "송해",
+      "tab": ""
     }
   ],
   "장비 관리 > 장비 총괄": [
     {
-      "kind": "datepicker",
-      "label": "매입일"
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "장비 번호",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "사진",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "장비명",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "브랜드명",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "상태",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "매입일",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "매입가",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "내용연수",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "총 운용 시간",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "연간 운용 시간",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "시간당 비용",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "유종",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "상세",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "전체",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "운용",
+      "tab": ""
+    },
+    {
+      "kind": "tab",
+      "label": "비운용",
+      "tab": ""
+    },
+    {
+      "kind": "dropdown",
+      "label": "Loading...",
+      "tab": ""
+    },
+    {
+      "kind": "toggle",
+      "label": "토글",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "선택 안함"
+      "label": "매입일",
+      "tab": ""
+    },
+    {
+      "kind": "datepicker",
+      "label": "선택 안함",
+      "tab": ""
     },
     {
       "kind": "input",
-      "label": "선택 안함"
-    },
-    {
-      "kind": "input",
-      "label": "검색어 입력"
+      "label": "검색어 입력",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "표준 유류비 설정"
+      "label": "표준 유류비 설정",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "장비등록"
+      "label": "장비등록",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "초기화"
+      "label": "초기화",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "적용"
+      "label": "적용",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "보기"
+      "label": "보기",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "추가",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "1"
+      "label": "전체",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "2"
+      "label": "운용",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "3"
+      "label": "비운용",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "4"
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "5"
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "6"
+      "kind": "text",
+      "label": "장비 총괄",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "장비를 등록하고 장비의 현재 운용 상태 및 관리 이력을 확인할 수 있습니다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "검색",
+      "tab": ""
     }
   ],
   "장비 관리 > 장비 관제": [
     {
       "kind": "dropdown",
-      "label": "Loading..."
+      "label": "Loading...",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "(무텍스트)"
+      "label": "토글",
+      "tab": ""
     },
     {
       "kind": "zoom",
-      "label": "Leaflet"
+      "label": "Leaflet",
+      "tab": ""
     }
   ],
   "자재 관리 > 자재 총괄": [
     {
+      "kind": "table",
+      "label": "테이블: 자재 관리",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "번호",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "사진",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "자재명",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "최근 입고일",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "입고이력",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "단위",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "재고수량",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "단위당 원가",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "총재고액",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "상세",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "입고",
+      "tab": ""
+    },
+    {
       "kind": "input",
-      "label": "자재명 입력"
+      "label": "자재명 입력",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "신규 등록"
+      "label": "신규 등록",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "ico-search"
+      "label": "검색",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "검색"
+      "label": "추가",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "보기"
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "추가 입고"
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "(무텍스트)"
+      "kind": "text",
+      "label": "자재 총괄",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "1"
+      "kind": "text",
+      "label": "분류별로 자재를 등록하고 관리할 수 있습니다",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "2"
+      "kind": "title",
+      "label": "전체",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "3"
+      "kind": "title",
+      "label": "자재 관리",
+      "tab": ""
     }
   ],
   "자재 관리 > 자재 수불(품목별)": [
     {
-      "kind": "dropdown",
-      "label": "농약"
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "번호",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "자재 사진",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "자재명",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "수량",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "금액",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "상세",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "기초",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "입고",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "출고",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "기말",
+      "tab": ""
     },
     {
       "kind": "dropdown",
-      "label": "2026년"
+      "label": "전체",
+      "tab": ""
+    },
+    {
+      "kind": "dropdown",
+      "label": "2026년",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "농약"
+      "label": "전체",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "2026년"
+      "label": "2026년",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "기간 목 목"
+      "label": "기간 목 목",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "YYYY-MM-DD"
+      "label": "YYYY-MM-DD",
+      "tab": ""
     },
     {
       "kind": "input",
-      "label": "자재명 입력"
-    },
-    {
-      "kind": "input",
-      "label": "YYYY-MM-DD"
+      "label": "자재명 입력",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "ico-search"
+      "label": "검색",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "초기화"
+      "label": "초기화",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "적용"
+      "label": "적용",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "보기"
+      "label": "보기",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "(무텍스트)"
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "1"
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "2"
+      "kind": "text",
+      "label": "자재 수불",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "3"
+      "kind": "text",
+      "label": "자재의 입고, 출고 기록 및 매입가의 변동을 확인할 수 있습니다",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "기간",
+      "tab": ""
     }
   ],
   "자재 관리 > 자재 수불(일자별)": [
     {
-      "kind": "dropdown",
-      "label": "전체"
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "일자",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "수량",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "금액",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "기초",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "입고",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "품목수",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "출고",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "기말",
+      "tab": ""
     },
     {
       "kind": "dropdown",
-      "label": "최근 3개월"
+      "label": "전체",
+      "tab": ""
+    },
+    {
+      "kind": "dropdown",
+      "label": "최근 3개월",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "전체"
+      "label": "전체",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "최근 3개월"
+      "label": "최근 3개월",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "기간 수 목"
+      "label": "기간 수 목",
+      "tab": ""
     },
     {
       "kind": "datepicker",
-      "label": "YYYY-MM-DD"
-    },
-    {
-      "kind": "input",
-      "label": "YYYY-MM-DD"
+      "label": "YYYY-MM-DD",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "초기화"
+      "label": "초기화",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "적용"
+      "label": "적용",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "(무텍스트)"
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
+    },
+    {
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "자재 수불(일자별)",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "일자별 자재의 입고, 출고 합계를 확인할 수 있습니다.",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "분류",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "기간",
+      "tab": ""
     }
   ],
   "시설 관리 > 시설 총괄": [
     {
-      "kind": "dropdown",
-      "label": "지상"
+      "kind": "table",
+      "label": "테이블",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "번호",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "1분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "2분류",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "시설명",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "공사 업체",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "위치",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "최초 설치일",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "설치 비용",
+      "tab": ""
+    },
+    {
+      "kind": "column",
+      "label": "상세",
+      "tab": ""
     },
     {
       "kind": "dropdown",
-      "label": "Loading..."
+      "label": "지상",
+      "tab": ""
+    },
+    {
+      "kind": "dropdown",
+      "label": "Loading...",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "지상"
+      "label": "지상",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "(무텍스트)"
+      "label": "토글",
+      "tab": ""
     },
     {
       "kind": "input",
-      "label": "시설명 입력"
+      "label": "시설명 입력",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "신규 등록"
+      "label": "시설 등록",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "초기화"
+      "label": "초기화",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "적용"
+      "label": "적용",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "보기"
+      "label": "보기",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "(무텍스트)"
+      "label": "추가",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "1"
+      "kind": "nav",
+      "label": "이전",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "2"
+      "kind": "nav",
+      "label": "다음",
+      "tab": ""
     },
     {
-      "kind": "button",
-      "label": "3"
+      "kind": "text",
+      "label": "시설 총괄",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "코스 내 모든 시설",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "분류",
+      "tab": ""
+    },
+    {
+      "kind": "text",
+      "label": "검색",
+      "tab": ""
     }
   ],
   "시설 관리 > 시설 관제": [
     {
       "kind": "dropdown",
-      "label": "Loading..."
+      "label": "Loading...",
+      "tab": ""
     },
     {
       "kind": "dropdown",
-      "label": "전체"
+      "label": "전체",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "(무텍스트)"
+      "label": "토글",
+      "tab": ""
     },
     {
       "kind": "toggle",
-      "label": "전체"
+      "label": "전체",
+      "tab": ""
     },
     {
       "kind": "zoom",
-      "label": "Leaflet"
+      "label": "Leaflet",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "leaflet-marker-icon"
+      "label": "지상",
+      "tab": ""
     },
     {
       "kind": "button",
-      "label": "8"
-    },
-    {
-      "kind": "button",
-      "label": "15"
-    },
-    {
-      "kind": "button",
-      "label": "12"
+      "label": "지하",
+      "tab": ""
     }
   ]
 }

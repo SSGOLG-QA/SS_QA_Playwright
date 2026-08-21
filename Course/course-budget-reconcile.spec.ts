@@ -4,7 +4,7 @@ import * as path from 'path';
 import { openCourseAdmin, killAlarms } from '../lib/course/courseHelpers';
 import { grab, gridOf, grabPaged, Grab } from '../lib/course/budgetCapture';
 import { num } from '../lib/course/domain/budgetCost';
-import { Atom, reconcileIndependent, sanityBatch, findCol } from '../lib/course/domain/budgetReconcile';
+import { sanityBatch, findCol } from '../lib/course/domain/budgetReconcile';
 import { resetResults, resetNoTC, resetDiff, resetReview, resetIA, record, skip, writeReport, CheckMeta } from '../lib/reporter';
 
 // ──────────────────────────────────────────────────────────────
@@ -88,18 +88,34 @@ test('P1 독립 재집계(A) + 이상치(E) — 예산·비용 교차 맹점 보
     const rows = grid.filter((r) => !r.some((c) => /비용 발생 내역이 없습니다/.test(c)));
     const nameCol = findCol(heads, /작업명|작업번호/);
     const colOf = (re: RegExp) => heads.findIndex((h) => re.test(norm(h)));
-    // 총계 = Σ(작업별 총 비용)
     const totalCol = colOf(/^총비용$|^총액$|^합계$/);
-    const totalAtoms: Atom[] = totalCol >= 0 ? rows.map((r) => ({ label: nameCol >= 0 ? r[nameCol] || '' : '', qty: 1, unit: num(r[totalCol]) ?? 0 })).filter((a) => a.unit !== 0) : [];
-    rec(reconcileIndependent('비용집계 총계 = Σ(작업별 총 비용)  [독립 재집계 A·스코프주의]', totalAtoms, 총계), 'RECON-A-TASK-TOT');
-    // 유형별 = Σ(작업별 유형 컬럼) vs 비용집계 유형
-    const types: [string, RegExp][] = [['코스 자재비', /코스자재비|자재비/], ['장비 관리비', /장비관리비/], ['고정직 인건비', /고정직인건비/], ['임시직 인건비', /임시직인건비/], ['기타 관리비', /기타관리비/]];
-    for (const [label, re] of types) {
-      const ci = colOf(re); const disp = agg[label] ?? null;
-      const atoms: Atom[] = (ci >= 0 && rows.length) ? rows.map((r) => ({ label: nameCol >= 0 ? r[nameCol] || '' : '', qty: 1, unit: num(r[ci]) ?? 0 })).filter((a) => a.unit !== 0) : [];
-      // s를 직접 쓰기보다 reconcileIndependent로 원자합=표시 대조(원자 없으면 na)
-      rec(reconcileIndependent(`${label} = Σ(작업별 ${label} 컬럼)  [유형별 독립 재집계 A]`, atoms, disp), `RECON-A-${label.replace(/[^가-힣]/g, '').slice(0, 4)}`);
+    const types: [string, RegExp][] = [['고정직 인건비', /고정직인건비/], ['임시직 인건비', /임시직인건비/], ['코스 자재비', /코스자재비|자재비/], ['장비 관리비', /장비관리비/], ['기타 관리비', /기타관리비/]];
+    const typeCols = types.map(([, re]) => colOf(re));
+
+    // ── Tier A-1 (핵심·스코프 무관): 각 작업행 총비용 = Σ(유형별 컬럼) ──
+    //   작업지시 단위 원자에서 총비용이 유형별로 정확히 분해·합산되는지(계산 정합) — 기간 스코프와 무관.
+    if (rows.length && totalCol >= 0 && typeCols.every((c) => c >= 0)) {
+      const bad: string[] = [];
+      for (const r of rows) {
+        const tot = num(r[totalCol]); const parts = typeCols.map((c) => num(r[c]) ?? 0);
+        if (tot == null) continue;
+        const sum = parts.reduce((a, b) => a + b, 0);
+        if (Math.abs(sum - tot) > 1) bad.push(`${nameCol >= 0 ? r[nameCol] : '?'}(총 ${tot.toLocaleString()}≠Σ ${sum.toLocaleString()})`);
+      }
+      rec({ name: '작업별 각 행: 총비용 = Σ(유형별)  [행단위 독립 검증 A·스코프무관]', ok: bad.length === 0, detail: bad.length === 0 ? `${rows.length}개 작업행 전부 총비용=Σ유형별 정합` : `불일치 ${bad.length}/${rows.length}행: ${bad.slice(0, 3).join(', ')}` }, 'RECON-A-ROW');
+    } else {
+      rec({ name: '작업별 각 행: 총비용 = Σ(유형별)  [행단위 독립 검증 A]', ok: true, na: true, detail: `작업행 없음(${rows.length}) 또는 컬럼 미검출 — 판정 제외` }, 'RECON-A-ROW');
     }
+
+    // ── Tier A-2 (집계 대조·스코프 주의): Σ(작업별) vs 비용집계 — 기간 정렬 필요 → 판정 보류(INFO) ──
+    //   ⚠ 작업별=날짜필터(1년) vs 비용집계=기본/시작연도 스코프 상이 → 직접 대조는 기간 정렬 후에만 유효.
+    //     정합 여부는 위 A-1(행단위)로 판정. 여기선 두 값을 나란히 기록(판정 제외)해 스코프 격차를 투명 노출.
+    const sumType = (label: string, disp: number | null, ci: number) => {
+      const recomputed = ci >= 0 ? rows.reduce((a, r) => a + (num(r[ci]) ?? 0), 0) : null;
+      rec({ name: `${label}: Σ작업별 vs 비용집계  [집계 대조·스코프주의]`, ok: true, na: true, detail: `Σ작업별(1년) ${recomputed == null ? '—' : Math.round(recomputed).toLocaleString()} · 비용집계 ${disp == null ? '—' : disp.toLocaleString()} — 기간 스코프 상이로 직접 판정 보류(정합은 행단위 A-1로 검증). 기간 정렬 시 일치해야 함.` }, `RECON-A2-${label.replace(/[^가-힣]/g, '').slice(0, 4)}`);
+    };
+    sumType('총계', 총계, totalCol);
+    types.forEach(([label], i) => sumType(label, agg[label] ?? null, typeCols[i]));
   }
 
   // ── Tier E: 원천 단가/임률/시간당비용 정상성 ──

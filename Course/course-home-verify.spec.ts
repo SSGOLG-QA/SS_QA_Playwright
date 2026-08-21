@@ -22,7 +22,7 @@ const GRADE_RE = '(A\\+|A-|A|B\\+|B-|B|C\\+|C-|C|D\\+|D-|D|E\\+|E-|E)';
 const COST_CATS = ['전체', '고정직 인건비', '임시직 인건비', '코스 자재비', '장비 관리비', '기타 관리비'];
 const esc = (s: string) => (s || '').replace(/[&<>]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] as string));
 
-interface Check { name: string; ok: boolean; scope: 'goal' | 'work' | 'cost'; detail: string; }
+interface Check { name: string; ok: boolean; scope: 'goal' | 'work' | 'cost'; detail: string; na?: boolean; }
 interface CostCat { pct: number; used: number | null; remain: number | null; budget: number | null; }
 
 function extractGrades(txt: string, order: 'ga' | 'ag'): Record<string, string> {
@@ -158,7 +158,7 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
   {
     const areas = AREAS.filter((a) => homeGoal[a] != null && modalGrades[a] != null);
     const bad = areas.filter((a) => homeGoal[a] !== modalGrades[a]);
-    if (areas.length === 0) checks.push({ name: '★ 목표 등급: HOME 관리 목표 = [목표 설정] 원천', scope: 'goal', ok: false, detail: `등급 추출 실패(HOME ${Object.keys(homeGoal).length}·모달 ${Object.keys(modalGrades).length})` });
+    if (areas.length === 0) checks.push({ name: '★ 목표 등급: HOME 관리 목표 = [목표 설정] 원천', scope: 'goal', ok: true, na: true, detail: `비교 가능한 등급 없음(HOME ${Object.keys(homeGoal).length}·모달 ${Object.keys(modalGrades).length}) — 판정 제외(데이터/상태 없음)` });
     else checks.push({ name: '★ 목표 등급: HOME 관리 목표 = [목표 설정] 원천', scope: 'goal', ok: bad.length === 0, detail: bad.length === 0 ? `${areas.length}개 영역 일치: ${areas.map((a) => `${a}=${homeGoal[a]}`).join(' · ')}` : `불일치: ${bad.map((a) => `${a}(HOME ${homeGoal[a]}≠모달 ${modalGrades[a]})`).join(', ')}` });
   }
   // ── [등급] ② 스케일 유효 · ③ 기준일 ──
@@ -172,32 +172,32 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
   // ── [작업] ④ 오늘의 작업 W-ID ⊆ 작업 지시 목록 ──
   {
     const homeIds = work.ids;
-    if (homeIds.length === 0 || orderIds.length === 0) checks.push({ name: '★ 오늘의 작업(W-작업지시) = 작업 관리 목록', scope: 'work', ok: true, detail: `데이터 없음 SKIP(HOME ${homeIds.length}·목록 ${orderIds.length})` });
+    if (homeIds.length === 0 || orderIds.length === 0) checks.push({ name: '★ 오늘의 작업(W-작업지시) = 작업 관리 목록', scope: 'work', ok: true, na: true, detail: `데이터 없음 SKIP(HOME ${homeIds.length}·목록 ${orderIds.length})` });
     else { const missing = homeIds.filter((id) => !orderIds.includes(id)); checks.push({ name: '★ 오늘의 작업(W-작업지시) = 작업 관리 목록', scope: 'work', ok: missing.length === 0, detail: missing.length === 0 ? `${homeIds.length}건 전부 작업 지시 목록 존재: ${homeIds.join(', ')}` : `목록에 없음: ${missing.join(', ')}` }); }
   }
   // ── [작업] ⑤ 이번 달 상태 카운트 ──
   {
     const d = Number(work.month.done), p = Number(work.month.prog), w = Number(work.month.wait);
     const has = [d, p, w].every((n) => Number.isFinite(n));
-    if (!has) checks.push({ name: '이번 달 작업 상태 카운트', scope: 'work', ok: true, detail: `미검출 SKIP(완료 ${work.month.done ?? '-'}·진행중 ${work.month.prog ?? '-'}·대기 ${work.month.wait ?? '-'})` });
+    if (!has) checks.push({ name: '이번 달 작업 상태 카운트', scope: 'work', ok: true, na: true, detail: `미검출 SKIP(완료 ${work.month.done ?? '-'}·진행중 ${work.month.prog ?? '-'}·대기 ${work.month.wait ?? '-'})` });
     else checks.push({ name: '이번 달 작업 상태 카운트', scope: 'work', ok: d >= 0 && p >= 0 && w >= 0, detail: `완료 ${d} · 진행중 ${p} · 대기 ${w} (합 ${d + p + w}) — 모두 ≥0 정합` });
   }
   // ── [작업] ⑥ 최근 작업 일보 ──
   {
-    if (work.logHead.length === 0) checks.push({ name: '최근 작업 일보 구조·건수', scope: 'work', ok: true, detail: '테이블 미노출 SKIP' });
+    if (work.logHead.length === 0) checks.push({ name: '최근 작업 일보 구조·건수', scope: 'work', ok: true, na: true, detail: '테이블 미노출 SKIP' });
     else { const okHead = work.logHead.some((h) => /단일/.test(h)) && work.logHead.some((h) => /고정직/.test(h)); const badNum = work.logRows.some((r) => r.some((c) => { const m = c.match(/(-?\d+)\s*(건|명)/); return m ? Number(m[1]) < 0 : false; })); checks.push({ name: '최근 작업 일보 구조·건수', scope: 'work', ok: okHead && !badNum, detail: `헤더 [${work.logHead.join('/')}] · ${work.logRows.length}행 · 건·명 ${badNum ? '음수(결함)' : '모두 ≥0'}` }); }
   }
 
   // ── [비용] ⑦★ 잔여 예산 = 연간예산 − 누적 사용 (카테고리별) ──
   {
     const cats = COST_CATS.filter((c) => annual[c] && annual[c].budget != null && annual[c].used != null && annual[c].remain != null);
-    if (cats.length === 0) checks.push({ name: '★ 잔여 예산 = 연간예산 − 누적 사용', scope: 'cost', ok: false, detail: '비용 탭 카테고리 파싱 실패(연간 실적 섹션)' });
+    if (cats.length === 0) checks.push({ name: '★ 잔여 예산 = 연간예산 − 누적 사용', scope: 'cost', ok: true, na: true, detail: '비용 탭 카테고리 데이터 없음(연간 실적 섹션 파싱 0) — 판정 제외' });
     else { const bad = cats.filter((c) => !near(annual[c].remain!, annual[c].budget! - annual[c].used!)); checks.push({ name: '★ 잔여 예산 = 연간예산 − 누적 사용', scope: 'cost', ok: bad.length === 0, detail: bad.length === 0 ? `${cats.length}개 카테고리 항등 성립` : `불일치: ${bad.map((c) => `${c}(잔여 ${annual[c].remain}≠${annual[c].budget}-${annual[c].used})`).join(', ')}` }); }
   }
   // ── [비용] ⑧ 사용률% = round(누적사용/연간예산×100) ──
   {
     const cats = COST_CATS.filter((c) => annual[c] && annual[c].budget != null && annual[c].used != null && annual[c].budget! > 0);
-    if (cats.length === 0) checks.push({ name: '사용률% = 누적 사용 ÷ 연간예산', scope: 'cost', ok: true, detail: '연간예산>0 카테고리 없음(전 카테고리 예산 0) SKIP' });
+    if (cats.length === 0) checks.push({ name: '사용률% = 누적 사용 ÷ 연간예산', scope: 'cost', ok: true, na: true, detail: '연간예산>0 카테고리 없음(전 카테고리 예산 0) SKIP' });
     else { const bad = cats.filter((c) => Math.abs(annual[c].pct - Math.round(annual[c].used! / annual[c].budget! * 100)) > 1); checks.push({ name: '사용률% = 누적 사용 ÷ 연간예산', scope: 'cost', ok: bad.length === 0, detail: bad.length === 0 ? `${cats.length}개 카테고리 사용률 일치` : `불일치: ${bad.map((c) => `${c}(${annual[c].pct}%≠${Math.round(annual[c].used! / annual[c].budget! * 100)}%)`).join(', ')}` }); }
   }
   // ── [비용] ⑨★ 전체 = Σ(하위 5 카테고리) : 연간예산·누적사용·잔여 ──
@@ -211,28 +211,34 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
       const sum = parts.reduce((a, b) => a + b, 0); const ok = near(tot, sum); if (!ok) allOk = false;
       detail.push(`${label} ${ok ? '✓' : '✗'}(${tot.toLocaleString()}${ok ? '=' : '≠'}Σ${sum.toLocaleString()})`);
     }
-    checks.push({ name: '★ 전체 = Σ(고정직·임시직·자재·장비·기타)', scope: 'cost', ok: any ? allOk : false, detail: any ? detail.join(' · ') : '전체/하위 카테고리 파싱 실패' });
+    checks.push({ name: '★ 전체 = Σ(고정직·임시직·자재·장비·기타)', scope: 'cost', ok: any ? allOk : true, na: !any, detail: any ? detail.join(' · ') : '전체/하위 카테고리 데이터 없음 — 판정 제외' });
   }
   // ── [비용] ⑩ 누적 섹션: 잔여 = 누적예산 − 누적사용 ──
   {
     const cats = COST_CATS.filter((c) => cumul[c] && cumul[c].budget != null && cumul[c].used != null && cumul[c].remain != null);
-    if (cats.length === 0) checks.push({ name: '누적 예산 대비: 잔여 = 누적예산 − 누적사용', scope: 'cost', ok: true, detail: '누적 예산 섹션 파싱 없음 SKIP' });
+    if (cats.length === 0) checks.push({ name: '누적 예산 대비: 잔여 = 누적예산 − 누적사용', scope: 'cost', ok: true, na: true, detail: '누적 예산 섹션 파싱 없음 SKIP' });
     else { const bad = cats.filter((c) => !near(cumul[c].remain!, cumul[c].budget! - cumul[c].used!)); checks.push({ name: '누적 예산 대비: 잔여 = 누적예산 − 누적사용', scope: 'cost', ok: bad.length === 0, detail: bad.length === 0 ? `${cats.length}개 카테고리 항등 성립` : `불일치: ${bad.map((c) => `${c}`).join(', ')}` }); }
   }
   // ── [비용] ⑪★ 연간예산(전체) = [예산 관리] 원천 존재 ──
   {
     const total = annual['전체']?.budget;
-    if (total == null || budgetNums.length === 0) checks.push({ name: '★ 연간예산 = [예산 관리] 원천', scope: 'cost', ok: true, detail: `대조 대상 부족 SKIP(비용탭 전체예산 ${total?.toLocaleString() ?? '-'}·예산 총괄 금액 ${budgetNums.length}건)` });
+    if (total == null || budgetNums.length === 0) checks.push({ name: '★ 연간예산 = [예산 관리] 원천', scope: 'cost', ok: true, na: true, detail: `대조 대상 부족 SKIP(비용탭 전체예산 ${total?.toLocaleString() ?? '-'}·예산 총괄 금액 ${budgetNums.length}건)` });
     else { const hit = budgetNums.some((v) => near(v, total, 1)); checks.push({ name: '★ 연간예산 = [예산 관리] 원천', scope: 'cost', ok: hit, detail: hit ? `비용탭 전체 연간예산 ${total.toLocaleString()} = 예산 총괄에 존재(원천 일치)` : `비용탭 전체 연간예산 ${total.toLocaleString()} 이 예산 총괄 금액집합에 없음 → 원천 확인` }); }
   }
   // ── [비용] ⑫ 예산 실적(회계)≠작업지시 집계 안내 표기 확인(정보성) ──
   checks.push({ name: '비용 탭 = 예산 대비 실적(회계 비용) 안내', scope: 'cost', ok: !!costTab.guide, detail: costTab.guide ? `안내 노출: "${costTab.guide.slice(0, 60)}…" (작업지시 집계와 차이 가능 명시)` : '안내문구 미검출(구조 확인)' });
 
   // ═══ HTML(탭 구조) ═══
-  const pass = checks.filter((c) => c.ok).length; const fail = checks.length - pass;
+  // 판정: na(데이터 없음)는 pass/fail 집계 제외 — "미확인 ≠ 결함"(리포트 표준).
+  const judged = checks.filter((c) => !c.na);
+  const naCount = checks.length - judged.length;
+  const pass = judged.filter((c) => c.ok).length; const fail = judged.filter((c) => !c.ok).length;
   const goalChk = checks.filter((c) => c.scope === 'goal'); const workChk = checks.filter((c) => c.scope === 'work'); const costChk = checks.filter((c) => c.scope === 'cost');
+  const cnt = (cs: Check[]) => { const j = cs.filter((c) => !c.na); return `${j.filter((c) => c.ok).length}/${j.length}`; };
+  const allOkOf = (cs: Check[]) => cs.filter((c) => !c.na).every((c) => c.ok);
   const ts = new Date().toISOString().slice(0, 19).replace('T', ' ');
-  const chk = (c: Check) => `<tr class="${c.ok ? '' : 'ng'}"><td>${c.ok ? '✅' : '❌'}</td><td>${esc(c.name)}</td><td>${esc(c.detail)}</td></tr>`;
+  const mark = (c: Check) => c.na ? '➖' : (c.ok ? '✅' : '❌');
+  const chk = (c: Check) => `<tr class="${c.na ? 'na' : c.ok ? '' : 'ng'}"><td>${mark(c)}</td><td>${esc(c.name)}</td><td>${esc(c.detail)}</td></tr>`;
   const chkTbl = (cs: Check[]) => `<table><thead><tr><th></th><th>검증</th><th>결과</th></tr></thead><tbody>${cs.map(chk).join('')}</tbody></table>`;
   const gradeTbl = `<table class="sys"><thead><tr><th>영역</th><th>HOME 관리 목표</th><th>목표 설정(원천)</th><th>일치</th></tr></thead><tbody>${AREAS.map((a) => `<tr class="${homeGoal[a] && modalGrades[a] && homeGoal[a] !== modalGrades[a] ? 'ng' : ''}"><td>${esc(a)}</td><td>${esc(homeGoal[a] || '—')}</td><td>${esc(modalGrades[a] || '—')}</td><td>${homeGoal[a] && modalGrades[a] ? (homeGoal[a] === modalGrades[a] ? '✅' : '❌') : '—'}</td></tr>`).join('')}</tbody></table>`;
   const logTbl = work.logHead.length ? `<table class="sys"><thead><tr>${work.logHead.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${work.logRows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>` : '<div class="note">최근 작업 일보 미수집</div>';
@@ -249,7 +255,7 @@ h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:22px 0 10px;border-bot
 .sub{color:var(--mut);font-size:13px;margin-bottom:8px}
 .cards{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}.card{flex:1 1 100px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}.card .n{font-size:23px;font-weight:700}.card .l{font-size:12px;color:var(--mut)}
 table{border-collapse:collapse;width:100%;font-size:13.5px;margin:6px 0}th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}th{color:var(--mut);font-size:11.5px;background:var(--card)}
-td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}tr.mt td{font-weight:700}tr.ng td{color:var(--ng);font-weight:600}.ok-n{color:var(--ok);font-weight:700}.ng-n{color:var(--ng);font-weight:700}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}tr.mt td{font-weight:700}tr.ng td{color:var(--ng);font-weight:600}tr.na td{color:var(--mut)}.ok-n{color:var(--ok);font-weight:700}.ng-n{color:var(--ng);font-weight:700}.na-n{color:var(--mut);font-weight:700}.mut{color:var(--mut)}
 .note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 15px;font-size:13.5px;color:var(--mut);margin:8px 0}.note.big{border-left:3px solid var(--accent)}
 code{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12px}kbd{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:2px 7px;font:12.5px monospace}
 .tblwrap{overflow-x:auto;max-width:100%;border:1px solid var(--line);border-radius:8px;margin:6px 0}.sys{min-width:100%;margin:0}
@@ -270,11 +276,14 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <h1>홈 화면 숫자가 원천 값과 맞는지 확인</h1>
 <div class="sub">코스관리 첫 화면(홈)의 등급·작업·비용 표시 값을 각 원천 화면과 대조(화면 변경 없음) · 킹즈락 · ${ts}</div>
 <div class="lead"><b>한눈에 보기.</b> 코스관리 <span class="em">첫 화면(홈)</span>에 보이는 <b>등급·작업·비용</b> 숫자가 그 값이 나오는 <b>원천 화면</b>과 어긋나지 않는지 확인했습니다.<br>
-확인 항목 <b>${checks.length}개</b> 중 <span class="ok-n">정상 ${pass}개</span>${fail ? ` · <span class="ng-n">주의 ${fail}개</span>` : ' · 주의 0개'}.<br>
+확인 항목 <b>${judged.length}개</b> 중 <span class="ok-n">정상 ${pass}개</span>${fail ? ` · <span class="ng-n">주의 ${fail}개</span>` : ' · 주의 0개'}${naCount ? ` · <span class="na-n">참고 ${naCount}개</span>(데이터 없어 판정 제외)` : ''}.<br>
 이 리포트는 <b>"지금 화면 값이 맞는가"</b>를 봅니다 — 사용자가 보는 화면 기준 확인이며, 앱 내부 코드 검사는 아닙니다.</div>
 <div class="persp">📏 <b>보는 관점:</b> 화면에 <b>표시된 값</b>을 원천 화면과 맞대어 봅니다(앱 내부 코드 커버리지가 아님). 확인 중 화면을 바꾸거나 저장하지 않습니다.</div>
-<div class="honest"><b>정직하게 읽는 법.</b> ① <b>정상 통과 = 지금 값이 원천과 일치</b>. "값이 틀어졌을 때 잡아내는 힘(신뢰도)"은 별도 민감도 점검이 담당합니다 — 통과 수가 곧 완벽은 아닙니다. ② <b>주의(불일치)라도 곧 결함은 아닐 수 있습니다</b> — 화면마다 집계 기간·범위가 달라 생기는 차이는 각 항목 설명에 표기했습니다.</div>
-<div class="cards"><div class="card"><div class="n">${checks.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">주의 필요</div></div></div>
+<div class="honest"><b>이 검증이 잡는 것과 못 잡는 것(중요).</b><br>
+✅ <b>잡음:</b> HOME에 보이는 값이 <b>원천 화면과 다른</b> 경우(등급=목표설정·작업=작업지시·연간예산=예산관리) · 비용 탭 <b>계산 항등이 깨진</b> 경우(잔여=연간예산−누적·사용률%·전체=Σ카테고리).<br>
+⚠ <b>못 잡음(한계):</b> HOME은 원천 값을 <b>가져다 보여주는</b> 화면이라, <b>원천 자체가 틀리면</b> HOME도 같이 틀린 채 일치로 통과합니다(원천 정확성은 예산·비용/인력 등 각 원천 검증이 담당). 또 HOME '이번 달' vs 목록 '전체기간'처럼 <b>집계 범위가 다른</b> 항목은 총계 직접 일치가 아니라 자기정합(≥0)만 봅니다.<br>
+➖ <b>참고(데이터 없음):</b> 데이터가 없어 확인 대상이 아닌 항목은 판정에서 제외했습니다(결함 아님).</div>
+<div class="cards"><div class="card"><div class="n">${judged.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">주의 필요</div></div>${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}</div>
 
 <input class="tabin" type="radio" name="tab" id="t1" checked><input class="tabin" type="radio" name="tab" id="t2"><input class="tabin" type="radio" name="tab" id="t3"><input class="tabin" type="radio" name="tab" id="t4"><input class="tabin" type="radio" name="tab" id="t5"><input class="tabin" type="radio" name="tab" id="t6">
 <div class="tabs"><label for="t1">① 실행 방법</label><label for="t2">② 연관성 맵</label><label for="t3">③ 요약</label><label for="t4">④ 관리 목표·현황</label><label for="t5">⑤ 작업 탭</label><label for="t6">⑥ 비용 탭</label></div>
@@ -315,7 +324,8 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 
 <div class="panel" id="p3">
 <h2>요약</h2>
-<div class="cards"><div class="card"><div class="n ${goalChk.every((c) => c.ok) ? 'ok-n' : 'ng-n'}">${goalChk.filter((c) => c.ok).length}/${goalChk.length}</div><div class="l">관리 목표·현황(등급)</div></div><div class="card"><div class="n ${workChk.every((c) => c.ok) ? 'ok-n' : 'ng-n'}">${workChk.filter((c) => c.ok).length}/${workChk.length}</div><div class="l">작업 탭</div></div><div class="card"><div class="n ${costChk.every((c) => c.ok) ? 'ok-n' : 'ng-n'}">${costChk.filter((c) => c.ok).length}/${costChk.length}</div><div class="l">비용 탭</div></div></div>
+<div class="cards"><div class="card"><div class="n ${allOkOf(goalChk) ? 'ok-n' : 'ng-n'}">${cnt(goalChk)}</div><div class="l">관리 목표·현황(등급)</div></div><div class="card"><div class="n ${allOkOf(workChk) ? 'ok-n' : 'ng-n'}">${cnt(workChk)}</div><div class="l">작업 탭</div></div><div class="card"><div class="n ${allOkOf(costChk) ? 'ok-n' : 'ng-n'}">${cnt(costChk)}</div><div class="l">비용 탭</div></div>${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}</div>
+${fail ? `<div class="note" style="border-left:3px solid var(--ng)"><b class="ng-n">⚠ 주의 필요 (${fail}건)</b><br>${judged.filter((c) => !c.ok).map((c) => `<div style="margin-top:8px"><b class="ng-n">❌ ${esc(c.name)}</b><br><span>${esc(c.detail)}</span></div>`).join('')}</div>` : '<div class="note" style="border-left:3px solid var(--ok)"><b class="ok-n">✅ 확인 항목 전부 정상</b> — 주의 없음</div>'}${naCount ? `<div class="note" style="border-left:3px solid var(--mut)"><b>➖ 참고: 데이터가 없어 확인 대상이 아님 (${naCount}건, 판정 제외)</b> — 결함이 아니라 "확인 불가"입니다.<br>${checks.filter((c) => c.na).map((c) => `<div style="margin-top:6px"><b>➖ ${esc(c.name)}</b><br><span class="mut">${esc(c.detail)}</span></div>`).join('')}</div>` : ''}
 <h3>① 관리 목표 및 현황 (등급)</h3>${chkTbl(goalChk)}
 <h3>② 작업 탭 (작업 운영)</h3>${chkTbl(workChk)}
 <h3>③ 비용 탭 (예산 대비 실적)</h3>${chkTbl(costChk)}

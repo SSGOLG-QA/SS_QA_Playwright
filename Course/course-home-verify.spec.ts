@@ -314,7 +314,7 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 </div>
 
 <div class="panel" id="p3">
-<h2>Summary</h2>
+<h2>요약</h2>
 <div class="cards"><div class="card"><div class="n ${goalChk.every((c) => c.ok) ? 'ok-n' : 'ng-n'}">${goalChk.filter((c) => c.ok).length}/${goalChk.length}</div><div class="l">관리 목표·현황(등급)</div></div><div class="card"><div class="n ${workChk.every((c) => c.ok) ? 'ok-n' : 'ng-n'}">${workChk.filter((c) => c.ok).length}/${workChk.length}</div><div class="l">작업 탭</div></div><div class="card"><div class="n ${costChk.every((c) => c.ok) ? 'ok-n' : 'ng-n'}">${costChk.filter((c) => c.ok).length}/${costChk.length}</div><div class="l">비용 탭</div></div></div>
 <h3>① 관리 목표 및 현황 (등급)</h3>${chkTbl(goalChk)}
 <h3>② 작업 탭 (작업 운영)</h3>${chkTbl(workChk)}

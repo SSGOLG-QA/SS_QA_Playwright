@@ -497,7 +497,7 @@ ${crossTotals.some((t) => t.v === 0) ? `<div class="note" style="margin:4px 0">�
 ${REPORT_CATS.map((cn) => { const rows = checks.filter((c) => catOf(c) === cn); if (!rows.length) return ''; const p = rows.filter((r) => !r.na && r.ok).length; const f = rows.filter((r) => !r.na && !r.ok).length; const n = rows.filter((r) => r.na).length; const desc = { '교차 화면': '여러 화면 재집계 총합·항목 일치', '내부-비용': '비용 화면 내 합계=Σ관리비유형', '내부-예산(소계)': '예산/실적 소계=Σ소분류', '원천 값': '타 메뉴 단가/임률 계산·유입', '정보': '기간 스코프 등 참고(판정 제외)' }[cn] || ''; return `<tr class="${f ? 'ng' : ''}"><td><b>${cn}</b></td><td>${desc}${n ? ` <span class="mut">(참고 ${n})</span>` : ''}</td><td class="num">${p + f}</td><td class="num ok-n">${p}</td><td class="num ${f ? 'ng-n' : ''}">${f}</td></tr>`; }).join('')}
 <tr class="mt"><td colspan="2">합계${naCount ? ` <span class="mut">(참고 ${naCount} 제외)</span>` : ''}</td><td class="num">${judged.length}</td><td class="num ok-n">${pass}</td><td class="num ${fail ? 'ng-n' : ''}">${fail}</td></tr>
 </tbody></table></div>
-<div class="note">항목별 상세 판정 일람은 <b>④ Report</b> 탭.</div>
+<div class="note">항목별 상세 판정 일람은 <b>④ 전체 결과</b> 탭.</div>
 <h2>★ 교차 화면 정합성</h2>
 <div class="note big">같은 비용/예산이 여러 화면에 다른 축으로 재집계됨 → 총합·항목이 일치해야 함. 값 변경 시 전 화면 동기화 검증.</div>
 <div class="tblwrap"><table><thead><tr><th></th><th>검증</th><th>결과</th></tr></thead><tbody>${cross.map(chk).join('')}</tbody></table></div>
@@ -505,7 +505,7 @@ ${REPORT_CATS.map((cn) => { const rows = checks.filter((c) => catOf(c) === cn); 
 <div class="note">비용 ${costChecks.length}건(PASS ${costChecks.filter((c) => c.ok).length}) · 예산 소계 ${budChecks.length}건(PASS ${budChecks.filter((c) => c.ok).length}) — 상세는 <b>④비용/⑤예산</b> 탭.</div>
 <h2>원천 값 검증 요약 (인력 임률·자재 단가·장비 시간당비용 → 비용 유입)</h2>
 <div class="tblwrap"><table><thead><tr><th></th><th>검증</th><th>결과</th></tr></thead><tbody>${source.map(chk).join('')}</tbody></table></div>
-<div class="note">전체 검증 항목 일람은 <b>④ Report</b> 탭 · 상세 값·계산은 <b>⑦ 원천 값 검증</b> 탭.</div>
+<div class="note">전체 검증 항목 일람은 <b>④ 전체 결과</b> 탭 · 상세 값·계산은 <b>⑦ 원천 값 검증</b> 탭.</div>
 </div>
 
 <div class="panel" id="p7">

@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { navigateMenu, settle } from './adminHelpers';
 import { appendRun } from './historyDb';
+import { renderStandardReportHtml, ReportHtmlOpts } from './reportHtml';
 
 // ──────────────────────────────────────────────────────────────
 //  테스트 결과 수집 + Fail 시 스크린샷 + 엑셀 리포트
@@ -662,6 +663,14 @@ export async function writeReport(title = 'report'): Promise<string> {
   await wb.xlsx.writeFile(out);
   console.log(`\n[report] 엑셀 생성: ${out}  (시트 ${menus.length}개 / PASS ${pass} / FAIL ${fail} / SKIP ${skipped})\n`);
 
+  // 표준 HTML 리포트 동시 생성(예산·비용/HOME과 동일한 2-tier 기준) — 실패해도 엑셀에 영향 없음.
+  try {
+    const html = renderStandardReportHtml(title, results, reportHtmlOpts[title]);
+    const htmlOut = out.replace(/\.xlsx$/, '.html');
+    fs.writeFileSync(htmlOut, html);
+    console.log(`[report] HTML 생성: ${htmlOut}`);
+  } catch (e: any) { console.warn(`[report] HTML 생성 실패 (무시): ${e?.message || e}`); }
+
   // P3-D: 이력 DB 기록 (실패해도 엑셀 생성에 영향 없음)
   try { appendRun(title, results, groups); } catch (e: any) {
     console.warn(`[history] DB 기록 실패 (무시): ${e?.message || e}`);
@@ -669,6 +678,11 @@ export async function writeReport(title = 'report'): Promise<string> {
 
   return out;
 }
+
+// 스펙별 HTML 리포트 문구(한눈에보기 lead·잡는것/못잡는것). 미지정 시 렌더러 기본 문구 사용.
+//   writeReport(title) 호출 시 title로 매칭 → setReportHtmlOpts로 등록.
+const reportHtmlOpts: Record<string, ReportHtmlOpts> = {};
+export function setReportHtmlOpts(title: string, opts: ReportHtmlOpts): void { reportHtmlOpts[title] = opts; }
 
 // IA 구현 여부 리포트 (단일 "IA 구현여부" 시트 + 요약)
 export async function writeIAReport(title = 'ia-coverage'): Promise<string> {

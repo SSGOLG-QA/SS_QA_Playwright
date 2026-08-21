@@ -279,11 +279,12 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
   const matData: { name: string; total: number; qty: number; unit: number; calc: number }[] = [];
   { const T = srcMat?.tables[0]; const { grid: gr } = gridOf(T);
     if (T && gr.length) {
-      const ni = colIdx(T, /자재명/), ti = colIdx(T, /총\s*매입가/), qi = colIdx(T, /재고\s*수량/), ui = colIdx(T, /단위당\s*원가/);
+      // ⚠ 자재 총괄 실제 컬럼: 재고수량 · 단위당 원가 · 총재고액 (총매입가 없음) → 불변식 = 총재고액 = 재고수량 × 단위당원가.
+      const ni = colIdx(T, /자재명/), ti = colIdx(T, /총\s*재고액|총재고|총\s*매입가|총액/), qi = colIdx(T, /재고\s*수량/), ui = colIdx(T, /단위당\s*원가|단위당원가|단가/);
       const nonconf: string[] = [];
       for (const r of gr) { const total = num(r[ti]), qty = num(r[qi]), unit = num(r[ui]); if (total == null || qty == null || unit == null || qty === 0) continue; const calc = total / qty; matData.push({ name: r[ni] || '', total, qty, unit, calc }); if (!nearRel(calc, unit, 0.01)) nonconf.push(`${r[ni]}(${won(unit)}≠${calc.toFixed(0)})`); }
       const conf = matData.length - nonconf.length;
-      checks.push({ name: '자재 단위당원가 = 총 매입가 ÷ 재고수량', scope: 'source', ok: conf > 0, na: matData.length === 0, detail: matData.length === 0 ? '검증 대상 자재 데이터 없음 — 판정 제외(참고)' : `전 페이지 ${matData.length}종 · 공식 정합 ${conf}종` + (nonconf.length ? ` · 불일치 ${nonconf.length}종(수동입력/스테일 추정 — ⑥탭 빨강: ${nonconf.slice(0, 2).join(',')})` : '') });
+      checks.push({ name: '자재 단위당원가 = 총재고액 ÷ 재고수량', scope: 'source', ok: conf > 0, na: matData.length === 0, detail: matData.length === 0 ? '검증 대상 자재 데이터 없음 — 판정 제외(참고)' : `전 페이지 ${matData.length}종 · 공식 정합 ${conf}종` + (nonconf.length ? ` · 불일치 ${nonconf.length}종(수동입력/스테일 추정 — ⑥탭 빨강: ${nonconf.slice(0, 2).join(',')})` : '') });
     } }
 
   // 원천 → 비용 반영: 인력 임률이 분류별 비용 인건비 컬럼에 등장하는지(±1 반올림 허용)
@@ -405,7 +406,7 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
   const eqSorted = [...eqData].sort((a, b) => (nearRel(a.calc, a.hourly, 0.01) ? 1 : 0) - (nearRel(b.calc, b.hourly, 0.01) ? 1 : 0));   // 불일치 우선
   const eqTbl = eqData.length ? `<div class="note">전 페이지 ${eqData.length}대 수집 · 공식 정합 ${eqData.filter((d) => nearRel(d.calc, d.hourly, 0.01)).length}대 (불일치 우선 표시)</div><div class="tblwrap"><table class="sys"><thead><tr><th>장비명</th><th class="num">매입가</th><th class="num">내용연수</th><th class="num">연간운용h</th><th class="num">시간당비용(화면)</th><th class="num">계산값</th><th>일치</th></tr></thead><tbody>${eqSorted.slice(0, 60).map((d) => `<tr class="${nearRel(d.calc, d.hourly, 0.01) ? '' : 'ng'}"><td>${esc(d.name)}</td><td class="num">${won(d.buy)}</td><td class="num">${d.life}</td><td class="num">${won(d.annual)}</td><td class="num">${won(d.hourly)}</td><td class="num">${d.calc.toFixed(2)}</td><td>${okmark(nearRel(d.calc, d.hourly, 0.01))}</td></tr>`).join('')}</tbody></table></div>` : '<div class="note">장비 데이터 없음</div>';
   const matSorted = [...matData].sort((a, b) => (nearRel(a.calc, a.unit, 0.01) ? 1 : 0) - (nearRel(b.calc, b.unit, 0.01) ? 1 : 0));
-  const matTbl = matData.length ? `<div class="note">전 페이지 ${matData.length}종 수집 · 공식 정합 ${matData.filter((d) => nearRel(d.calc, d.unit, 0.01)).length}종 (불일치 우선 표시)</div><div class="tblwrap"><table class="sys"><thead><tr><th>자재명</th><th class="num">총 매입가</th><th class="num">재고수량</th><th class="num">단위당원가(화면)</th><th class="num">계산값</th><th>일치</th></tr></thead><tbody>${matSorted.slice(0, 60).map((d) => `<tr class="${nearRel(d.calc, d.unit, 0.01) ? '' : 'ng'}"><td>${esc(d.name)}</td><td class="num">${won(d.total)}</td><td class="num">${won(d.qty)}</td><td class="num">${won(d.unit)}</td><td class="num">${won(Math.round(d.calc))}</td><td>${okmark(nearRel(d.calc, d.unit, 0.01))}</td></tr>`).join('')}</tbody></table></div>` : '<div class="note">자재 데이터 없음</div>';
+  const matTbl = matData.length ? `<div class="note">전 페이지 ${matData.length}종 수집 · 공식 정합 ${matData.filter((d) => nearRel(d.calc, d.unit, 0.01)).length}종 (불일치 우선 표시)</div><div class="tblwrap"><table class="sys"><thead><tr><th>자재명</th><th class="num">총재고액</th><th class="num">재고수량</th><th class="num">단위당원가(화면)</th><th class="num">계산값</th><th>일치</th></tr></thead><tbody>${matSorted.slice(0, 60).map((d) => `<tr class="${nearRel(d.calc, d.unit, 0.01) ? '' : 'ng'}"><td>${esc(d.name)}</td><td class="num">${won(d.total)}</td><td class="num">${won(d.qty)}</td><td class="num">${won(d.unit)}</td><td class="num">${won(Math.round(d.calc))}</td><td>${okmark(nearRel(d.calc, d.unit, 0.01))}</td></tr>`).join('')}</tbody></table></div>` : '<div class="note">자재 데이터 없음</div>';
 
   const html = `<style>
 :root{--bg:#fff;--fg:#1a1d24;--mut:#5b6472;--line:#e3e7ee;--card:#f6f8fb;--ok:#1a7f37;--ng:#cf222e;--accent:#0969da;--accent2:#8250df;--hot:#eef2f8}
@@ -457,7 +458,7 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <h1>예산·비용이 공식대로 계산되고 화면마다 일관되는지 확인</h1>
 <div class="sub">① 공식 계산 ② 합계 검산 ③ 화면 간 일관성 — 3가지를 함께 확인(화면 변경 없음) · 킹즈락 · 수집시각 ${ts}</div>
 <div class="lead"><b>한눈에 보기.</b> 코스관리의 <span class="em">예산·비용 숫자</span>를 <b>세 가지 방식</b>으로 확인했습니다.<br>
-<b>① 공식대로 계산됐나</b> — 원천 값이 정해진 계산식과 맞는지(예: 자재 단위당원가 = 총매입가 ÷ 재고수량, 장비 시간당비용 = 매입가 ÷ (내용연수 × 운용시간)).<br>
+<b>① 공식대로 계산됐나</b> — 원천 값이 정해진 계산식과 맞는지(예: 자재 단위당원가 = 총재고액 ÷ 재고수량, 장비 시간당비용 = 매입가 ÷ (내용연수 × 운용시간)).<br>
 <b>② 합계가 부분의 합과 맞나</b> — 총계 = 항목들의 합, 소계 = 하위 분류들의 합(산술 검산).<br>
 <b>③ 화면마다 일관되나</b> — 같은 총비용을 여러 화면이 다른 기준으로 재집계해도 총합이 일치하는지(교차).<br>
 확인 항목 <b>${judged.length}개</b> 중 <span class="ok-n">정상 ${pass}개</span>${fail ? ` · <span class="ng-n">주의 ${fail}개</span>` : ' · 주의 0개'} (그중 화면 간 교차 ${cross.length}건)${naCount ? ` · <span class="na-n">참고 ${naCount}개</span>(데이터 없어 판정 제외)` : ''}.</div>
@@ -570,7 +571,7 @@ ${perfGroups.length ? perfGroups.map(budGroupTbl).join('') : '<div class="note">
 <div class="note">인력의 시간당 임률이 인건비(고정직/임시직)로 유입. 관측: 손기웅 임률이 분류별 비용 그린 고정직에 그대로 등장(반올림 ±1).</div>
 <h3>장비 관리 — 시간당 비용 = 매입가 ÷ (내용연수 × 연간 운용시간)</h3>${eqTbl}
 <div class="note">장비 시간당 비용이 장비 관리비로 유입.</div>
-<h3>자재 관리 — 단위당 원가 = 총 매입가 ÷ 재고수량</h3>${matTbl}
+<h3>자재 관리 — 단위당 원가 = 총재고액 ÷ 재고수량</h3>${matTbl}
 <div class="note">자재 단위당 원가 × 출고량 = 코스 자재비로 유입.</div>
 <h2>★ 원천값 ↔ 비용 비교 결과 (원천 단가/임률이 비용 화면에 등장하는가)</h2>
 <div class="note big">원천 화면의 단가·임률을 비용 화면(분류별) 값과 <b>직접 대조</b>. <b>인력 임률</b>은 단일작업 비용에 그대로 반영되어 <b>직접 등장</b>. <b>자재 단가·장비 시간당비용</b>은 출고량·운용시간과 곱해져 <b>집계</b>되므로 원값이 직접 등장하지 않을 수 있음(정상) — 이때는 위 단가 공식 정합으로 신뢰성 확보. 총 ${cmp.length}건 중 직접 등장 <b class="okb">${cmpAppearN}건</b>.</div>

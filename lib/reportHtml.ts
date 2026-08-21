@@ -31,18 +31,26 @@ export function renderStandardReportHtml(title: string, results: TCResult[], opt
   const groups = new Map<string, TCResult[]>();
   for (const r of results) { const k = topScreen(r.path); if (!groups.has(k)) groups.set(k, []); groups.get(k)!.push(r); }
 
-  const mark = (s: string) => s === 'PASS' ? '✅' : s === 'FAIL' ? '❌' : '➖';
-  const rowCls = (s: string) => s === 'FAIL' ? 'ng' : s === 'SKIP' ? 'na' : '';
+  // "확인 필요"(미집계 추정·의심·재확인)는 회색 '참고'와 구분해 강조 — 데이터 없음(무해)과 다르게 사람이 봐야 할 항목.
+  const REVIEW_RE = /확인\s*필요|미집계|의심|재확인|점검\s*필요|별도\s*확인/;
   const detailOf = (r: TCResult) => r.actual || r.error || r.detail || r.desc || '';
+  const isReview = (r: TCResult) => r.status === 'SKIP' && REVIEW_RE.test(`${detailOf(r)} ${r.desc || ''} ${r.error || ''}`);
+  const reviewRows = results.filter(isReview);
+  const mark = (r: TCResult) => r.status === 'PASS' ? '✅' : r.status === 'FAIL' ? '❌' : isReview(r) ? '🔎' : '➖';
+  const rowCls = (r: TCResult) => r.status === 'FAIL' ? 'ng' : isReview(r) ? 'rv' : r.status === 'SKIP' ? 'na' : '';
 
   const groupHtml = [...groups.entries()].map(([scr, rows]) => {
     const gp = rows.filter((r) => r.status === 'PASS').length;
     const gf = rows.filter((r) => r.status === 'FAIL').length;
-    const gn = rows.filter((r) => r.status === 'SKIP').length;
-    const body = rows.map((r) => `<tr class="${rowCls(r.status)}"><td class="ctr">${mark(r.status)}</td><td>${esc(tail(r.path) || r.desc)}</td><td>${esc(detailOf(r))}</td></tr>`).join('');
-    return `<details class="grp"${gf ? ' open' : ''}><summary><span class="gname">${esc(scr)}</span> <span class="gfrac"><span class="ok-n">${gp}</span>${gf ? ` · <span class="ng-n">${gf}</span>` : ''}${gn ? ` · <span class="na-n">${gn}</span>` : ''} / ${rows.length}</span></summary>
+    const grv = rows.filter(isReview).length;
+    const gn = rows.filter((r) => r.status === 'SKIP').length - grv;
+    const body = rows.map((r) => `<tr class="${rowCls(r)}"><td class="ctr">${mark(r)}</td><td>${esc(tail(r.path) || r.desc)}</td><td>${esc(detailOf(r))}</td></tr>`).join('');
+    return `<details class="grp"${gf || grv ? ' open' : ''}><summary><span class="gname">${esc(scr)}</span> <span class="gfrac"><span class="ok-n">${gp}</span>${gf ? ` · <span class="ng-n">${gf}</span>` : ''}${grv ? ` · <span class="rv-n">🔎${grv}</span>` : ''}${gn ? ` · <span class="na-n">${gn}</span>` : ''} / ${rows.length}</span></summary>
       <table><thead><tr><th class="ctr" style="width:34px"></th><th>항목</th><th>결과·설명</th></tr></thead><tbody>${body}</tbody></table></details>`;
   }).join('');
+
+  // 상단 "확인 필요" 강조 콜아웃(있을 때만).
+  const reviewCallout = reviewRows.length ? `<div class="reviewbox"><div class="rvtitle">🔎 확인 필요 ${reviewRows.length}건 — 데이터 없음/미집계 추정 등, 사람이 실제 값을 확인해야 하는 항목</div>${reviewRows.slice(0, 20).map((r) => `<div class="rvitem"><b>${esc(tail(r.path) || r.desc)}</b> — ${esc(detailOf(r))}</div>`).join('')}${reviewRows.length > 20 ? `<div class="rvitem mut">… 외 ${reviewRows.length - 20}건</div>` : ''}</div>` : '';
 
   const leadTxt = opts.lead || `이 리포트는 <b>${esc(title)}</b>를 자동 검증한 결과입니다. 확인 항목 <b>${judged}개</b> 중 <span class="ok-n">정상 ${pass}개</span>${fail ? ` · <span class="ng-n">주의 ${fail}개</span>` : ' · 주의 0개'}${na ? ` · <span class="na-n">참고 ${na}개</span>(데이터 없어 판정 제외)` : ''}.`;
   const catchArr = opts.catch && opts.catch.length ? opts.catch : ['화면에 표시돼야 할 요소/값이 <b>빠지거나 어긋난</b> 경우', '설계·계산 기준과 <b>다른</b> 값'];
@@ -55,9 +63,9 @@ export function renderStandardReportHtml(title: string, results: TCResult[], opt
 
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <style>
-:root{--bg:#fff;--fg:#1a1d24;--mut:#5b6472;--line:#e3e7ee;--card:#f8f9fa;--ok:#1a7f37;--ng:#cf222e;--accent:#0969da}
-@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1117;--fg:#e6edf3;--mut:#9198a1;--line:#30363d;--card:#161b22;--ok:#3fb950;--ng:#f85149;--accent:#58a6ff}}
-:root[data-theme=dark]{--bg:#0d1117;--fg:#e6edf3;--mut:#9198a1;--line:#30363d;--card:#161b22;--ok:#3fb950;--ng:#f85149;--accent:#58a6ff}
+:root{--bg:#fff;--fg:#1a1d24;--mut:#5b6472;--line:#e3e7ee;--card:#f8f9fa;--ok:#1a7f37;--ng:#cf222e;--accent:#0969da;--warn:#9a6700;--warnbg:#fff8e5;--warnbd:#e0b84f}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0d1117;--fg:#e6edf3;--mut:#9198a1;--line:#30363d;--card:#161b22;--ok:#3fb950;--ng:#f85149;--accent:#58a6ff;--warn:#e3b341;--warnbg:#2a2413;--warnbd:#645209}}
+:root[data-theme=dark]{--bg:#0d1117;--fg:#e6edf3;--mut:#9198a1;--line:#30363d;--card:#161b22;--ok:#3fb950;--ng:#f85149;--accent:#58a6ff;--warn:#e3b341;--warnbg:#2a2413;--warnbd:#645209}
 *{box-sizing:border-box}body{margin:0;background:var(--bg)}.wrap{max-width:1040px;margin:0 auto;padding:24px 18px 60px;font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI','Malgun Gothic',sans-serif;color:var(--fg)}
 h1{font-size:22px;margin:0 0 4px}.sub{color:var(--mut);font-size:13px;margin-bottom:8px}
 .cards{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}.card{flex:1 1 100px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}.card .n{font-size:23px;font-weight:700}.card .l{font-size:12px;color:var(--mut)}
@@ -78,7 +86,11 @@ details.grp{background:var(--card);border:1px solid var(--line);border-radius:10
 details.grp>summary{cursor:pointer;list-style:none;padding:11px 15px;display:flex;justify-content:space-between;gap:12px;align-items:center}
 details.grp>summary::-webkit-details-marker{display:none}.gname{font-weight:600}.gfrac{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;color:var(--mut)}
 table{border-collapse:collapse;width:100%;font-size:13.5px}th,td{text-align:left;padding:7px 10px;border-top:1px solid var(--line);vertical-align:top}th{color:var(--mut);font-size:11.5px;background:var(--card)}
-td.ctr,th.ctr{text-align:center}tr.ng td{color:var(--ng)}tr.na td{color:var(--mut)}
+td.ctr,th.ctr{text-align:center}tr.ng td{color:var(--ng)}tr.na td{color:var(--mut)}tr.rv td{background:var(--warnbg);color:var(--warn);font-weight:600}
+.rv-n{color:var(--warn);font-weight:700}
+.reviewbox{background:var(--warnbg);border:1px solid var(--warnbd);border-left:4px solid var(--warn);border-radius:10px;padding:14px 16px;margin:14px 0}
+.reviewbox .rvtitle{font-weight:700;color:var(--warn);margin-bottom:8px}
+.reviewbox .rvitem{font-size:13px;margin:4px 0;line-height:1.5}
 details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px}details.gloss summary{cursor:pointer;font-weight:700;color:var(--fg)}details.gloss dt{font-weight:700;color:var(--fg);margin-top:8px}details.gloss dd{margin:0 0 2px 0}
 </style></head><body><div class="wrap">
 <h1>${esc(title)}</h1>
@@ -91,7 +103,8 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <div class="hrow warn"><span class="hic">⚠️</span><div class="hbody"><span class="hlbl">못 잡습니다 (한계)</span><ul>${missArr.map((x) => `<li>${x}</li>`).join('')}</ul></div></div>
 <div class="hrow info"><span class="hic">ℹ️</span><div class="hbody"><span class="hlbl">참고</span><ul>${noteArr.map((x) => `<li>${x}</li>`).join('')}</ul></div></div>
 </div></details>
-<div class="cards"><div class="card"><div class="n">${judged}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">주의 필요</div></div>${na ? `<div class="card"><div class="n na-n">${na}</div><div class="l">참고(데이터없음)</div></div>` : ''}</div>
+<div class="cards"><div class="card"><div class="n">${judged}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">주의 필요</div></div>${reviewRows.length ? `<div class="card"><div class="n rv-n">${reviewRows.length}</div><div class="l">🔎 확인 필요</div></div>` : ''}${na - reviewRows.length > 0 ? `<div class="card"><div class="n na-n">${na - reviewRows.length}</div><div class="l">참고(데이터없음)</div></div>` : ''}</div>
+${reviewCallout}
 <h2 style="font-size:15px;margin:26px 0 6px">화면별 결과</h2>
 ${groupHtml || '<div class="persp">결과 항목이 없습니다.</div>'}
 <details class="gloss"><summary>용어 풀이</summary><dl>${gloss.map((g) => `<dt>${esc(g.term)}</dt><dd>${esc(g.desc)}</dd>`).join('')}</dl></details>

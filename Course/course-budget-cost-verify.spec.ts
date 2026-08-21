@@ -421,6 +421,9 @@ table{border-collapse:collapse;width:100%;font-size:13.5px;margin:6px 0}th,td{te
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}td.ctr{text-align:center}tr.hot td{background:var(--hot);font-weight:700;border-top:2px solid var(--accent)}tr.mt td{font-weight:700;border-top:2px solid var(--fg);background:var(--card)}tr.ng td{color:var(--ng);font-weight:600}tr.na td{color:var(--mut)}.na-n{color:var(--mut);font-weight:700}
 .ok-n{color:var(--ok);font-weight:700}.ng-n{color:var(--ng);font-weight:700}
 .note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 15px;font-size:13.5px;color:var(--mut);margin:8px 0}.note.big{border-left:3px solid var(--accent)}
+.review{background:#fff8e5;border:1px solid #e0b84f;border-left:4px solid #9a6700;border-radius:8px;padding:11px 15px;font-size:13.5px;color:#7a5200;margin:10px 0;font-weight:600}.review b{color:#7a5200}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .review{background:#2a2413;border-color:#645209;border-left-color:#e3b341;color:#e3b341}:root:not([data-theme=light]) .review b{color:#e3b341}}
+:root[data-theme=dark] .review{background:#2a2413;border-color:#645209;border-left-color:#e3b341;color:#e3b341}:root[data-theme=dark] .review b{color:#e3b341}
 code{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12px}kbd{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:2px 7px;font:12.5px monospace}
 .tblwrap{overflow-x:auto;max-width:100%;border:1px solid var(--line);border-radius:8px;margin:6px 0}.sys{min-width:100%;margin:0}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.chip{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:3px 10px;font-size:12px;color:var(--mut)}
@@ -498,7 +501,7 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <div class="flowdown">▼ 발생·유입 → 비용 집계</div>
 <div class="mlabel" style="margin-top:18px">② 비용 관리 — 같은 총비용을 다른 축으로 재집계 (총합·항목 일치해야)</div>
 <div class="shared">공유 총비용 ${eqTotal ? '✅ 일치' : '❌ 불일치'} : ${won(shared)}원 <span style="font-size:11px;color:var(--mut);font-weight:400">(값 있는 ${cmpAxes.length}개 축 기준)</span></div>
-${crossTotals.some((t) => t.v === 0) ? `<div class="note" style="margin:4px 0">⚠ <b>${crossTotals.filter((t) => t.v === 0).map((t) => t.label).join(', ')}</b> 총계 0 = <b>미집계 추정</b>(해당 화면 값을 못 읽음 — 데이터 없음/캡처 이슈). 일치 판정에서 제외했으며, 실제 0인지 별도 확인 필요.</div>` : ''}
+${crossTotals.some((t) => t.v === 0) ? `<div class="review">🔎 <b>확인 필요</b> — <b>${crossTotals.filter((t) => t.v === 0).map((t) => t.label).join(', ')}</b> 총계 0 = <b>미집계 추정</b>(해당 화면 값을 못 읽음 — 데이터 없음/캡처 이슈). 일치 판정에서 제외했으니, <b>실제 0인지 원천 화면에서 반드시 확인</b>하세요.</div>` : ''}
 <div class="mrow">${crossTotals.map(costNode).join('')}</div>
 <div class="leg"><span><b>■</b> 원천(타 메뉴)</span><span><b style="color:var(--accent)">■</b> 비용 재집계 축</span><span><b style="color:var(--accent2)">■</b> 예산 흐름</span><span>세로 흐름 = 값 유입 방향</span></div>
 <div class="mlabel" style="margin-top:18px">③ 예산 관리 — 편성 → 집행 → 분석 흐름</div>

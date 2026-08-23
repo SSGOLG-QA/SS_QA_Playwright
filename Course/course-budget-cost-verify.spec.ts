@@ -194,6 +194,11 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
   checks.push(crossTotalsEqual('★ 비용 총비용 다축 일치(집계=분류별=위치별=기간별=작업별[전년도시작제외])', [
     { label: '비용집계', value: aggTotal }, { label: '분류별', value: catTotal }, { label: '위치별', value: locTotal }, { label: '기간별2026', value: perTotal2026 }, ...(taskTotal != null ? [{ label: '작업별(당해시작)', value: taskTotal }] : []),
   ]));
+  // ⚠ 교차(다축 일치)는 총계 0인 축을 '미집계 추정'으로 비교에서 제외한다(0으로 false FAIL 방지) → 그래서 ③에 안 잡힘.
+  //   대신 0축을 '확인 필요'(review) 항목으로 별도 집계 = 주의 필요에 포함(사람이 원천 확인).
+  for (const t of [{ l: '비용집계', v: aggTotal }, { l: '분류별', v: catTotal }, { l: '위치별', v: locTotal }, { l: '기간별', v: perTotal2026 }]) {
+    if (t.v === 0) checks.push({ name: `${t.l} 총계 0 = 미집계 추정 — 확인 필요`, scope: 'cross', ok: false, review: true, detail: `${t.l} 총계가 0원 — 미집계/캡처 이슈 추정. 교차(다축 일치)는 0축을 제외하고 비교하므로 여기서 못 잡습니다 → 원천 화면에서 실제 0인지 반드시 확인 필요.` });
+  }
   if (aggOrder.length && catColSums.length) checks.push(vectorEquals('★ 관리비유형별 집계 = Σ분류별 컬럼', aggOrder.slice(1, 6), catColSums, MGMT));
 
   // ── ★ 연도별 다축 일치(3순위 확장): 기간별 연도 컬럼별 전체 = Σ분류(top-level). ──
@@ -321,12 +326,25 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
   const costChecks = intra.filter((c) => /비용집계|분류별|위치별/.test(c.name));
   const budChecks = intra.filter((c) => /소계/.test(c.name));
   // 판정: na(데이터 없음)는 pass/fail 집계에서 제외 — "미확인 ≠ 결함"(리포트 표준).
+  //   review(확인 필요=미집계 추정 등)는 결함(fail)과 분리하되 "주의 필요"에 함께 집계(사람이 원천 확인).
+  const isRev = (c: Check) => !!c.review;
   const judged = checks.filter((c) => !c.na);
   const naCount = checks.length - judged.length;
-  const pass = judged.filter((c) => c.ok).length; const fail = judged.filter((c) => !c.ok).length;
+  const pass = judged.filter((c) => c.ok).length;
+  const fail = judged.filter((c) => !c.ok && !isRev(c)).length;   // 실제 결함(확인 필요 제외)
+  const review = judged.filter((c) => !c.ok && isRev(c)).length;  // 확인 필요(미집계 추정)
+  const attn = fail + review;                                      // 주의 필요 = 결함 + 확인 필요
   const ts = new Date().toISOString().slice(0, 19).replace('T', ' ');
-  const mark = (c: Check) => c.na ? '➖' : (c.ok ? '✅' : '❌');
-  const chk = (c: Check) => `<tr class="${c.na ? 'na' : c.ok ? 'ok' : 'ng'}"><td>${mark(c)}</td><td>${esc(c.name)}</td><td>${esc(c.detail)}</td></tr>`;
+  const mark = (c: Check) => c.na ? '➖' : c.review ? '🔎' : (c.ok ? '✅' : '❌');
+  const chk = (c: Check) => `<tr class="${c.na ? 'na' : c.review ? 'rv' : c.ok ? 'ok' : 'ng'}"><td>${mark(c)}</td><td>${esc(c.name)}</td><td>${esc(c.detail)}</td></tr>`;
+  // 주의 필요(결함 + 확인필요) 상세 — 상단 카드 클릭 시 펼쳐짐.
+  const attnItems = judged.filter((c) => !c.ok).sort((a, b) => (a.review ? 1 : 0) - (b.review ? 1 : 0));   // 결함 먼저
+  const attnHtml = attnItems.length
+    ? attnItems.map((c) => `<div class="attnitem ${c.review ? 'rv' : 'ng'}"><div class="ai-h">${c.review ? '🔎 확인 필요' : '❌ 주의'} — ${esc(c.name)}</div><div class="ai-d">${esc(c.detail)}</div></div>`).join('')
+    : '<div class="attnitem okmsg">✅ 주의 필요 항목 없음 — 확인 항목 전부 정합</div>';
+  const attnCardCls = fail ? 'sng' : review ? 'srv' : 'sok';
+  const attnNumCls = fail ? 'ng-n' : review ? 'rv-n' : 'ok-n';
+  const attnCard = `<details class="scard ${attnCardCls}"${attn ? ' open' : ''}><summary><span class="n ${attnNumCls}">${attn}</span><span class="l">주의 필요 ▾${review ? ` <span class="mut">(확인필요 ${review} 포함)</span>` : ''}</span></summary><div class="scard-body">${attnHtml}</div></details>`;
 
   // Report 탭: 전 검증 항목을 구분별로 그룹핑(구분 내 FAIL 우선), 판정 일람.
   const catOf = (c: Check): string => c.scope === 'cross' ? '교차 화면' : c.scope === 'source' ? '원천 값' : /소계/.test(c.name) ? '내부-예산(소계)' : /비용집계|분류별|위치별/.test(c.name) ? '내부-비용' : '정보';
@@ -336,7 +354,7 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
     if (!rows.length) return '';
     const p = rows.filter((r) => !r.na && r.ok).length; const f = rows.filter((r) => !r.na && !r.ok).length; const n = rows.filter((r) => r.na).length;
     return `<tr class="mt"><td colspan="4">${cn} — ${rows.length}건 · <span class="okb">통과 ${p}</span>${f ? ` · <span class="ngb">주의 ${f}</span>` : ''}${n ? ` · <span class="mut">참고 ${n}</span>` : ''}</td></tr>`
-      + rows.map((r, i) => `<tr class="${r.na ? 'na' : r.ok ? 'ok' : 'ng'}"><td class="num">${i + 1}</td><td>${mark(r)}</td><td>${esc(r.name)}</td><td>${esc(r.detail)}</td></tr>`).join('');
+      + rows.map((r, i) => `<tr class="${r.na ? 'na' : r.review ? 'rv' : r.ok ? 'ok' : 'ng'}"><td class="num">${i + 1}</td><td>${mark(r)}</td><td>${esc(r.name)}</td><td>${esc(r.detail)}</td></tr>`).join('');
   }).join('');
   const catCount = (cn: string) => { const rows = checks.filter((c) => catOf(c) === cn && !c.na); return `${rows.filter((r) => r.ok).length}/${rows.length}`; };
 
@@ -419,7 +437,19 @@ h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:24px 0 10px;border-bot
 .cards{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}.card{flex:1 1 100px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}.card .n{font-size:23px;font-weight:700}.card .l{font-size:12px;color:var(--mut)}
 table{border-collapse:collapse;width:100%;font-size:13.5px;margin:6px 0}th,td{text-align:left;padding:6px 9px;border-bottom:1px solid var(--line);white-space:nowrap}th{color:var(--mut);font-size:11.5px;background:var(--card)}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}td.ctr{text-align:center}tr.hot td{background:var(--hot);font-weight:700;border-top:2px solid var(--accent)}tr.mt td{font-weight:700;border-top:2px solid var(--fg);background:var(--card)}tr.ng td{color:var(--ng);font-weight:600}tr.na td{color:var(--mut)}.na-n{color:var(--mut);font-weight:700}
-.ok-n{color:var(--ok);font-weight:700}.ng-n{color:var(--ng);font-weight:700}
+.ok-n{color:var(--ok);font-weight:700}.ng-n{color:var(--ng);font-weight:700}.rv-n{color:#9a6700;font-weight:700}
+tr.rv td{color:#7a5200;background:#fff8e5;font-weight:600}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) tr.rv td{color:#e3b341;background:#2a2413}:root:not([data-theme=light]) .rv-n{color:#e3b341}}
+:root[data-theme=dark] tr.rv td{color:#e3b341;background:#2a2413}:root[data-theme=dark] .rv-n{color:#e3b341}
+.scard{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;min-width:120px;cursor:pointer;list-style:none}
+.scard>summary{display:flex;flex-direction:column;gap:2px;list-style:none;cursor:pointer}.scard>summary::-webkit-details-marker{display:none}
+.scard>summary .n{font-size:26px;font-weight:800;line-height:1}.scard>summary .l{font-size:12px;color:var(--mut)}
+.scard.sng{border-color:var(--ng);border-left:4px solid var(--ng)}.scard.srv{background:#fff8e5;border-color:#e0b84f;border-left:4px solid #9a6700}.scard.srv .l{color:#7a5200}
+.scard-body{margin-top:10px;display:flex;flex-direction:column;gap:7px}
+.attnitem{border-radius:7px;padding:8px 11px;font-size:12.5px}.attnitem.ng{background:rgba(220,50,50,.08);border-left:3px solid var(--ng)}.attnitem.rv{background:#fff8e5;border-left:3px solid #9a6700}.attnitem.okmsg{color:var(--ok);font-weight:600}
+.attnitem .ai-h{font-weight:700;margin-bottom:2px}.attnitem.rv .ai-h{color:#7a5200}.attnitem .ai-d{color:var(--mut);font-weight:400;line-height:1.5}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .scard.srv{background:#2a2413;border-color:#645209}:root:not([data-theme=light]) .scard.srv .l{color:#e3b341}:root:not([data-theme=light]) .attnitem.rv{background:#2a2413}:root:not([data-theme=light]) .attnitem.rv .ai-h{color:#e3b341}}
+:root[data-theme=dark] .scard.srv{background:#2a2413;border-color:#645209}:root[data-theme=dark] .scard.srv .l{color:#e3b341}:root[data-theme=dark] .attnitem.rv{background:#2a2413}:root[data-theme=dark] .attnitem.rv .ai-h{color:#e3b341}
 .note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 15px;font-size:13.5px;color:var(--mut);margin:8px 0}.note.big{border-left:3px solid var(--accent)}
 .review{background:#fff8e5;border:1px solid #e0b84f;border-left:4px solid #9a6700;border-radius:8px;padding:11px 15px;font-size:13.5px;color:#7a5200;margin:10px 0;font-weight:600}.review b{color:#7a5200}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]) .review{background:#2a2413;border-color:#645209;border-left-color:#e3b341;color:#e3b341}:root:not([data-theme=light]) .review b{color:#e3b341}}
@@ -479,7 +509,7 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
   <li>데이터 없는 항목은 <b>판정 제외</b></li>
   <li>회계 비용 vs 작업지시 집계 차이는 <b>항목별 사유 표기</b></li></ul></div></div></div>
 </div></details>
-<div class="cards"><div class="card"><div class="n">${judged.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">주의 필요</div></div>${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}<div class="card"><div class="n">${cross.length}</div><div class="l">교차 확인</div></div></div>
+<div class="cards"><div class="card"><div class="n">${judged.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div>${attnCard}${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}<div class="card"><div class="n">${cross.length}</div><div class="l">교차 확인</div></div></div>
 
 <input class="tabin" type="radio" name="tab" id="t1" checked><input class="tabin" type="radio" name="tab" id="t2"><input class="tabin" type="radio" name="tab" id="t3"><input class="tabin" type="radio" name="tab" id="t7"><input class="tabin" type="radio" name="tab" id="t4"><input class="tabin" type="radio" name="tab" id="t5"><input class="tabin" type="radio" name="tab" id="t6">
 <div class="tabs"><label for="t1">① 실행 방법</label><label for="t2">② 연관성 맵</label><label for="t3">③ 요약</label><label for="t7">④ 전체 결과</label><label for="t4">⑤ 비용 상세</label><label for="t5">⑥ 예산 상세</label><label for="t6">⑦ 원천 값 검증</label></div>
@@ -524,11 +554,11 @@ ${crossTotals.some((t) => t.v === 0) ? `<div class="review">🔎 <b>확인 필�
 
 <div class="panel" id="p3">
 <h2>검증 요약</h2>
-<div class="cards"><div class="card"><div class="n">${judged.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">주의 필요</div></div>${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}<div class="card"><div class="n">${cross.length}</div><div class="l">교차 확인</div></div></div>
+<div class="cards"><div class="card"><div class="n">${judged.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div>${attnCard}${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}<div class="card"><div class="n">${cross.length}</div><div class="l">교차 확인</div></div></div>
 <h2>구분별 검증 항목 · 결과</h2>
-<div class="tblwrap"><table><thead><tr><th>구분</th><th>검증 내용</th><th class="num">항목</th><th class="num ok-n">PASS</th><th class="num ng-n">FAIL</th></tr></thead><tbody>
+<div class="tblwrap"><table><thead><tr><th>구분</th><th>검증 내용</th><th class="num">항목</th><th class="num ok-n">정상</th><th class="num ng-n">주의 필요</th></tr></thead><tbody>
 ${REPORT_CATS.map((cn) => { const rows = checks.filter((c) => catOf(c) === cn); if (!rows.length) return ''; const p = rows.filter((r) => !r.na && r.ok).length; const f = rows.filter((r) => !r.na && !r.ok).length; const n = rows.filter((r) => r.na).length; const desc = { '교차 화면': '여러 화면 재집계 총합·항목 일치', '내부-비용': '비용 화면 내 합계=Σ관리비유형', '내부-예산(소계)': '예산/실적 소계=Σ소분류', '원천 값': '타 메뉴 단가/임률 계산·유입', '정보': '기간 스코프 등 참고(판정 제외)' }[cn] || ''; return `<tr class="${f ? 'ng' : ''}"><td><b>${cn}</b></td><td>${desc}${n ? ` <span class="mut">(참고 ${n})</span>` : ''}</td><td class="num">${p + f}</td><td class="num ok-n">${p}</td><td class="num ${f ? 'ng-n' : ''}">${f}</td></tr>`; }).join('')}
-<tr class="mt"><td colspan="2">합계${naCount ? ` <span class="mut">(참고 ${naCount} 제외)</span>` : ''}</td><td class="num">${judged.length}</td><td class="num ok-n">${pass}</td><td class="num ${fail ? 'ng-n' : ''}">${fail}</td></tr>
+<tr class="mt"><td colspan="2">합계${naCount ? ` <span class="mut">(참고 ${naCount} 제외)</span>` : ''}</td><td class="num">${judged.length}</td><td class="num ok-n">${pass}</td><td class="num ${attn ? 'ng-n' : ''}">${attn}${review ? ` <span class="mut">(🔎${review})</span>` : ''}</td></tr>
 </tbody></table></div>
 <div class="note">항목별 상세 판정 일람은 <b>④ 전체 결과</b> 탭.</div>
 <h2>★ 교차 화면 정합성</h2>

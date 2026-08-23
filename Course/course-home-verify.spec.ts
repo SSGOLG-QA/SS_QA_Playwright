@@ -22,7 +22,7 @@ const GRADE_RE = '(A\\+|A-|A|B\\+|B-|B|C\\+|C-|C|D\\+|D-|D|E\\+|E-|E)';
 const COST_CATS = ['전체', '고정직 인건비', '임시직 인건비', '코스 자재비', '장비 관리비', '기타 관리비'];
 const esc = (s: string) => (s || '').replace(/[&<>]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] as string));
 
-interface Check { name: string; ok: boolean; scope: 'goal' | 'work' | 'cost'; detail: string; na?: boolean; }
+interface Check { name: string; ok: boolean; scope: 'goal' | 'work' | 'cost'; detail: string; na?: boolean; review?: boolean; }
 interface CostCat { pct: number; used: number | null; remain: number | null; budget: number | null; }
 
 function extractGrades(txt: string, order: 'ga' | 'ag'): Record<string, string> {
@@ -230,15 +230,26 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
 
   // ═══ HTML(탭 구조) ═══
   // 판정: na(데이터 없음)는 pass/fail 집계 제외 — "미확인 ≠ 결함"(리포트 표준).
+  // review(확인 필요)는 결함과 분리하되 "주의 필요"에 함께 집계(사람이 원천 확인) — 예산·비용 리포트와 동일 기준.
+  const isRev = (c: Check) => !!c.review;
   const judged = checks.filter((c) => !c.na);
   const naCount = checks.length - judged.length;
-  const pass = judged.filter((c) => c.ok).length; const fail = judged.filter((c) => !c.ok).length;
+  const pass = judged.filter((c) => c.ok).length;
+  const fail = judged.filter((c) => !c.ok && !isRev(c)).length;   // 실제 결함
+  const review = judged.filter((c) => !c.ok && isRev(c)).length;  // 확인 필요
+  const attn = fail + review;                                      // 주의 필요 = 결함 + 확인 필요
   const goalChk = checks.filter((c) => c.scope === 'goal'); const workChk = checks.filter((c) => c.scope === 'work'); const costChk = checks.filter((c) => c.scope === 'cost');
   const cnt = (cs: Check[]) => { const j = cs.filter((c) => !c.na); return `${j.filter((c) => c.ok).length}/${j.length}`; };
   const allOkOf = (cs: Check[]) => cs.filter((c) => !c.na).every((c) => c.ok);
   const ts = new Date().toISOString().slice(0, 19).replace('T', ' ');
-  const mark = (c: Check) => c.na ? '➖' : (c.ok ? '✅' : '❌');
-  const chk = (c: Check) => `<tr class="${c.na ? 'na' : c.ok ? '' : 'ng'}"><td>${mark(c)}</td><td>${esc(c.name)}</td><td>${esc(c.detail)}</td></tr>`;
+  const mark = (c: Check) => c.na ? '➖' : c.review ? '🔎' : (c.ok ? '✅' : '❌');
+  const chk = (c: Check) => `<tr class="${c.na ? 'na' : c.review ? 'rv' : c.ok ? '' : 'ng'}"><td>${mark(c)}</td><td>${esc(c.name)}</td><td>${esc(c.detail)}</td></tr>`;
+  // 주의 필요(결함 + 확인필요) 상세 — 상단 카드 클릭 시 펼쳐짐.
+  const attnItems = judged.filter((c) => !c.ok).sort((a, b) => (a.review ? 1 : 0) - (b.review ? 1 : 0));
+  const attnHtml = attnItems.length
+    ? attnItems.map((c) => `<div class="attnitem ${c.review ? 'rv' : 'ng'}"><div class="ai-h">${c.review ? '🔎 확인 필요' : '❌ 주의'} — ${esc(c.name)}</div><div class="ai-d">${esc(c.detail)}</div></div>`).join('')
+    : '<div class="attnitem okmsg">✅ 주의 필요 항목 없음 — 확인 항목 전부 정합</div>';
+  const attnCard = `<details class="scard ${fail ? 'sng' : review ? 'srv' : 'sok'}"${attn ? ' open' : ''}><summary><span class="n ${fail ? 'ng-n' : review ? 'rv-n' : 'ok-n'}">${attn}</span><span class="l">주의 필요 ▾${review ? ` <span class="mut">(확인필요 ${review} 포함)</span>` : ''}</span></summary><div class="scard-body">${attnHtml}</div></details>`;
   const chkTbl = (cs: Check[]) => `<table><thead><tr><th></th><th>검증</th><th>결과</th></tr></thead><tbody>${cs.map(chk).join('')}</tbody></table>`;
   const gradeTbl = `<table class="sys"><thead><tr><th>영역</th><th>HOME 관리 목표</th><th>목표 설정(원천)</th><th>일치</th></tr></thead><tbody>${AREAS.map((a) => `<tr class="${homeGoal[a] && modalGrades[a] && homeGoal[a] !== modalGrades[a] ? 'ng' : ''}"><td>${esc(a)}</td><td>${esc(homeGoal[a] || '—')}</td><td>${esc(modalGrades[a] || '—')}</td><td>${homeGoal[a] && modalGrades[a] ? (homeGoal[a] === modalGrades[a] ? '✅' : '❌') : '—'}</td></tr>`).join('')}</tbody></table>`;
   const logTbl = work.logHead.length ? `<table class="sys"><thead><tr>${work.logHead.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>${work.logRows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>` : '<div class="note">최근 작업 일보 미수집</div>';
@@ -255,7 +266,19 @@ h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:22px 0 10px;border-bot
 .sub{color:var(--mut);font-size:13px;margin-bottom:8px}
 .cards{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0}.card{flex:1 1 100px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}.card .n{font-size:23px;font-weight:700}.card .l{font-size:12px;color:var(--mut)}
 table{border-collapse:collapse;width:100%;font-size:13.5px;margin:6px 0}th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}th{color:var(--mut);font-size:11.5px;background:var(--card)}
-td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}tr.mt td{font-weight:700;border-top:2px solid var(--fg);background:var(--card)}tr.ng td{color:var(--ng);font-weight:600}tr.na td{color:var(--mut)}.ok-n{color:var(--ok);font-weight:700}.ng-n{color:var(--ng);font-weight:700}.na-n{color:var(--mut);font-weight:700}.mut{color:var(--mut)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}tr.mt td{font-weight:700;border-top:2px solid var(--fg);background:var(--card)}tr.ng td{color:var(--ng);font-weight:600}tr.na td{color:var(--mut)}.ok-n{color:var(--ok);font-weight:700}.ng-n{color:var(--ng);font-weight:700}.na-n{color:var(--mut);font-weight:700}.mut{color:var(--mut)}.rv-n{color:#9a6700;font-weight:700}
+tr.rv td{color:#7a5200;background:#fff8e5;font-weight:600}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) tr.rv td{color:#e3b341;background:#2a2413}:root:not([data-theme=light]) .rv-n{color:#e3b341}}
+:root[data-theme=dark] tr.rv td{color:#e3b341;background:#2a2413}:root[data-theme=dark] .rv-n{color:#e3b341}
+.scard{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:8px 12px;min-width:118px;cursor:pointer;list-style:none}
+.scard>summary{display:flex;flex-direction:column;gap:2px;list-style:none;cursor:pointer}.scard>summary::-webkit-details-marker{display:none}
+.scard>summary .n{font-size:24px;font-weight:800;line-height:1.1}.scard>summary .l{font-size:11px;color:var(--mut)}
+.scard.sng{border-color:var(--ng);border-left:4px solid var(--ng)}.scard.srv{background:#fff8e5;border-color:#e0b84f;border-left:4px solid #9a6700}.scard.srv .l{color:#7a5200}
+.scard-body{margin-top:10px;display:flex;flex-direction:column;gap:7px}
+.attnitem{border-radius:7px;padding:8px 11px;font-size:12.5px}.attnitem.ng{background:rgba(220,50,50,.08);border-left:3px solid var(--ng)}.attnitem.rv{background:#fff8e5;border-left:3px solid #9a6700}.attnitem.okmsg{color:var(--ok);font-weight:600}
+.attnitem .ai-h{font-weight:700;margin-bottom:2px}.attnitem.rv .ai-h{color:#7a5200}.attnitem .ai-d{color:var(--mut);font-weight:400;line-height:1.5}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .scard.srv{background:#2a2413;border-color:#645209}:root:not([data-theme=light]) .scard.srv .l{color:#e3b341}:root:not([data-theme=light]) .attnitem.rv{background:#2a2413}:root:not([data-theme=light]) .attnitem.rv .ai-h{color:#e3b341}}
+:root[data-theme=dark] .scard.srv{background:#2a2413;border-color:#645209}:root[data-theme=dark] .scard.srv .l{color:#e3b341}:root[data-theme=dark] .attnitem.rv{background:#2a2413}:root[data-theme=dark] .attnitem.rv .ai-h{color:#e3b341}
 .note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 15px;font-size:13.5px;color:var(--mut);margin:8px 0}.note.big{border-left:3px solid var(--accent)}
 code{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12px}kbd{background:var(--card);border:1px solid var(--line);border-radius:5px;padding:2px 7px;font:12.5px monospace}
 .tblwrap{overflow-x:auto;max-width:100%;border:1px solid var(--line);border-radius:8px;margin:6px 0}.sys{min-width:100%;margin:0}
@@ -288,7 +311,7 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <h1>홈 화면 숫자가 원천 값과 맞는지 확인</h1>
 <div class="sub">코스관리 첫 화면(홈)의 등급·작업·비용 표시 값을 각 원천 화면과 대조(화면 변경 없음) · 킹즈락 · ${ts}</div>
 <div class="lead"><b>한눈에 보기.</b> 코스관리 <span class="em">첫 화면(홈)</span>에 보이는 <b>등급·작업·비용</b> 숫자가 그 값이 나오는 <b>원천 화면</b>과 어긋나지 않는지 확인했습니다.<br>
-확인 항목 <b>${judged.length}개</b> 중 <span class="ok-n">정상 ${pass}개</span>${fail ? ` · <span class="ng-n">주의 ${fail}개</span>` : ' · 주의 0개'}${naCount ? ` · <span class="na-n">참고 ${naCount}개</span>(데이터 없어 판정 제외)` : ''}.<br>
+확인 항목 <b>${judged.length}개</b> 중 <span class="ok-n">정상 ${pass}개</span>${attn ? ` · <span class="ng-n">주의 필요 ${attn}개</span>${review ? `(확인 필요 ${review} 포함)` : ''}` : ' · 주의 0개'}${naCount ? ` · <span class="na-n">참고 ${naCount}개</span>(데이터 없어 판정 제외)` : ''}.<br>
 이 리포트는 <b>"지금 화면 값이 맞는가"</b>를 봅니다 — 사용자가 보는 화면 기준 확인이며, 앱 내부 코드 검사는 아닙니다.</div>
 <details class="aux"><summary>💡 리포트 검증 관점 및 참고사항 보기</summary><div class="auxbody">
 <div class="persp">📏 <b>보는 관점:</b> 화면에 <b>표시된 값</b>을 원천 화면과 맞대어 봅니다(앱 내부 코드 커버리지가 아님). 확인 중 화면을 바꾸거나 저장하지 않습니다.</div>
@@ -302,7 +325,7 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <div class="hrow info"><span class="hic">ℹ️</span><div class="hbody"><span class="hlbl">참고</span><ul>
   <li>데이터 없는 항목은 <b>판정 제외</b>(결함 아님)</li></ul></div></div></div>
 </div></details>
-<div class="cards"><div class="card"><div class="n">${judged.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div><div class="card"><div class="n ${fail ? 'ng-n' : 'ok-n'}">${fail}</div><div class="l">주의 필요</div></div>${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}</div>
+<div class="cards"><div class="card"><div class="n">${judged.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div>${attnCard}${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}</div>
 
 <input class="tabin" type="radio" name="tab" id="t1" checked><input class="tabin" type="radio" name="tab" id="t2"><input class="tabin" type="radio" name="tab" id="t3"><input class="tabin" type="radio" name="tab" id="t4"><input class="tabin" type="radio" name="tab" id="t5"><input class="tabin" type="radio" name="tab" id="t6">
 <div class="tabs"><label for="t1">① 실행 방법</label><label for="t2">② 연관성 맵</label><label for="t3">③ 요약</label><label for="t4">④ 관리 목표·현황</label><label for="t5">⑤ 작업 탭</label><label for="t6">⑥ 비용 탭</label></div>
@@ -344,7 +367,7 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <div class="panel" id="p3">
 <h2>요약</h2>
 <div class="cards"><div class="card"><div class="n ${allOkOf(goalChk) ? 'ok-n' : 'ng-n'}">${cnt(goalChk)}</div><div class="l">관리 목표·현황(등급)</div></div><div class="card"><div class="n ${allOkOf(workChk) ? 'ok-n' : 'ng-n'}">${cnt(workChk)}</div><div class="l">작업 탭</div></div><div class="card"><div class="n ${allOkOf(costChk) ? 'ok-n' : 'ng-n'}">${cnt(costChk)}</div><div class="l">비용 탭</div></div>${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}</div>
-${fail ? `<div class="note" style="border-left:3px solid var(--ng)"><b class="ng-n">⚠ 주의 필요 (${fail}건)</b><br>${judged.filter((c) => !c.ok).map((c) => `<div style="margin-top:8px"><b class="ng-n">❌ ${esc(c.name)}</b><br><span>${esc(c.detail)}</span></div>`).join('')}</div>` : '<div class="note" style="border-left:3px solid var(--ok)"><b class="ok-n">✅ 확인 항목 전부 정상</b> — 주의 없음</div>'}${naCount ? `<div class="note" style="border-left:3px solid var(--mut)"><b>➖ 참고: 데이터가 없어 확인 대상이 아님 (${naCount}건, 판정 제외)</b> — 결함이 아니라 "확인 불가"입니다.<br>${checks.filter((c) => c.na).map((c) => `<div style="margin-top:6px"><b>➖ ${esc(c.name)}</b><br><span class="mut">${esc(c.detail)}</span></div>`).join('')}</div>` : ''}
+${attn ? `<div class="note" style="border-left:3px solid ${fail ? 'var(--ng)' : '#9a6700'}"><b class="${fail ? 'ng-n' : 'rv-n'}">⚠ 주의 필요 (${attn}건${review ? `: 결함 ${fail} · 확인 필요 ${review}` : ''})</b><br>${attnItems.map((c) => `<div style="margin-top:8px"><b class="${c.review ? 'rv-n' : 'ng-n'}">${c.review ? '🔎 확인 필요' : '❌'} ${esc(c.name)}</b><br><span>${esc(c.detail)}</span></div>`).join('')}</div>` : '<div class="note" style="border-left:3px solid var(--ok)"><b class="ok-n">✅ 확인 항목 전부 정상</b> — 주의 없음</div>'}${naCount ? `<div class="note" style="border-left:3px solid var(--mut)"><b>➖ 참고: 데이터가 없어 확인 대상이 아님 (${naCount}건, 판정 제외)</b> — 결함이 아니라 "확인 불가"입니다.<br>${checks.filter((c) => c.na).map((c) => `<div style="margin-top:6px"><b>➖ ${esc(c.name)}</b><br><span class="mut">${esc(c.detail)}</span></div>`).join('')}</div>` : ''}
 <h3>① 관리 목표 및 현황 (등급)</h3>${chkTbl(goalChk)}
 <h3>② 작업 탭 (작업 운영)</h3>${chkTbl(workChk)}
 <h3>③ 비용 탭 (예산 대비 실적)</h3>${chkTbl(costChk)}

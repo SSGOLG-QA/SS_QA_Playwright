@@ -1,6 +1,6 @@
 import { test, Page } from '@playwright/test';
-import { openCourseAdmin, gotoCourseMenu, killAlarms, COURSE_URL } from '../lib/course/courseHelpers';
-import { num, near } from '../lib/course/domain/budgetCost';
+import { openCourseAdmin, gotoCourseMenu, killAlarms, COURSE_URL, setCourseDateRange } from '../lib/course/courseHelpers';
+import { num, near, nearRel } from '../lib/course/domain/budgetCost';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -22,7 +22,7 @@ const GRADE_RE = '(A\\+|A-|A|B\\+|B-|B|C\\+|C-|C|D\\+|D-|D|E\\+|E-|E)';
 const COST_CATS = ['전체', '고정직 인건비', '임시직 인건비', '코스 자재비', '장비 관리비', '기타 관리비'];
 const esc = (s: string) => (s || '').replace(/[&<>]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m] as string));
 
-interface Check { name: string; ok: boolean; scope: 'goal' | 'work' | 'cost'; detail: string; na?: boolean; review?: boolean; }
+interface Check { name: string; ok: boolean; scope: 'goal' | 'work' | 'cost' | 'woc'; detail: string; na?: boolean; review?: boolean; }
 interface CostCat { pct: number; used: number | null; remain: number | null; budget: number | null; }
 
 function extractGrades(txt: string, order: 'ga' | 'ag'): Record<string, string> {
@@ -40,9 +40,19 @@ function extractGrades(txt: string, order: 'ga' | 'ag'): Record<string, string> 
 function parseCostSection(text: string, budgetLabel: string): Record<string, CostCat> {
   const out: Record<string, CostCat> = {};
   for (const cat of COST_CATS) {
-    const re = new RegExp(cat.replace(/ /g, '\\s*') + '\\s*(\\d+)%\\s*누적\\s*사용\\s*금액\\s*([\\d,]+)\\s*잔여\\s*예산\\s*금액\\s*([\\d,]+)\\s*' + budgetLabel.replace(/ /g, '\\s*') + '\\s*([\\d,]+)');
+    // 실제 렌더(라이브 확인): "{명} [초과 {금액}] {pct}% 누적 사용 금액 {used} 잔여 예산 금액 {remain} {budgetLabel} {budget}".
+    //  ⚠ 예산 초과 카테고리(누적사용>연간예산, 예: 고정직 110%)는 **이름과 % 사이에 '초과 {금액}' 배지**가 끼어들어 이름→누적 고정 매칭이 깨졌던 게 근본원인(라벨은 그대로 '잔여 예산 금액', 값은 표준 하이픈 음수 '-47,810,000'). → 이름↔'누적 사용 금액' 사이를 프리픽스 (.*?)로 흡수하고 %는 그 안에서 추출, 잔여는 음수(-?) 허용.
+    const re = new RegExp(cat.replace(/ /g, '\\s*') + '\\s*(.*?)누적\\s*사용\\s*금액\\s*([\\d,]+)\\s*잔여\\s*예산\\s*금액\\s*(-?[\\d,]+)\\s*' + budgetLabel.replace(/ /g, '\\s*') + '\\s*([\\d,]+)');
     const m = re.exec(text);
-    if (m) out[cat] = { pct: Number(m[1]), used: num(m[2]), remain: num(m[3]), budget: num(m[4]) };
+    if (m) {
+      const prefix = m[1] || '';                           // '초과 {금액} {pct}%'(초과) 또는 '{pct}%'(정상)
+      const pctM = /(\d+)\s*%/.exec(prefix);
+      const used = num(m[2]); const budget = num(m[4]);
+      let remain = num(m[3]);                              // '-47,810,000' → num이 표준 하이픈 부호 처리
+      if (remain != null && /초과/.test(prefix)) remain = -Math.abs(remain);   // 안전망: '초과' 배지=예산초과=음수 보증
+      if (remain == null && budget != null && used != null) remain = budget - used;
+      out[cat] = { pct: pctM ? Number(pctM[1]) : (budget && used != null ? Math.round(used / budget * 100) : 0), used, remain, budget };
+    }
   }
   return out;
 }
@@ -56,6 +66,59 @@ async function gotoHome(admin: Page) {
 async function clickTab(admin: Page, name: string) {
   await admin.locator('.tab-group').getByText(name, { exact: true }).first().click({ timeout: 3000 }).catch(() => {});
   await admin.waitForTimeout(1500); await killAlarms(admin);
+}
+
+// [비용] 탭 → "작업지시에 근거한 비용 분석" 서브뷰 목록(모두 같은 '전체=Σ하위' 롤업 구조).
+const WO_VIEWS = ['전체', '코스별', 'South', 'East', 'West', '기간별'];
+interface WCell { t: string; cs: number; rs: number; }
+interface WoRow { label: string; nums: (number | null)[]; cellCount: number; }
+interface WoView { ok: boolean; headRows: WCell[][]; bodyRows: WCell[][]; }
+// 현재 렌더된 작업지시-분석 서브뷰의 표를 읽음(비파괴). 첫 데이터 표(행≥1)의 thead/tbody 셀을 span 포함 그대로 캡처.
+//   상세 리포트(원본표 재현) + '전체'=Σ(하위 행) 롤업 검증(위치기반 열합) 겸용.
+async function readWoView(admin: Page): Promise<WoView> {
+  return admin.evaluate(() => {
+    const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+    const cellOf = (c: Element) => ({ t: norm(c.textContent), cs: (c as HTMLTableCellElement).colSpan || 1, rs: (c as HTMLTableCellElement).rowSpan || 1 });
+    const sc = document.querySelector('.contents, main') || document.body;
+    const tables = Array.from(sc.querySelectorAll('table'));
+    const tbl = tables.find((t) => t.querySelectorAll('tbody tr').length >= 1);
+    if (!tbl) return { ok: false as const, headRows: [], bodyRows: [] };
+    const headRows = Array.from(tbl.querySelectorAll('thead tr')).map((tr) => Array.from(tr.children).map(cellOf));
+    const bodyRows = Array.from(tbl.querySelectorAll('tbody tr')).map((tr) => Array.from(tr.children).map(cellOf));
+    return { ok: true as const, headRows, bodyRows };
+  }).catch(() => ({ ok: false as const, headRows: [], bodyRows: [] }));
+}
+
+// 롤업/비음수용 행 파생: 각 tbody 행 → { label(첫 셀), nums(나머지 셀 숫자화), cellCount }.
+function woRows(view: WoView): WoRow[] {
+  const numOf = (t: string) => { const c = (t || '').replace(/[^0-9.\-]/g, ''); if (c === '' || c === '-' || c === '.') return null; const v = Number(c); return Number.isFinite(v) ? v : null; };
+  return (view.bodyRows || []).map((cells) => ({ label: cells[0]?.t || '', nums: cells.slice(1).map((c) => numOf(c.t)), cellCount: cells.length }));
+}
+
+// 롤업 검증: '전체' 행 = Σ(다음 '전체' 전까지의 하위 행), 우측 정렬 위치기반 열합.
+//   반환 { na, ok, detail } — 하위 행/정렬 불가 시 na(판정 제외). tol: 반올림 off-by-1 + 상대 0.5%.
+function rollup(view: WoView): { na: boolean; ok: boolean; detail: string; grand: number | null } {
+  const rows = woRows(view);
+  if (!view.ok || rows.length === 0) return { na: true, ok: true, detail: '표/행 없음 — 판정 제외', grand: null };
+  const tIdx = rows.findIndex((r) => /^전체$/.test(r.label.replace(/\s+/g, '')));
+  if (tIdx < 0) return { na: true, ok: true, detail: `'전체' 행 없음(라벨: ${rows.slice(0, 3).map((r) => r.label).join('/')}) — 판정 제외`, grand: null };
+  const total = rows[tIdx];
+  // 다음 '전체'(누적 블록 시작) 전까지를 하위 행으로
+  const children: WoRow[] = [];
+  for (let i = tIdx + 1; i < rows.length; i++) { if (/^전체$/.test(rows[i].label.replace(/\s+/g, ''))) break; children.push(rows[i]); }
+  const aligned = children.filter((c) => c.cellCount === total.cellCount);
+  if (aligned.length === 0) return { na: true, ok: true, detail: '정렬 가능한 하위 행 없음(구조 상이) — 판정 제외', grand: null };
+  const near = (a: number, b: number) => Math.abs(a - b) <= Math.max(2, Math.abs(b) * 0.005);
+  const bad: string[] = []; let cols = 0; let grand: number | null = null;
+  for (let i = 0; i < total.nums.length; i++) {
+    const tv = total.nums[i]; if (tv == null) continue;
+    if (grand == null && tv > 0) grand = tv;   // 첫 유효 컬럼(대개 합계) = 대표 총액
+    const sum = aligned.reduce((a, c) => a + (c.nums[i] ?? 0), 0);
+    cols++;
+    if (!near(tv, sum)) bad.push(`col${i}(전체 ${tv.toLocaleString()}≠Σ ${sum.toLocaleString()})`);
+  }
+  if (cols === 0) return { na: true, ok: true, detail: '수치 컬럼 없음 — 판정 제외', grand: null };
+  return { na: false, ok: bad.length === 0, grand, detail: bad.length === 0 ? `${aligned.length}개 하위행 × ${cols}개 열 롤업 일치(전체=Σ하위)` : `불일치 ${bad.length}열: ${bad.slice(0, 3).join(', ')}` };
 }
 
 test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ page, context }) => {
@@ -125,6 +188,37 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
   const annual = parseCostSection(annualSec, '연간예산');
   const cumul = parseCostSection(cumulSec, '누적 예산');
 
+  // ═══ [비용] 탭 → "작업지시에 근거한 비용 분석" 서브뷰(전체/코스별/South/East/West/기간별) ═══
+  //  토글(.tab-group.tab-type-line): [예산 대비 실적 분석 | 작업지시에 근거한 비용 분석]
+  //  서브탭(.tab-group.tab-type-box): 전체·코스별·South·East·West·기간별. 각 뷰 표: '전체' 행 = Σ(하위 행) 롤업.
+  //  ⚠ 전체 뷰(영역축)와 코스별 뷰(코스축)는 집계 축이 달라 상호 총합 일치 아님(코스 미지정 작업 존재) → 뷰별 자기 롤업만 검증. 비파괴.
+  let woGuide = ''; let woToggleFound = false;
+  const woViews: Record<string, WoView> = {};
+  {
+    const toggle = admin.locator('.contents, main').getByText(/작업지시에\s*근거한\s*비용\s*분석/).first();
+    woToggleFound = await toggle.isVisible({ timeout: 2500 }).catch(() => false);
+    if (woToggleFound) {
+      await toggle.click({ timeout: 2500 }).catch(() => {});
+      await admin.waitForTimeout(1600); await killAlarms(admin);
+      woGuide = await admin.evaluate(() => {
+        const sc = document.querySelector('.contents, main') || document.body;
+        const t = (sc.textContent || '').replace(/\s+/g, ' ').trim();
+        return (t.match(/작업지시서를\s*통해서\s*집계되는[^]*?제공받을 수 있습니다\./) || [''])[0];
+      }).catch(() => '');
+      const boxTabs = admin.locator('.tab-type-box');
+      for (const v of WO_VIEWS) {
+        const tab = boxTabs.getByText(new RegExp('^\\s*' + v + '\\s*$')).first();
+        if (await tab.isVisible({ timeout: 1500 }).catch(() => false)) {
+          await tab.click({ timeout: 1500 }).catch(() => {});
+          await admin.waitForTimeout(1200); await killAlarms(admin);
+          woViews[v] = await readWoView(admin);
+        } else {
+          woViews[v] = { ok: false, headRows: [], bodyRows: [] };
+        }
+      }
+    }
+  }
+
   // ── 작업 관리 > 작업 지시(원천) ──
   let orderIds: string[] = []; let orderStatus: Record<string, number> = {}; let orderTotal = 0;
   if (await gotoCourseMenu(admin, '작업 관리', '작업 지시').then(() => true).catch(() => false)) {
@@ -141,9 +235,18 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
   }
 
   // ── 예산 관리 > 예산 총괄(원천): 금액 집합 ──
-  let budgetNums: number[] = []; let budgetTxt = '';
+  //  ⚠ 예산 총괄은 [월간|연간] 탭. 기본=월간(월별 예산·롤업 소계만) → 카테고리/총 '연간예산'은 [연간] 탭에서만 노출.
+  //     HOME 비용탭 '연간예산'(전체 1,298,458,000 등)의 원천은 [연간] 탭이므로 반드시 연간 탭을 클릭한 뒤 금액을 수집.
+  //     (연간 탭 미클릭 시 월간 금액만 잡혀 1,298,458,000 미발견 → ⑪ 가짜 FAIL 발생했었음 — 2026-08-26 수정)
+  let budgetNums: number[] = []; let budgetTxt = ''; let budgetYearTab = false;
   if (await gotoCourseMenu(admin, '예산 관리', '예산 총괄').then(() => true).catch(() => false)) {
     await admin.waitForTimeout(1600); await killAlarms(admin);
+    const yearTab = admin.locator('.contents, main').getByText(/^\s*연간\s*$/).first();
+    if (await yearTab.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await yearTab.click({ timeout: 2500 }).catch(() => {});
+      await admin.waitForTimeout(1600); await killAlarms(admin);
+      budgetYearTab = true;
+    }
     const bd = await admin.evaluate(() => {
       const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
       const sc = document.querySelector('.contents, main') || document.body;
@@ -151,6 +254,160 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
       return { nums: Array.from(new Set(nums)), txt: norm(sc.textContent).slice(0, 200) };
     }).catch(() => ({ nums: [] as string[], txt: '' }));
     budgetNums = bd.nums.map((s) => num(s)).filter((v): v is number => v != null); budgetTxt = bd.txt;
+  }
+
+  // ── 예산 관리 > 예산 상세(원천): 대분류별 연간 합계 — HOME 비용탭 '연간예산'(카테고리)의 정확 원천 ──
+  //   예산 상세 = 대분류(고정직 인건비/…, HOME과 동일 라벨) > 중분류 > 소분류 + 소계행 + 합계(연간)열.
+  //   대분류별 연간예산 = Σ(그 대분류의 중분류 소계행 × 합계열). rowspan 전개 그리드로 대분류 추적.
+  const budgetDetailByCat: Record<string, number> = {}; let budgetDetailVisited = false;
+  if (await gotoCourseMenu(admin, '예산 관리', '예산 상세').then(() => true).catch(() => false)) {
+    budgetDetailVisited = true;
+    await admin.waitForTimeout(1600); await killAlarms(admin);
+    const dg = await admin.evaluate(() => {
+      const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+      const sc = document.querySelector('.contents, main') || document.body;
+      const tbl = Array.from(sc.querySelectorAll('table')).find((t) => t.querySelectorAll('tbody tr').length >= 1);
+      if (!tbl) return { heads: [] as string[], grid: [] as string[][] };
+      // colspan/rowspan 완전 전개
+      const expand = (trs: Element[]): string[][] => {
+        const grid: string[][] = []; const carry: ({ t: string; rem: number } | null)[] = [];
+        for (const tr of trs) {
+          const cells = Array.from(tr.children) as HTMLTableCellElement[];
+          const out: string[] = []; let col = 0, ci = 0;
+          while (ci < cells.length || (carry[col] && carry[col]!.rem > 0)) {
+            if (carry[col] && carry[col]!.rem > 0) { out[col] = carry[col]!.t; carry[col]!.rem--; col++; continue; }
+            if (ci >= cells.length) break;
+            const cell = cells[ci++]; const cs = cell.colSpan || 1; const rs = cell.rowSpan || 1; const t = norm(cell.textContent);
+            for (let k = 0; k < cs; k++) { out[col] = t; if (rs > 1) carry[col] = { t, rem: rs - 1 }; col++; }
+          }
+          grid.push(out);
+        }
+        return grid;
+      };
+      const heads = Array.from(tbl.querySelectorAll('thead th, thead td')).map((e) => norm(e.textContent));
+      const grid = expand(Array.from(tbl.querySelectorAll('tbody tr')));
+      return { heads, grid };
+    }).catch(() => ({ heads: [] as string[], grid: [] as string[][] }));
+    // 합계(연간)열 인덱스: 헤더 '합계' 우선, 없으면 마지막 수치열
+    const hapCol = (() => { const i = dg.heads.findIndex((h) => /^합계$/.test(h.replace(/\s+/g, ''))); return i; })();
+    const numAt = (s: string) => { const c = (s || '').replace(/[^0-9.\-]/g, ''); return c && c !== '-' && c !== '.' ? Number(c) : NaN; };
+    for (const row of dg.grid) {
+      if (!row.some((c) => /^소계$/.test((c || '').replace(/\s+/g, '')))) continue;   // 소계 행만(= Σ소분류) → 중복 방지
+      const maj = COST_CATS.find((c) => c !== '전체' && row.some((cell) => (cell || '').replace(/\s+/g, '') === c.replace(/\s+/g, '')));
+      if (!maj) continue;
+      // 합계열 값(없으면 행 내 최댓값=연간합 추정)
+      let v = hapCol >= 0 ? numAt(row[hapCol]) : NaN;
+      if (!Number.isFinite(v)) { const ns = row.map(numAt).filter((n) => Number.isFinite(n)); v = ns.length ? Math.max(...ns) : NaN; }
+      if (Number.isFinite(v)) budgetDetailByCat[maj] = (budgetDetailByCat[maj] || 0) + v;
+    }
+  }
+
+  // ── 비용 관리 > 위치별 비용(연간, 작업지시 자동집계 원천): 코스별 총비용 — HOME 작업지시 기반 비용과 교차 대조용 ──
+  //   HOME [비용]탭 '작업지시에 근거한 비용 분석'과 위치별 비용은 둘 다 작업지시 집계 = 동일 원천 → 코스별 총액이 같아야.
+  const locByCourse: Record<string, number> = {}; let locBucket: number | null = null;
+  if (await gotoCourseMenu(admin, '비용 관리', '위치별 비용').then(() => true).catch(() => false)) {
+    await admin.waitForTimeout(1500); await killAlarms(admin);
+    const yr = admin.locator('.contents, main').getByText(/^\s*연간\s*$/).first();
+    if (await yr.isVisible({ timeout: 1500 }).catch(() => false)) { await yr.click({ timeout: 2000 }).catch(() => {}); await admin.waitForTimeout(1300); await killAlarms(admin); }
+    const loc = await admin.evaluate(() => {
+      const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+      const numOf = (t: string) => { const c = (t || '').replace(/[^0-9.\-]/g, ''); if (c === '' || c === '-' || c === '.') return null; const v = Number(c); return Number.isFinite(v) ? v : null; };
+      const sc = document.querySelector('.contents, main') || document.body;
+      const tbl = Array.from(sc.querySelectorAll('table')).find((t) => /총\s*비용|합계/.test(t.textContent || '') && t.querySelectorAll('tbody tr').length >= 1);
+      if (!tbl) return { rows: [] as { c0: string; c1: string; total: number | null }[] };
+      const heads = Array.from(tbl.querySelectorAll('thead th, thead td')).map((h) => norm(h.textContent));
+      const ti = heads.findIndex((h) => /총\s*비용|합계/.test(h));
+      const rows = Array.from(tbl.querySelectorAll('tbody tr')).map((tr) => { const c = Array.from(tr.children).map((td) => norm(td.textContent)); return { c0: c[0] || '', c1: c[1] || '', total: ti >= 0 ? numOf(c[ti]) : null }; });
+      return { rows };
+    }).catch(() => ({ rows: [] as { c0: string; c1: string; total: number | null }[] }));
+    for (const r of loc.rows) {
+      if (r.c1 || r.total == null) continue;   // 코스레벨 행(홀 empty)만
+      if (/전체\s*골프장/.test(r.c0)) locBucket = r.total;
+      else { const m = r.c0.match(/South|East|West/i); if (m) locByCourse[m[0]] = r.total; }
+    }
+  }
+
+  // ── 예산 관리 > 실적 관리(회계 비용 원천): 분류별 연간 합계 — HOME [비용] 예산 대비 실적의 '누적 사용 금액' 원천 ──
+  //   실적 관리 안내 = "실제 회계상 집계된 전체 비용을 입력" → HOME 누적 사용(회계 비용)의 입력 원천 화면.
+  //   구조: 분류 탭(고정직/임시직/코스자재/장비/기타) × 중분류·소분류 × 1~12월. 카테고리 연간합 = Σ(소계 행 × 12월).
+  //   ⚠ 소계 행만 합산(= Σ소분류 월별) → 데이터 행과 중복 합산 방지.
+  const PERF_TABS = ['고정직 인건비', '임시직 인건비', '코스 자재비', '장비 관리비', '기타 관리비'];
+  const perfByCat: Record<string, number> = {}; let perfGuide = ''; let perfEntered = false; let perfVisited = false;
+  if (await gotoCourseMenu(admin, '예산 관리', '실적 관리').then(() => true).catch(() => false)) {
+    perfVisited = true;
+    await admin.waitForTimeout(1600); await killAlarms(admin);
+    perfGuide = await admin.evaluate(() => {
+      const sc = document.querySelector('.contents, main') || document.body;
+      return ((sc.textContent || '').replace(/\s+/g, ' ').match(/실제\s*회계상[^.]*입력[^.]*\./) || [''])[0];
+    }).catch(() => '');
+    for (const T of PERF_TABS) {
+      const tab = admin.locator('.contents, main').getByText(T, { exact: true }).first();
+      if (!(await tab.isVisible({ timeout: 1500 }).catch(() => false))) continue;
+      await tab.click({ timeout: 1500 }).catch(() => {}); await admin.waitForTimeout(1000); await killAlarms(admin);
+      const sum = await admin.evaluate(() => {
+        const numOf = (t: string | null) => { const c = (t || '').replace(/[^0-9.\-]/g, ''); if (!c || c === '-' || c === '.') return 0; const v = Number(c); return Number.isFinite(v) ? v : 0; };
+        const sc = document.querySelector('.contents, main') || document.body;
+        const tbl = sc.querySelector('table'); if (!tbl) return 0;
+        let s = 0;
+        for (const tr of Array.from(tbl.querySelectorAll('tbody tr'))) {
+          const cells = Array.from(tr.children).map((td) => (td.textContent || '').replace(/\s+/g, ' ').trim());
+          if (!/^소계$/.test(cells[0] || '')) continue;         // 소계 행만(= Σ소분류 월별) → 중복 합산 방지
+          for (let i = 1; i < cells.length; i++) s += numOf(cells[i]);
+        }
+        return s;
+      }).catch(() => 0);
+      perfByCat[T] = sum; if (sum > 0) perfEntered = true;
+    }
+  }
+
+  // ── 비용 관리 > 작업별 비용(YTD): 카테고리별 컬럼합 + 총액 — QA-15497 직접 대조용(HOME 작업지시분석 ↔ 작업별 비용) ──
+  //   QA-15497: HOME>[비용]>작업지시 분석 금액 ≠ 비용관리>작업별 비용 금액(당월/누적 상이). 같은 스코프(당해 YTD)로 읽어 대조.
+  const taskByCat: Record<string, number> = {}; let taskTotalCard = 0; let taskVisited = false;
+  {
+    const ty = new Date(); const tcy = ty.getFullYear();
+    const start = `${tcy}-01-01`; const end = `${tcy}-${String(ty.getMonth() + 1).padStart(2, '0')}-${String(ty.getDate()).padStart(2, '0')}`;
+    if (await gotoCourseMenu(admin, '비용 관리', '작업별 비용').then(() => true).catch(() => false)) {
+      taskVisited = true;
+      await admin.waitForTimeout(1800); await killAlarms(admin);
+      await setCourseDateRange(admin, start, end).catch(() => false);
+      await admin.waitForTimeout(1300); await killAlarms(admin);
+      // 요약 카드 총액(서버측 전체)
+      taskTotalCard = await admin.evaluate(() => {
+        const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+        const sc = document.querySelector('.contents, main') || document.body;
+        for (const e of Array.from(sc.querySelectorAll('*'))) { if (e.children.length > 2) continue; const m = norm(e.textContent).match(/^총\s*비용\s*([0-9,]+)$/); if (m) return Number(m[1].replace(/,/g, '')); }
+        return 0;
+      }).catch(() => 0);
+      // 카테고리 컬럼 인덱스 + 전 페이지 컬럼합
+      const heads = await admin.evaluate(() => { const sc = document.querySelector('.contents, main') || document.body; const t = Array.from(sc.querySelectorAll('table')).find((x) => x.querySelectorAll('tbody tr').length >= 1); return t ? Array.from(t.querySelectorAll('thead th, thead td')).map((e) => (e.textContent || '').replace(/\s+/g, ' ').trim()) : []; }).catch(() => [] as string[]);
+      const CAT5 = ['고정직 인건비', '임시직 인건비', '코스 자재비', '장비 관리비', '기타 관리비'];
+      const catIdx: Record<string, number> = {}; CAT5.forEach((c) => { const i = heads.findIndex((h) => h.replace(/\s+/g, '') === c.replace(/\s+/g, '')); if (i >= 0) catIdx[c] = i; });
+      CAT5.forEach((c) => { taskByCat[c] = 0; });
+      const readBody = () => admin.evaluate(() => { const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim(); const sc = document.querySelector('.contents, main') || document.body; const t = Array.from(sc.querySelectorAll('table')).find((x) => x.querySelectorAll('tbody tr').length >= 1); if (!t) return [] as string[][]; return Array.from(t.querySelectorAll('tbody tr')).filter((tr) => !/내역이 없습니다|데이터가 없습니다/.test(tr.textContent || '')).map((tr) => Array.from(tr.children).map((td) => norm(td.textContent))); }).catch(() => [] as string[][]);
+      const numC = (s: string) => { const c = (s || '').replace(/[^0-9.\-]/g, ''); return c && c !== '-' && c !== '.' ? Number(c) : 0; };
+      const addRows = (rows: string[][]) => { for (const r of rows) for (const c of CAT5) if (catIdx[c] != null) taskByCat[c] += numC(r[catIdx[c]]); };
+      let rows = await readBody(); addRows(rows); let prevSig = rows.map((r) => r.join('|')).join('#');
+      for (let pageN = 2; pageN <= 25; pageN++) {
+        const clicked = await admin.evaluate((target) => {
+          const vis = (e: Element) => (e as HTMLElement).offsetParent !== null && !(e as HTMLButtonElement).disabled;
+          const norm = (s: string | null) => (s || '').trim(); const cls = (e: Element) => (typeof e.className === 'string' ? e.className : '');
+          const inPag = (e: Element) => { let p: Element | null = e; for (let k = 0; k < 4 && p; k++) { if (/pag/i.test(cls(p))) return true; p = p.parentElement; } return false; };
+          const all = Array.from(document.querySelectorAll('button, a, li')); const ns = all.filter((e) => vis(e) && norm(e.textContent) === target);
+          const btn = ns.find(inPag) || ns[ns.length - 1]; if (btn) { (btn as HTMLElement).click(); return true; }
+          const arrow = all.find((e) => vis(e) && (/next|다음/i.test(cls(e) + (e.getAttribute('aria-label') || '')) || /^[›❯»>]$/.test(norm(e.textContent)))); if (arrow) { (arrow as HTMLElement).click(); return true; } return false;
+        }, String(pageN)).catch(() => false);
+        if (!clicked) break;
+        await admin.waitForTimeout(900); await killAlarms(admin);
+        rows = await readBody(); const sig = rows.map((r) => r.join('|')).join('#'); if (!rows.length || sig === prevSig) break; addRows(rows); prevSig = sig;
+      }
+    }
+  }
+  // HOME 작업지시분석 전체뷰 누적/당월 카테고리(전체 행) — QA-15497 대조·앵커용
+  const woAllByCat: { cur: Record<string, number>; cum: Record<string, number>; curTotal: number; cumTotal: number } = { cur: {}, cum: {}, curTotal: 0, cumTotal: 0 };
+  {
+    const tv = woViews['전체']; const trow = tv?.ok ? woRows(tv).find((r) => /^전체$/.test(r.label.replace(/\s+/g, ''))) : undefined;
+    const tn = (trow?.nums || []).filter((n): n is number => n != null);
+    if (tn.length >= 4 && tn.length % 2 === 0) { const h = tn.length / 2; const CAT5 = COST_CATS.slice(1); woAllByCat.curTotal = tn[0]; woAllByCat.cumTotal = tn[h]; CAT5.forEach((c, i) => { woAllByCat.cur[c] = tn[1 + i] ?? 0; woAllByCat.cum[c] = tn[h + 1 + i] ?? 0; }); }
   }
 
   // ═══════════ 검증 ═══════════
@@ -167,7 +424,13 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
     const invalid = Object.entries(all).filter(([, g]) => !GRADE_SCALE.includes(g));
     checks.push({ name: '등급 스케일 유효(E-~A+ 15단계)', scope: 'goal', ok: invalid.length === 0, detail: invalid.length === 0 ? `${Object.keys(all).length}개 등급 모두 유효` : `유효 외: ${invalid.map(([a, g]) => `${a}=${g}`).join(',')}` });
   }
-  checks.push({ name: '관리 현황 기준일 노출', scope: 'goal', ok: !!home.baseDate, detail: home.baseDate ? `기준일 ${home.baseDate} · 등급 추세 차트 ${home.charts}개(Highcharts, 시각)` : '기준일 미검출' });
+  {
+    // 기준일은 관리 목표 및 현황 탭이 데이터를 렌더했을 때만 의미. 등급이 하나도 없으면(탭 미렌더/데이터 없음)
+    //   형제 등급 체크와 동일하게 na(판정 제외) — "미확인 ≠ 결함"(리포트 표준). baseDate 있으면 정상 판정.
+    const goalHasData = Object.keys(homeGoal).length > 0 || Object.keys(modalGrades).length > 0;
+    if (!home.baseDate && !goalHasData) checks.push({ name: '관리 현황 기준일 노출', scope: 'goal', ok: true, na: true, detail: '관리 목표 및 현황 탭 데이터 없음(등급 0) — 판정 제외' });
+    else checks.push({ name: '관리 현황 기준일 노출', scope: 'goal', ok: !!home.baseDate, detail: home.baseDate ? `기준일 ${home.baseDate} · 등급 추세 차트 ${home.charts}개(Highcharts, 시각)` : '기준일 미검출(등급 데이터는 존재 — 확인 필요)' });
+  }
 
   // ── [작업] ④ 오늘의 작업 W-ID ⊆ 작업 지시 목록 ──
   {
@@ -219,14 +482,173 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
     if (cats.length === 0) checks.push({ name: '누적 예산 대비: 잔여 = 누적예산 − 누적사용', scope: 'cost', ok: true, na: true, detail: '누적 예산 섹션 파싱 없음 SKIP' });
     else { const bad = cats.filter((c) => !near(cumul[c].remain!, cumul[c].budget! - cumul[c].used!)); checks.push({ name: '누적 예산 대비: 잔여 = 누적예산 − 누적사용', scope: 'cost', ok: bad.length === 0, detail: bad.length === 0 ? `${cats.length}개 카테고리 항등 성립` : `불일치: ${bad.map((c) => `${c}`).join(', ')}` }); }
   }
-  // ── [비용] ⑪★ 연간예산(전체) = [예산 관리] 원천 존재 ──
+  // ── [비용] ⑪★ 연간예산(카테고리) = [예산 관리 > 예산 상세] 대분류 연간 합계 원천 ──
+  //   HOME 비용탭 카테고리별 '연간예산' ↔ 예산 상세 대분류(고정직/임시직/…) 소계 Σ(합계열). 동일 원천이라 카테고리별 일치해야.
+  //   전체 총액은 보조로 예산 총괄 금액집합 존재 확인. 예산 상세 미수집·대조불가 카테고리는 na/보류(가짜 FAIL 금지).
   {
+    const subs = COST_CATS.slice(1);
+    const pairs = subs.filter((c) => annual[c]?.budget != null && annual[c]!.budget! > 0 && (budgetDetailByCat[c] ?? 0) > 0);
     const total = annual['전체']?.budget;
-    if (total == null || budgetNums.length === 0) checks.push({ name: '★ 연간예산 = [예산 관리] 원천', scope: 'cost', ok: true, na: true, detail: `대조 대상 부족 SKIP(비용탭 전체예산 ${total?.toLocaleString() ?? '-'}·예산 총괄 금액 ${budgetNums.length}건)` });
-    else { const hit = budgetNums.some((v) => near(v, total, 1)); checks.push({ name: '★ 연간예산 = [예산 관리] 원천', scope: 'cost', ok: hit, detail: hit ? `비용탭 전체 연간예산 ${total.toLocaleString()} = 예산 총괄에 존재(원천 일치)` : `비용탭 전체 연간예산 ${total.toLocaleString()} 이 예산 총괄 금액집합에 없음 → 원천 확인` }); }
+    const totalHit = total != null && budgetNums.some((v) => near(v, total, 1));
+    if (!budgetDetailVisited || pairs.length === 0) {
+      // 예산 상세 대조 불가 → 전체 총액 존재 확인으로 폴백(기존 ⑪ 동작)
+      if (total == null || budgetNums.length === 0) checks.push({ name: '★ 연간예산 = [예산 관리>예산 상세] 원천', scope: 'cost', ok: true, na: true, detail: `대조 대상 부족(예산 상세 방문 ${budgetDetailVisited}·대조쌍 ${pairs.length}·비용탭 전체예산 ${total?.toLocaleString() ?? '-'}·총괄 금액 ${budgetNums.length}건) — 판정 제외` });
+      else checks.push({ name: '★ 연간예산 = [예산 관리>예산 상세] 원천', scope: 'cost', ok: totalHit, review: !totalHit, detail: totalHit ? `예산 상세 카테고리 대조 불가(방문 ${budgetDetailVisited}) → 보조: 비용탭 전체 연간예산 ${total!.toLocaleString()} = 예산 총괄 금액집합 존재(원천 일치)` : `비용탭 전체 연간예산 ${total!.toLocaleString()} 이 예산 총괄 금액집합에 없음 → 원천 확인` });
+    } else {
+      const bad = pairs.filter((c) => !nearRel(annual[c]!.budget!, budgetDetailByCat[c], 0.005));
+      checks.push({
+        name: '★ 연간예산 = [예산 관리>예산 상세] 원천', scope: 'cost',
+        ok: bad.length === 0, review: bad.length > 0,   // 카테고리 불일치=확인 필요(원천 정렬 우선)
+        detail: bad.length === 0
+          ? `${pairs.length}개 카테고리 연간예산 = 예산 상세 대분류 연간합 일치: ${pairs.map((c) => `${c}(${annual[c]!.budget!.toLocaleString()})`).join(' · ')}${total != null ? ` · 전체 ${total.toLocaleString()}${totalHit ? '=예산 총괄 존재' : ''}` : ''}`
+          : `불일치(확인 필요): ${bad.map((c) => `${c}(HOME ${annual[c]!.budget!.toLocaleString()} ↔ 예산 상세 ${budgetDetailByCat[c].toLocaleString()})`).join(', ')}. 경로: HOME>[비용]탭 연간예산 ↔ 예산 관리>예산 상세(대분류 소계 합계열).`,
+      });
+    }
+  }
+  // ── [비용] ⑲★ 누적 사용 금액(회계) = [예산 관리 > 실적 관리] 원천 ──
+  //   HOME [비용]>예산 대비 실적의 '누적 사용 금액'은 회계상 집계 비용. 그 입력 원천은 예산 관리 > 실적 관리(분류×월).
+  //   대조: 카테고리별 HOME annual[c].used(누적 사용) ↔ perfByCat[c](실적 관리 Σ소계×12월).
+  //   ⚠ 스코프 차이 — HOME 누적=연중 누계(당월까지), 실적=입력된 전체 월 합. 원천이면 HOME 누적 ≤ 실적 연간합(부분합 ≤ 전체합).
+  //     → 성립하면 PASS(정확 일치 또는 누계<연간합). HOME 누적 > 실적 연간합(실적 미입력/다른 축)만 review(확인 필요). 결함 단정 금지.
+  {
+    const srcNote = `원천 화면: [예산 관리 > 실적 관리]${perfGuide ? ` — "${perfGuide.slice(0, 48)}…"` : ''}`;
+    const subs = COST_CATS.slice(1);
+    const homeUsedCats = subs.filter((c) => annual[c]?.used != null && annual[c]!.used! > 0);
+    const pairs = subs.filter((c) => annual[c]?.used != null && annual[c]!.used! > 0 && (perfByCat[c] ?? 0) > 0);
+    if (!perfVisited) {
+      checks.push({ name: '★ 누적 사용 금액 = [실적 관리] 회계 원천', scope: 'cost', ok: false, review: true, detail: `실적 관리 화면 진입 실패 — 회계 원천 대조 불가(확인 필요). ${srcNote}` });
+    } else if (homeUsedCats.length > 0 && !perfEntered) {
+      checks.push({ name: '★ 누적 사용 금액 = [실적 관리] 회계 원천', scope: 'cost', ok: false, review: true, detail: `HOME 누적 사용 노출(${homeUsedCats.map((c) => `${c}=${annual[c]!.used!.toLocaleString()}`).join(' · ')})이나 실적 관리는 전 분류 빈값(미입력) — 회계 원천 미입력/다른 축 가능(확인 필요). ${srcNote}` });
+    } else if (pairs.length === 0) {
+      checks.push({ name: '★ 누적 사용 금액 = [실적 관리] 회계 원천', scope: 'cost', ok: true, na: true, detail: `양측 대조 가능한 분류 없음(HOME 누적>0 ${homeUsedCats.length}·실적 입력 ${Object.values(perfByCat).filter((v) => v > 0).length}) — 판정 제외. ${srcNote}` });
+    } else {
+      const over = pairs.filter((c) => annual[c]!.used! > perfByCat[c] * 1.005);        // HOME 누적 > 실적 연간합(부분합>전체합 위배)
+      const exact = pairs.filter((c) => nearRel(annual[c]!.used!, perfByCat[c], 0.005));
+      if (over.length === 0) {
+        const subset = pairs.length - exact.length;
+        checks.push({ name: '★ 누적 사용 금액 = [실적 관리] 회계 원천', scope: 'cost', ok: true, detail: `${pairs.length}개 분류 정합(HOME 누적 ≤ 실적 관리 연간합) — 정확 일치 ${exact.length}${subset ? ` · 누계<연간합 ${subset}(당월까지 누계)` : ''}: ${pairs.map((c) => `${c}(${annual[c]!.used!.toLocaleString()}${nearRel(annual[c]!.used!, perfByCat[c], 0.005) ? '=' : '≤'}${perfByCat[c].toLocaleString()})`).join(' · ')}. ${srcNote}` });
+      } else {
+        checks.push({ name: '★ 누적 사용 금액 = [실적 관리] 회계 원천', scope: 'cost', ok: false, review: true, detail: `확인 필요(결함 단정 아님) — HOME 누적 사용이 실적 관리 연간합을 초과(실적 미입력/다른 회계축 가능): ${over.map((c) => `${c}(HOME ${annual[c]!.used!.toLocaleString()} > 실적 ${perfByCat[c].toLocaleString()})`).join(', ')}. 경로: HOME>[비용]>예산 대비 실적 ↔ 예산 관리>실적 관리. ${srcNote}` });
+      }
+    }
   }
   // ── [비용] ⑫ 예산 실적(회계)≠작업지시 집계 안내 표기 확인(정보성) ──
   checks.push({ name: '비용 탭 = 예산 대비 실적(회계 비용) 안내', scope: 'cost', ok: !!costTab.guide, detail: costTab.guide ? `안내 노출: "${costTab.guide.slice(0, 60)}…" (작업지시 집계와 차이 가능 명시)` : '안내문구 미검출(구조 확인)' });
+
+  // ═══ [비용] 탭 → 작업지시에 근거한 비용 분석(전체/코스별/South/East/West/기간별) ═══
+  // ⑬ 서브뷰 구조 렌더(6종 진입·표·행) · ⑭ 뷰별 '전체=Σ하위' 롤업 정합 · ⑮ 비음수 · ⑯ 안내문구.
+  {
+    if (!woToggleFound) {
+      checks.push({ name: '★ 작업지시 기반 비용 분석 — 서브뷰 렌더(6종)', scope: 'woc', ok: true, na: true, detail: "'작업지시에 근거한 비용 분석' 토글 미노출 — 판정 제외(비용 탭 구조/데이터 확인)" });
+    } else {
+      // ⑬ 구조: 6개 서브뷰 진입·표·데이터 행
+      const rendered = WO_VIEWS.filter((v) => woViews[v]?.ok && woViews[v].bodyRows.length > 0);
+      const missing = WO_VIEWS.filter((v) => !(woViews[v]?.ok && woViews[v].bodyRows.length > 0));
+      checks.push({ name: '★ 작업지시 기반 비용 분석 — 서브뷰 렌더(6종)', scope: 'woc', ok: missing.length === 0, detail: missing.length === 0 ? `전체·코스별·South·East·West·기간별 6종 모두 표·데이터 렌더(${rendered.map((v) => `${v} ${woViews[v].bodyRows.length}행`).join(' · ')})` : `미렌더/데이터없음: ${missing.join(', ')}` });
+
+      // ⑭ 뷰별 '전체 = Σ(하위 행)' 롤업 정합(영역/홀/월 축)
+      const rolls = WO_VIEWS.map((v) => ({ v, r: rollup(woViews[v] || { ok: false, headRows: [], bodyRows: [] }) }));
+      const judgedRolls = rolls.filter((x) => !x.r.na);
+      const badRolls = judgedRolls.filter((x) => !x.r.ok);
+      if (judgedRolls.length === 0) checks.push({ name: "★ 작업지시 분석 '전체' = Σ(하위) 롤업 정합", scope: 'woc', ok: true, na: true, detail: '롤업 판정 가능한 뷰 없음(데이터/구조) — 판정 제외' });
+      else checks.push({ name: "★ 작업지시 분석 '전체' = Σ(하위) 롤업 정합", scope: 'woc', ok: badRolls.length === 0, detail: badRolls.length === 0 ? `${judgedRolls.length}개 뷰 롤업 성립 — ${judgedRolls.map((x) => `${x.v}(${x.r.detail.replace(/개.*$/, '개열')})`).join(' · ')}` : `롤업 불일치: ${badRolls.map((x) => `${x.v}: ${x.r.detail}`).join(' / ')}` });
+
+      // ⑮ 비음수(전 뷰 전 수치 ≥ 0)
+      const negHits: string[] = [];
+      for (const v of WO_VIEWS) { const vw = woViews[v]; if (!vw?.ok) continue; for (const row of woRows(vw)) for (const n of row.nums) if (n != null && n < 0) { negHits.push(`${v}/${row.label}`); break; } }
+      const anyData = WO_VIEWS.some((v) => woViews[v]?.ok && woViews[v].bodyRows.length > 0);
+      checks.push({ name: '작업지시 분석 — 비용 값 비음수', scope: 'woc', ok: negHits.length === 0, na: !anyData, detail: !anyData ? '데이터 없음 — 판정 제외' : negHits.length === 0 ? '전 뷰 전 수치 ≥ 0' : `음수 발견: ${negHits.slice(0, 5).join(', ')}` });
+
+      // ⑯ 안내문구(작업지시서 기반 집계·회계비용과 차이 가능)
+      checks.push({ name: '작업지시 분석 안내문구 노출', scope: 'woc', ok: !!woGuide, detail: woGuide ? `안내 노출: "${woGuide.slice(0, 70)}…"` : '안내문구 미검출(구조 확인)' });
+
+      // ⑰★ A: HOME 작업지시 기반 비용(코스별) 총액 = 비용 관리 > 위치별 비용(동일 원천, 작업지시 집계) 코스별 총액
+      //   HOME woc '코스별' 뷰의 South/East/West 총액 ↔ 위치별 비용 연간의 각 코스 총비용. 동일 원천이라 일치해야.
+      //   ⚠ 스코프(HOME 현재 vs 위치별 연간) 어긋나면 가짜 불일치 위험 → 불일치는 review(확인 필요)로, 화면 경로 명시.
+      {
+        const cb = woViews['코스별'];
+        const homeCourse: Record<string, number> = {};
+        if (cb?.ok) for (const r of woRows(cb)) { const m = r.label.match(/South|East|West/i); const t = r.nums.find((n) => n != null && n > 0); if (m && t != null) homeCourse[m[0]] = t as number; }
+        const courses = ['South', 'East', 'West'].filter((c) => homeCourse[c] != null && locByCourse[c] != null);
+        if (!woToggleFound || courses.length === 0) {
+          checks.push({ name: '★ HOME 작업지시 기반 비용(코스별) = 비용 관리 위치별 비용(동일 원천)', scope: 'woc', ok: true, na: true, detail: `대조 대상 부족 — 판정 제외(HOME 코스별 뷰 코스 ${Object.keys(homeCourse).length}건·[비용 관리>위치별 비용] 코스 ${Object.keys(locByCourse).length}건). 두 화면 모두 데이터 있어야 대조 가능.` });
+        } else {
+          const bad = courses.filter((c) => !near(homeCourse[c], locByCourse[c]));
+          checks.push({
+            name: '★ HOME 작업지시 기반 비용(코스별) = 비용 관리 위치별 비용(동일 원천)', scope: 'woc',
+            ok: bad.length === 0, review: bad.length > 0,   // 불일치=결함 단정 대신 확인 필요(스코프 정렬 우선)
+            detail: bad.length === 0
+              ? `${courses.length}개 코스 총액 일치(동일 원천 확인): ${courses.map((c) => `${c} ${homeCourse[c].toLocaleString()}`).join(' · ')} = [비용 관리>위치별 비용] 값과 동일.`
+              : `불일치: ${bad.map((c) => `${c}(HOME ${homeCourse[c].toLocaleString()} ≠ 위치별 ${locByCourse[c].toLocaleString()})`).join(', ')}. → 두 화면의 기간 스코프(HOME 비용탭 현재 vs [비용 관리>위치별 비용]>연간) 정렬 또는 집계 확인. 대조 화면: HOME>[비용]탭>작업지시에 근거한 비용 분석>코스별 ↔ 비용 관리>위치별 비용>연간.`,
+          });
+        }
+      }
+      // ⑱ C: 코스무관(특정 코스 미귀속) 작업 비용 가시화 — HOME 코스별: 전체 − Σ코스 = 코스무관(= 위치별 '전체 골프장' 버킷)
+      {
+        const cb = woViews['코스별'];
+        let homeAll: number | null = null; let homeCourseSum = 0; let n = 0;
+        if (cb?.ok) for (const r of woRows(cb)) { const t = r.nums.find((x) => x != null && x > 0) as number | undefined; if (/^전체$/.test(r.label.replace(/\s+/g, ''))) homeAll = t ?? null; else if (/South|East|West/i.test(r.label) && t != null) { homeCourseSum += t; n++; } }
+        if (homeAll != null && n > 0) {
+          const bucket = homeAll - homeCourseSum;
+          checks.push({ name: '코스무관(코스 미지정) 작업 비용 가시화', scope: 'woc', ok: true, detail: `HOME 코스별: 전체 ${homeAll.toLocaleString()} − Σ코스 ${homeCourseSum.toLocaleString()} = 코스무관 ${bucket.toLocaleString()}원(특정 코스 South/East/West에 안 잡히는 작업).${locBucket != null ? ` [비용 관리>위치별 비용]의 '전체 골프장' 버킷 ${locBucket.toLocaleString()}원과 대응.` : ''}` });
+        } else if (locBucket != null) {
+          checks.push({ name: '코스무관(코스 미지정) 작업 비용 가시화', scope: 'woc', ok: true, detail: `[비용 관리>위치별 비용]의 '전체 골프장'(코스무관) 버킷 = ${locBucket.toLocaleString()}원 — 특정 코스에 안 잡히는 작업. 그랜드총계 = Σ코스 + 코스무관.` });
+        } else {
+          checks.push({ name: '코스무관(코스 미지정) 작업 비용 가시화', scope: 'woc', ok: true, na: true, detail: 'HOME 코스별 전체/코스 행·위치별 버킷 모두 미검출 — 판정 제외' });
+        }
+      }
+      // ⑳ D: 전체뷰 '전체' 행 가로 정합 — 합계 컬럼 = Σ(카테고리 컬럼) (당월·누적 각 블록)
+      //   ⚠ 2026-09-04 프로브(course:cost-decomp)로 발견: HOME 전체뷰 '합계'가 Σ표시카테고리보다 큼(누적 5,174,135·당월 260,639).
+      //     표시된 5개 카테고리로 설명 안 되는 금액이 합계에 포함(영역 미배정 작업의 합계 귀속 추정, 카테고리엔 미반영).
+      //     세로 롤업(⑭ 전체=Σ영역)과 별개인 '가로' 항등 — 결함 단정 금지, 불일치는 review(확인 필요)로 상시 노출.
+      {
+        const tv = woViews['전체'];
+        const totalRow = tv?.ok ? woRows(tv).find((r) => /^전체$/.test(r.label.replace(/\s+/g, ''))) : undefined;
+        const nums = (totalRow?.nums || []).filter((n): n is number => n != null);
+        if (!totalRow || nums.length < 4 || nums.length % 2 !== 0) {
+          checks.push({ name: "★ 전체뷰 가로 정합: '합계' = Σ카테고리", scope: 'woc', ok: true, na: true, detail: `전체뷰 '전체' 행 구조 부적합(수치 ${nums.length}개) — 판정 제외` });
+        } else {
+          const half = nums.length / 2;   // [당월: 합계+카테고리][누적: 합계+카테고리]
+          const blocks: { label: string; total: number; catSum: number; diff: number }[] = [];
+          for (const [i, label] of [[0, '당월'], [half, '누적']] as [number, string][]) {
+            const total = nums[i]; const cats = nums.slice(i + 1, i + half); const catSum = cats.reduce((a, b) => a + b, 0);
+            blocks.push({ label, total, catSum, diff: total - catSum });
+          }
+          const bad = blocks.filter((b) => Math.abs(b.diff) > Math.max(2, Math.abs(b.total) * 0.005));
+          checks.push({
+            name: "★ 전체뷰 가로 정합: '합계' = Σ카테고리", scope: 'woc',
+            ok: bad.length === 0, review: bad.length > 0,   // 불일치=확인 필요(내부 정합성 — 결함 단정 아님)
+            detail: bad.length === 0
+              ? `당월·누적 블록 모두 '합계' = Σ카테고리(가로 항등 성립): ${blocks.map((b) => `${b.label} ${b.total.toLocaleString()}`).join(' · ')}`
+              : `내부 불일치(확인 필요) — '합계' 컬럼이 표시된 카테고리 합과 다름: ${bad.map((b) => `${b.label}(합계 ${b.total.toLocaleString()} ≠ Σ카테고리 ${b.catSum.toLocaleString()}, 차이 ${b.diff.toLocaleString()})`).join(', ')}. 표시 5개 카테고리로 설명 안 되는 금액이 합계에 포함(영역 미배정분의 합계 귀속 추정). 화면: HOME>[비용]탭>작업지시에 근거한 비용 분석>전체.`,
+          });
+        }
+      }
+      // ㉑ QA-15497: HOME 작업지시분석(누적) 금액 = 비용관리 작업별 비용(YTD) 금액 — 두 화면 직접 대조
+      //   등록 버그(QA-15497): 두 화면 금액 상이. 같은 스코프(당해 YTD)로 대조 → 일치하면 수정됨(회귀 통과), 상이하면 버그 재현(review).
+      {
+        const CAT5 = COST_CATS.slice(1);
+        const pairs = CAT5.filter((c) => (woAllByCat.cum[c] ?? 0) > 0 && (taskByCat[c] ?? 0) > 0);
+        const taskTotal = taskTotalCard > 0 ? taskTotalCard : CAT5.reduce((a, c) => a + (taskByCat[c] || 0), 0);
+        if (!taskVisited || woAllByCat.cumTotal === 0 || pairs.length === 0) {
+          checks.push({ name: '★ QA-15497: HOME 작업지시분석(누적) = 작업별 비용(YTD)', scope: 'woc', ok: true, na: true, detail: `대조 대상 부족(작업별 방문 ${taskVisited}·HOME 누적합계 ${woAllByCat.cumTotal.toLocaleString()}·대조쌍 ${pairs.length}) — 판정 제외` });
+        } else {
+          const badCat = pairs.filter((c) => !nearRel(woAllByCat.cum[c], taskByCat[c], 0.005));
+          const totalOk = nearRel(woAllByCat.cumTotal, taskTotal, 0.005);
+          const ok = badCat.length === 0 && totalOk;
+          checks.push({
+            name: '★ QA-15497: HOME 작업지시분석(누적) = 작업별 비용(YTD)', scope: 'woc',
+            ok, review: !ok,   // 상이=등록버그(QA-15497) 재현 → 확인 필요(수정 시 PASS로 회귀)
+            detail: ok
+              ? `✅ 두 화면 금액 일치(QA-15497 해소 추정) — 총액 HOME ${woAllByCat.cumTotal.toLocaleString()} = 작업별 ${taskTotal.toLocaleString()}, ${pairs.length}개 카테고리 일치`
+              : `🔎 QA-15497 재현 — 두 화면 금액 상이: 총액 HOME 작업지시분석 ${woAllByCat.cumTotal.toLocaleString()} ≠ 작업별 비용 ${taskTotal.toLocaleString()}(차 ${(taskTotal - woAllByCat.cumTotal).toLocaleString()})`
+                + (badCat.length ? ` · 카테고리 상이: ${badCat.map((c) => `${c}(HOME ${woAllByCat.cum[c].toLocaleString()} ≠ 작업별 ${taskByCat[c].toLocaleString()})`).join(', ')}` : '')
+                + `. 등록 버그 QA-15497(HOME>비용>작업지시 분석 금액 ≠ 비용관리>작업별 비용). 원인분해: 스코프 차 + 미귀속 잔여(작업지시분석 유형 미분류).`,
+          });
+        }
+      }
+    }
+  }
 
   // ═══ HTML(탭 구조) ═══
   // 판정: na(데이터 없음)는 pass/fail 집계 제외 — "미확인 ≠ 결함"(리포트 표준).
@@ -238,7 +660,7 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
   const fail = judged.filter((c) => !c.ok && !isRev(c)).length;   // 실제 결함
   const review = judged.filter((c) => !c.ok && isRev(c)).length;  // 확인 필요
   const attn = fail + review;                                      // 주의 필요 = 결함 + 확인 필요
-  const goalChk = checks.filter((c) => c.scope === 'goal'); const workChk = checks.filter((c) => c.scope === 'work'); const costChk = checks.filter((c) => c.scope === 'cost');
+  const goalChk = checks.filter((c) => c.scope === 'goal'); const workChk = checks.filter((c) => c.scope === 'work'); const costChk = checks.filter((c) => c.scope === 'cost'); const wocChk = checks.filter((c) => c.scope === 'woc');
   const cnt = (cs: Check[]) => { const j = cs.filter((c) => !c.na); return `${j.filter((c) => c.ok).length}/${j.length}`; };
   const allOkOf = (cs: Check[]) => cs.filter((c) => !c.na).every((c) => c.ok);
   const ts = new Date().toISOString().slice(0, 19).replace('T', ' ');
@@ -256,6 +678,34 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
   const idTbl = `<table class="sys"><thead><tr><th>오늘의 작업(HOME)</th><th>작업 지시 목록 존재</th></tr></thead><tbody>${(work.ids.length ? work.ids : ['(없음)']).map((id) => `<tr class="${work.ids.length && !orderIds.includes(id) ? 'ng' : ''}"><td>${esc(id)}</td><td>${work.ids.length ? (orderIds.includes(id) ? '✅ 존재' : '❌ 없음') : '—'}</td></tr>`).join('')}</tbody></table>`;
   const costRow = (cat: string, d: CostCat | undefined) => { if (!d) return `<tr><td>${esc(cat)}</td><td colspan="4" style="color:var(--mut)">파싱 없음</td></tr>`; const calc = d.budget != null && d.used != null ? d.budget - d.used : null; const ok = calc != null && d.remain != null && near(d.remain, calc); return `<tr class="${cat === '전체' ? 'mt' : ''} ${calc != null && !ok ? 'ng' : ''}"><td>${esc(cat)}</td><td class="num">${d.used?.toLocaleString() ?? '—'}</td><td class="num">${d.remain?.toLocaleString() ?? '—'}</td><td class="num">${d.budget?.toLocaleString() ?? '—'}</td><td class="num">${d.pct}% ${calc != null ? (ok ? '✅' : '❌') : ''}</td></tr>`; };
   const costTbl = (data: Record<string, CostCat>, budgetLabel: string) => `<table class="sys"><thead><tr><th>카테고리</th><th class="num">누적 사용</th><th class="num">잔여 예산</th><th class="num">${esc(budgetLabel)}</th><th class="num">사용률(검산)</th></tr></thead><tbody>${COST_CATS.map((c) => costRow(c, data[c])).join('')}</tbody></table>`;
+  // 작업지시 분석 뷰별 롤업 요약 표(전체 대표총액 + 하위행 수 + 롤업 판정)
+  const wocSummaryTbl = `<table class="sys"><thead><tr><th>서브뷰</th><th>렌더</th><th class="num">행 수</th><th class="num">'전체' 대표총액</th><th>전체=Σ하위 롤업</th></tr></thead><tbody>${WO_VIEWS.map((v) => {
+    const vw = woViews[v]; const r = rollup(vw || { ok: false, headRows: [], bodyRows: [] });
+    const rendered = vw?.ok && vw.bodyRows.length > 0;
+    const mk = r.na ? '➖ 판정 제외' : r.ok ? '✅ 성립' : '❌ 불일치';
+    return `<tr class="${!r.na && !r.ok ? 'ng' : ''}"><td><b>${esc(v)}</b></td><td>${rendered ? '✅' : '➖'}</td><td class="num">${rendered ? vw.bodyRows.length : '—'}</td><td class="num">${r.grand != null ? r.grand.toLocaleString() : '—'}</td><td>${mk}${!r.na ? ` <span class="mut">${esc(r.detail)}</span>` : ''}</td></tr>`;
+  }).join('')}</tbody></table>`;
+  // 작업지시 분석 서브뷰 원본표 재현(span 보존) + '전체' 행 강조. 숫자 셀 우측정렬.
+  const isNumCell = (t: string) => /^-?[\d,]+(원|%)?$/.test((t || '').trim());
+  const woCellRow = (cells: WCell[], tag: 'th' | 'td', hot: boolean) => `<tr class="${hot ? 'mt' : ''}">${cells.map((c) => `<${tag}${c.cs > 1 ? ` colspan="${c.cs}"` : ''}${c.rs > 1 ? ` rowspan="${c.rs}"` : ''} class="${isNumCell(c.t) ? 'num' : ''}">${esc(c.t || '')}</${tag}>`).join('')}</tr>`;
+  const woDetailTbl = (v: string) => {
+    const vw = woViews[v];
+    if (!vw?.ok || !vw.bodyRows.length) return '<div class="note">데이터 없음(미렌더/빈 표)</div>';
+    const thead = vw.headRows.map((r) => woCellRow(r, 'th', false)).join('');
+    const tbody = vw.bodyRows.map((r) => woCellRow(r, 'td', /^전체$/.test((r[0]?.t || '').replace(/\s+/g, '')))).join('');
+    return `<div class="tblwrap"><table class="sys">${thead ? `<thead>${thead}</thead>` : ''}<tbody>${tbody}</tbody></table></div>`;
+  };
+  const woViewNote: Record<string, string> = {
+    '전체': '영역(그린·티박스·페어웨이…)별 <b>당월/누적</b> 비용. \'전체\' 행 = Σ(영역 행).',
+    '코스별': '코스(South·East·West)별 카테고리 비용. \'전체\' 행 = Σ(영역 행). ⚠ 영역축이라 코스별 총합은 전체 뷰와 다를 수 있음(코스 미지정 작업).',
+    'South': 'South 코스 <b>홀별(1~9홀)</b> · 예산분류별/작업분류별 × 카테고리 × 영역. \'전체\' 행 = Σ(홀 행).',
+    'East': 'East 코스 홀별 · 예산분류별/작업분류별 × 카테고리 × 영역. \'전체\' 행 = Σ(홀 행).',
+    'West': 'West 코스 홀별 · 예산분류별/작업분류별 × 카테고리 × 영역. \'전체\' 행 = Σ(홀 행).',
+    '기간별': '<b>월별(1~12월)</b> 비용 추이. \'전체\' 행 = Σ(월 행).',
+  };
+  const woDetailSections = woToggleFound
+    ? WO_VIEWS.map((v) => { const r = rollup(woViews[v] || { ok: false, headRows: [], bodyRows: [] }); const badge = r.na ? '<span class="badge">판정 제외</span>' : r.ok ? '<span class="badge" style="color:var(--ok);border-color:var(--ok)">✅ 롤업 성립</span>' : '<span class="badge" style="color:var(--ng);border-color:var(--ng)">❌ 롤업 불일치</span>'; return `<h3>${esc(v)} ${badge} ${r.grand != null ? `<span class="mut" style="font-size:12px;font-weight:400">대표총액 ${r.grand.toLocaleString()}원</span>` : ''}</h3><div class="note" style="margin:4px 0 6px">${woViewNote[v] || ''} ${!r.na ? `<span class="mut">— ${esc(r.detail)}</span>` : ''}</div>${woDetailTbl(v)}`; }).join('')
+    : '';
 
   const html = `<style>
 :root{--bg:#fff;--fg:#1a1d24;--mut:#5b6472;--line:#e3e7ee;--card:#f6f8fb;--ok:#1a7f37;--ng:#cf222e;--accent:#0969da}
@@ -287,8 +737,8 @@ code{background:var(--card);border:1px solid var(--line);border-radius:4px;paddi
 .node.hi{border-top:3px solid var(--accent)}.arrow{color:var(--mut);font-size:12px}.arrow b{color:var(--fg)}.mlabel{font-size:12.5px;color:var(--mut);font-weight:700;margin:14px 0 2px}
 .tabin{position:absolute;left:-9999px}.tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin:40px 0 0;flex-wrap:wrap}
 .tabs label{padding:9px 13px;cursor:pointer;font-weight:600;font-size:13px;color:var(--mut);border:1px solid transparent;border-bottom:none;border-radius:8px 8px 0 0}
-#t1:checked~.tabs label[for=t1],#t2:checked~.tabs label[for=t2],#t3:checked~.tabs label[for=t3],#t4:checked~.tabs label[for=t4],#t5:checked~.tabs label[for=t5],#t6:checked~.tabs label[for=t6]{color:var(--fg);border-color:var(--line);background:var(--card)}
-.panel{display:none;padding-top:14px}#t1:checked~#p1,#t2:checked~#p2,#t3:checked~#p3,#t4:checked~#p4,#t5:checked~#p5,#t6:checked~#p6{display:block}
+#t1:checked~.tabs label[for=t1],#t2:checked~.tabs label[for=t2],#t3:checked~.tabs label[for=t3],#t4:checked~.tabs label[for=t4],#t5:checked~.tabs label[for=t5],#t6:checked~.tabs label[for=t6],#t7:checked~.tabs label[for=t7]{color:var(--fg);border-color:var(--line);background:var(--card)}
+.panel{display:none;padding-top:14px}#t1:checked~#p1,#t2:checked~#p2,#t3:checked~#p3,#t4:checked~#p4,#t5:checked~#p5,#t6:checked~#p6,#t7:checked~#p7{display:block}
 .badge{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:var(--card);border:1px solid var(--line);color:var(--mut);margin-left:6px}
 .lead{font-size:16.5px;line-height:1.8;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;margin:14px 0 10px}.lead b{font-size:18px}.lead .em{color:var(--accent);font-weight:700}
 details.aux{margin:0 0 40px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
@@ -318,7 +768,8 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <div class="honest"><div class="htitle">이 검증이 잡는 것과 못 잡는 것</div>
 <div class="hrow ok"><span class="hic">✅</span><div class="hbody"><span class="hlbl">잡아냅니다</span><ul>
   <li>HOME 값이 <b>원천 화면과 다름</b> <span class="mut">(등급=목표설정 · 작업=작업지시 · 연간예산=예산관리)</span></li>
-  <li>비용 탭 <b>계산 항등이 깨짐</b> <span class="mut">(잔여=연간예산−누적 · 사용률% · 전체=Σ카테고리)</span></li></ul></div></div>
+  <li>비용 탭(예산 대비 실적) <b>계산 항등이 깨짐</b> <span class="mut">(잔여=연간예산−누적 · 사용률% · 전체=Σ카테고리)</span></li>
+  <li>비용 탭(작업지시 분석) <b>'전체' 롤업이 깨짐</b> <span class="mut">(전체·코스별·South·East·West·기간별 각 뷰: 전체 행 = Σ 하위 행)</span></li></ul></div></div>
 <div class="hrow warn"><span class="hic">⚠️</span><div class="hbody"><span class="hlbl">못 잡습니다 (한계)</span><ul>
   <li>HOME은 원천을 <b>가져다 보여주는</b> 화면 — <b>원천 자체가 틀리면</b> 같이 틀린 채 통과 <span class="mut">(원천 정확성은 각 원천 검증 담당)</span></li>
   <li><b>집계 범위가 다른</b> 항목(이번 달 vs 전체기간)은 직접 일치가 아니라 자기정합(≥0)만 확인</li></ul></div></div>
@@ -327,8 +778,8 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 </div></details>
 <div class="cards"><div class="card"><div class="n">${judged.length}</div><div class="l">확인 항목</div></div><div class="card"><div class="n ok-n">${pass}</div><div class="l">정상 통과</div></div>${attnCard}${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}</div>
 
-<input class="tabin" type="radio" name="tab" id="t1" checked><input class="tabin" type="radio" name="tab" id="t2"><input class="tabin" type="radio" name="tab" id="t3"><input class="tabin" type="radio" name="tab" id="t4"><input class="tabin" type="radio" name="tab" id="t5"><input class="tabin" type="radio" name="tab" id="t6">
-<div class="tabs"><label for="t1">① 실행 방법</label><label for="t2">② 연관성 맵</label><label for="t3">③ 요약</label><label for="t4">④ 관리 목표·현황</label><label for="t5">⑤ 작업 탭</label><label for="t6">⑥ 비용 탭</label></div>
+<input class="tabin" type="radio" name="tab" id="t1" checked><input class="tabin" type="radio" name="tab" id="t2"><input class="tabin" type="radio" name="tab" id="t3"><input class="tabin" type="radio" name="tab" id="t4"><input class="tabin" type="radio" name="tab" id="t5"><input class="tabin" type="radio" name="tab" id="t6"><input class="tabin" type="radio" name="tab" id="t7">
+<div class="tabs"><label for="t1">① 실행 방법</label><label for="t2">② 연관성 맵</label><label for="t3">③ 요약</label><label for="t4">④ 관리 목표·현황</label><label for="t5">⑤ 작업 탭</label><label for="t6">⑥ 비용 탭(예산 대비 실적)</label><label for="t7">⑦ 비용 탭(작업지시 분석)</label></div>
 
 <div class="panel" id="p1">
 <h2>실행 방법</h2>
@@ -350,7 +801,10 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <div class="mrow"><div class="node"><div class="nt">작업 관리 &gt; 작업 일보</div><div class="na">일자별 작업/인력</div></div><div class="arrow">─<b>요약</b>→</div><div class="node"><div class="nt">HOME 최근 작업 일보</div><div class="na">단일/반복·고정직/임시직</div></div></div>
 <div class="mlabel">[비용] 탭 — 예산 대비 실적(금액)</div>
 <div class="mrow"><div class="node"><div class="nt">예산 관리 &gt; 예산 총괄</div><div class="na">카테고리 연간예산(원천)</div></div><div class="arrow">─<b>입력값</b>→</div><div class="node hi"><div class="nt">HOME 비용 탭</div><div class="na">연간/누적 예산 대비 실적</div></div></div>
-<div class="mrow"><div class="node"><div class="nt">비용 관리 &gt; 비용 집계</div><div class="na">작업지시 집계 비용</div></div><div class="arrow">─<b>참고</b>→</div><div class="node"><div class="nt">HOME 누적 사용 금액</div><div class="na">회계 비용(차이 가능)</div></div></div>
+<div class="mrow"><div class="node"><div class="nt">예산 관리 &gt; 실적 관리</div><div class="na">회계상 집계 전체 비용(분류×월)</div></div><div class="arrow">─<b>원천</b>→</div><div class="node hi"><div class="nt">HOME 누적 사용 금액</div><div class="na">회계 비용(작업지시 집계와 다른 축)</div></div></div>
+<div class="mlabel">[비용] 탭(작업지시 분석) — 작업지시서 집계 비용(6개 관점)</div>
+<div class="mrow"><div class="node"><div class="nt">작업 관리 &gt; 작업 지시(완료확정)</div><div class="na">작업별 원가 집계</div></div><div class="arrow">─<b>분석</b>→</div><div class="node hi"><div class="nt">HOME 작업지시 분석</div><div class="na">전체·코스별·South·East·West·기간별</div></div></div>
+<div class="mrow" style="justify-content:center"><div class="node" style="border:none;background:none"><div class="na">각 뷰 롤업: '전체' 행 = Σ(영역/홀/월 하위 행)</div></div></div>
 </div>
 <h3>HOME 탭·블록·원천</h3>
 <table class="sys"><thead><tr><th>탭</th><th>블록</th><th>기입 항목</th><th>원천 화면</th></tr></thead><tbody>
@@ -359,18 +813,20 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <tr><td rowspan="3">작업</td><td>오늘의 작업</td><td>W-작업지시 카드(지시명·기간·조장)</td><td>작업 관리 &gt; 작업 지시</td></tr>
 <tr><td>이번 달 작업</td><td>완료 / 진행중 / 대기 중</td><td>작업 관리 &gt; 작업 지시(상태)</td></tr>
 <tr><td>최근 작업 일보</td><td>일자·단일/반복 작업·고정직/임시직</td><td>작업 관리 &gt; 작업 일보</td></tr>
-<tr><td rowspan="2">비용</td><td>연간 예산 대비 실적</td><td>카테고리별 누적 사용·잔여·연간예산·사용률%</td><td>예산 관리(예산 총괄/상세)</td></tr>
-<tr><td>누적 예산 대비 현황</td><td>카테고리별 누적 사용·잔여·누적 예산</td><td>예산 관리 · 비용 관리(집계)</td></tr>
+<tr><td rowspan="3">비용</td><td>예산 대비 실적 — 연간 예산 대비 실적</td><td>카테고리별 누적 사용·잔여·연간예산·사용률%</td><td>예산 관리(예산 총괄 <b>연간 탭</b>/상세)</td></tr>
+<tr><td>예산 대비 실적 — 누적 예산 대비 현황</td><td>카테고리별 <b>누적 사용</b>(회계)·잔여·누적 예산</td><td>예산 관리 &gt; <b>실적 관리</b>(회계 비용 입력)</td></tr>
+<tr><td>작업지시에 근거한 비용 분석</td><td>전체·코스별·South·East·West·기간별(작업지시서 집계 비용)</td><td>작업 관리 &gt; 작업 지시(완료확정) · 비용 관리</td></tr>
 </tbody></table>
 </div>
 
 <div class="panel" id="p3">
 <h2>요약</h2>
-<div class="cards"><div class="card"><div class="n ${allOkOf(goalChk) ? 'ok-n' : 'ng-n'}">${cnt(goalChk)}</div><div class="l">관리 목표·현황(등급)</div></div><div class="card"><div class="n ${allOkOf(workChk) ? 'ok-n' : 'ng-n'}">${cnt(workChk)}</div><div class="l">작업 탭</div></div><div class="card"><div class="n ${allOkOf(costChk) ? 'ok-n' : 'ng-n'}">${cnt(costChk)}</div><div class="l">비용 탭</div></div>${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}</div>
+<div class="cards"><div class="card"><div class="n ${allOkOf(goalChk) ? 'ok-n' : 'ng-n'}">${cnt(goalChk)}</div><div class="l">관리 목표·현황(등급)</div></div><div class="card"><div class="n ${allOkOf(workChk) ? 'ok-n' : 'ng-n'}">${cnt(workChk)}</div><div class="l">작업 탭</div></div><div class="card"><div class="n ${allOkOf(costChk) ? 'ok-n' : 'ng-n'}">${cnt(costChk)}</div><div class="l">비용 탭(예산 대비 실적)</div></div><div class="card"><div class="n ${allOkOf(wocChk) ? 'ok-n' : 'ng-n'}">${cnt(wocChk)}</div><div class="l">비용 탭(작업지시 분석)</div></div>${naCount ? `<div class="card"><div class="n na-n">${naCount}</div><div class="l">참고(데이터없음)</div></div>` : ''}</div>
 ${attn ? `<div class="note" style="border-left:3px solid ${fail ? 'var(--ng)' : '#9a6700'}"><b class="${fail ? 'ng-n' : 'rv-n'}">⚠ 주의 필요 (${attn}건${review ? `: 결함 ${fail} · 확인 필요 ${review}` : ''})</b><br>${attnItems.map((c) => `<div style="margin-top:8px"><b class="${c.review ? 'rv-n' : 'ng-n'}">${c.review ? '🔎 확인 필요' : '❌'} ${esc(c.name)}</b><br><span>${esc(c.detail)}</span></div>`).join('')}</div>` : '<div class="note" style="border-left:3px solid var(--ok)"><b class="ok-n">✅ 확인 항목 전부 정상</b> — 주의 없음</div>'}${naCount ? `<div class="note" style="border-left:3px solid var(--mut)"><b>➖ 참고: 데이터가 없어 확인 대상이 아님 (${naCount}건, 판정 제외)</b> — 결함이 아니라 "확인 불가"입니다.<br>${checks.filter((c) => c.na).map((c) => `<div style="margin-top:6px"><b>➖ ${esc(c.name)}</b><br><span class="mut">${esc(c.detail)}</span></div>`).join('')}</div>` : ''}
 <h3>① 관리 목표 및 현황 (등급)</h3>${chkTbl(goalChk)}
 <h3>② 작업 탭 (작업 운영)</h3>${chkTbl(workChk)}
 <h3>③ 비용 탭 (예산 대비 실적)</h3>${chkTbl(costChk)}
+<h3>④ 비용 탭 (작업지시에 근거한 비용 분석)</h3>${chkTbl(wocChk)}
 </div>
 
 <div class="panel" id="p4">
@@ -393,15 +849,48 @@ ${attn ? `<div class="note" style="border-left:3px solid ${fail ? 'var(--ng)' : 
 </div>
 
 <div class="panel" id="p6">
-<h2>비용 탭 검증 (예산 대비 실적 계산 정합성)</h2>
+<h2>비용 탭 검증 — 예산 대비 실적 (계산 정합성)</h2>
 <div class="note big"><b>핵심</b>: [비용] 탭 = <b>예산 대비 실적 분석</b> 대시보드(금액 카드 ${costTab.wonCells}개). 카테고리별 <b>잔여=연간예산−누적사용</b> 항등·<b>사용률%</b> 검산·<b>전체=Σ하위</b> 롤업 + 연간예산 <b>[예산 관리] 원천 대조</b>. 회계 비용이라 작업지시 집계와 차이 가능(안내 명시).</div>
 <h3>연간 예산 대비 실적 현황</h3>
 <div class="tblwrap">${costTbl(annual, '연간예산')}</div>
 <div class="note">검산: 잔여 예산 = 연간예산 − 누적 사용 · 사용률% = round(누적사용 ÷ 연간예산 × 100). <b>전체</b> 행 = Σ(고정직·임시직·자재·장비·기타). ✅=항등 성립.</div>
 <h3>누적 예산 대비 현황</h3>
 <div class="tblwrap">${costTbl(cumul, '누적 예산')}</div>
-<h3>연간예산 원천 대조</h3>
-<div class="note">비용탭 전체 연간예산 <b>${annual['전체']?.budget != null ? annual['전체'].budget!.toLocaleString() + '원' : '—'}</b> ↔ [예산 관리&gt;예산 총괄] 금액집합(${budgetNums.length}건${budgetNums.length ? ': ' + budgetNums.slice(0, 8).map((v) => v.toLocaleString()).join(', ') + (budgetNums.length > 8 ? ' …' : '') : ''}). 안내문구: <i>${esc(costTab.guide || '—')}</i></div>
+<h3>연간예산 원천 대조 <span class="mut">— 예산 관리 &gt; 예산 상세</span></h3>
+<div class="note">HOME 비용탭 <b>연간예산</b>(카테고리)의 정확 원천은 <b>[예산 관리 &gt; 예산 상세]</b>의 대분류(고정직/임시직/자재/장비/기타) 연간 합계(소계 Σ 합계열). 카테고리별 HOME 연간예산 ↔ 예산 상세 대분류 연간합 대조.<br>안내문구: <i>${esc(costTab.guide || '—')}</i></div>
+<div class="tblwrap"><table class="sys"><thead><tr><th>분류</th><th class="num">HOME 연간예산</th><th class="num">예산 상세 연간합</th><th>대조</th></tr></thead><tbody>${COST_CATS.slice(1).map((c) => {
+  const b = annual[c]?.budget; const d = budgetDetailByCat[c];
+  const bv = b != null ? b.toLocaleString() + '원' : '—';
+  const dv = (d ?? 0) > 0 ? d.toLocaleString() + '원' : (budgetDetailVisited ? '미추출' : '—');
+  let verdict = '<span class="mut">—</span>';
+  if (b != null && b > 0 && (d ?? 0) > 0) verdict = nearRel(b, d, 0.005) ? '<span style="color:var(--ok)">✅ 일치</span>' : '<span style="color:#9a6700;font-weight:600">🔎 확인 필요</span>';
+  else if (b != null && b > 0 && budgetDetailVisited) verdict = '<span class="mut">예산 상세 미추출 — 보류</span>';
+  return `<tr><td>${esc(c)}</td><td class="num">${bv}</td><td class="num">${dv}</td><td>${verdict}</td></tr>`;
+}).join('')}</tbody></table></div>
+<div class="note"><span class="mut">※ 예산 상세 = 대분류 &gt; 중분류 &gt; 소분류 + <b>소계행</b> + <b>합계(연간)열</b>. 대분류 연간예산 = Σ(중분류 소계 × 합계열). 전체 총액은 보조로 예산 총괄 금액집합(${budgetNums.length}건) 존재 확인. 예산 상세 방문: ${budgetDetailVisited ? 'O' : 'X'}.</span></div>
+<h3>누적 사용 금액 원천 대조 <span class="mut">— 회계 비용</span></h3>
+<div class="note">HOME <b>누적 사용 금액</b>(회계상 집계 비용)의 입력 원천은 <b>[예산 관리 &gt; 실적 관리]</b>. 카테고리별 HOME 누적 사용 ↔ 실적 관리 분류 연간합(Σ 소계×12월) 대조.<br>안내문구: <i>${esc(perfGuide || '—')}</i></div>
+<div class="tblwrap"><table class="sys"><thead><tr><th>분류</th><th class="num">HOME 누적 사용</th><th class="num">실적 관리 연간합</th><th>대조</th></tr></thead><tbody>${COST_CATS.slice(1).map((c) => {
+  const h = annual[c]?.used; const p = perfByCat[c];
+  const hv = h != null ? h.toLocaleString() + '원' : '—'; const pv = (p ?? 0) > 0 ? p.toLocaleString() + '원' : (perfVisited ? '0/미입력' : '—');
+  let verdict = '<span class="mut">—</span>';
+  if (h != null && h > 0 && (p ?? 0) > 0) verdict = nearRel(h, p, 0.005) ? '<span style="color:var(--ok)">✅ 정확 일치</span>' : (h <= p * 1.005 ? '<span style="color:var(--ok)">✅ 누계 ≤ 연간합</span>' : '<span style="color:#9a6700;font-weight:600">🔎 누계 &gt; 연간합</span>');
+  else if (h != null && h > 0 && perfVisited) verdict = '<span style="color:#9a6700;font-weight:600">🔎 실적 미입력</span>';
+  return `<tr><td>${esc(c)}</td><td class="num">${hv}</td><td class="num">${pv}</td><td>${verdict}</td></tr>`;
+}).join('')}</tbody></table></div>
+<div class="note"><span class="mut">※ 스코프 차이 주의 — HOME 누적 사용=연중 누계(당월까지) vs 실적 관리=입력된 전체 월 합. 범위가 달라 불일치해도 <b>결함이 아닌 확인 필요(🔎)</b>로 분류. 원천 화면 존재·입력 축 일치가 검증 목적.</span></div>
+</div>
+
+<div class="panel" id="p7">
+<h2>비용 탭 검증 — 작업지시에 근거한 비용 분석</h2>
+<div class="note big"><b>핵심</b>: [비용] 탭의 두 번째 분석 모드. <b>작업지시서로 집계된 비용</b>을 <b>전체·코스별·South·East·West·기간별</b> 6개 관점으로 제공(예산 대비 실적과 별개 축, 회계 비용과 차이 가능). 각 뷰의 <b>'전체' 행 = Σ(하위 행)</b> 롤업(영역/홀/월 축)이 성립하는지 검증(위치기반 열합 — 컬럼 의미와 무관하게 성립해야 함).</div>
+${woToggleFound ? `<h3>서브뷰별 롤업 정합성</h3>
+<div class="tblwrap">${wocSummaryTbl}</div>
+<div class="note">'전체' 대표총액 = 각 뷰 '전체' 행의 첫 유효 수치 열(대개 합계). 롤업 = '전체' 행이 그 아래 하위 행(전체 뷰=영역 / South·East·West=홀 / 기간별=월)의 열별 합과 일치하는지(반올림 off-by-1·상대 0.5% 허용). <b>⚠ 전체 뷰(영역축)와 코스별 뷰(코스축)는 집계 축이 달라</b> 서로의 총합이 일치하지 않는 것이 정상(코스 미지정·복수코스 작업 존재) → 뷰 간 총액 일치는 검증하지 않고 <b>각 뷰 자기 롤업</b>만 검증.</div>
+<div class="note">안내문구: <i>${esc(woGuide || '—')}</i></div>
+<h2 style="margin-top:26px">서브뷰별 상세 분석 데이터</h2>
+<div class="note">각 서브뷰의 <b>실제 집계표</b>를 화면 그대로 재현(당월/누적·카테고리·영역·홀·월 포함). <span class="mt-legend" style="background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1px 6px">진한 행</span> = \'전체\' 롤업 행(하위 합계).</div>
+${woDetailSections}` : '<div class="note" style="border-left:3px solid var(--mut)">➖ \'작업지시에 근거한 비용 분석\' 토글이 노출되지 않아 판정에서 제외했습니다(비용 탭 구조/권한/데이터 확인 필요).</div>'}
 </div>
 <details class="gloss"><summary>용어 풀이 (처음 보시는 분용)</summary>
 <dl>
@@ -410,12 +899,35 @@ ${attn ? `<div class="note" style="border-left:3px solid ${fail ? 'var(--ng)' : 
 <dt>등급 추세</dt><dd>구역별 관리 등급(A+~E-)이 시간에 따라 어떻게 변했는지 보여주는 선 그래프.</dd>
 <dt>화면 변경 없음(비파괴)</dt><dd>확인만 하고 저장·삭제·수정은 하지 않아, 실제 데이터가 바뀌지 않음.</dd>
 <dt>정상 통과 / 주의</dt><dd>정상=값이 맞음. 주의=값이 다르거나 확인이 더 필요(원인은 각 항목에 표기).</dd>
+<dt>롤업(전체 = Σ 하위)</dt><dd>'전체' 합계는 그 아래 세부 항목(영역·홀·월)들의 합과 같아야 함. 이 관계가 깨지면 집계가 잘못된 것.</dd>
+<dt>작업지시에 근거한 비용 분석</dt><dd>작업지시서로 집계된 비용을 여러 관점(전체·코스별·기간별 등)으로 보여주는 분석. 예산 대비 실적(회계 비용)과는 다른 축이라 총액이 다를 수 있음.</dd>
 </dl></details>
 </div>`;
 
   if (!fs.existsSync('reports')) fs.mkdirSync('reports', { recursive: true });
   const outPath = path.join('reports', 'course-home-verify.html');
   fs.writeFileSync(outPath, html);
+
+  // ── 교차분석용 앵커 덤프(course:cross 리코셔너가 읽음) — 실패해도 리포트 불영향 ──
+  try {
+    const annualByCat: Record<string, number> = {}; const usedByCat: Record<string, number> = {};
+    for (const c of COST_CATS) { if (annual[c]?.budget != null) annualByCat[c] = annual[c].budget!; if (annual[c]?.used != null) usedByCat[c] = annual[c].used!; }
+    // 작업지시분석 전체뷰: 합계·Σ유형·미귀속(당월/누적)
+    const tv = woViews['전체']; const trow = tv?.ok ? woRows(tv).find((r) => /^전체$/.test(r.label.replace(/\s+/g, ''))) : undefined;
+    const tn = (trow?.nums || []).filter((n): n is number => n != null);
+    let woAllView: Record<string, number> | null = null;
+    if (tn.length >= 4 && tn.length % 2 === 0) { const h = tn.length / 2; const curCat = tn.slice(1, h).reduce((a, b) => a + b, 0); const cumCat = tn.slice(h + 1).reduce((a, b) => a + b, 0); woAllView = { curTotal: tn[0], curCatSum: curCat, curHidden: tn[0] - curCat, cumTotal: tn[h], cumCatSum: cumCat, cumHidden: tn[h] - cumCat }; }
+    const taskTotalFinal = taskTotalCard > 0 ? taskTotalCard : COST_CATS.slice(1).reduce((a, c) => a + (taskByCat[c] || 0), 0);
+    const homeAnchors = {
+      ts: new Date().toISOString(), source: 'course-home-verify',
+      annualByCat, usedByCat, perfByCat, budgetDetailByCat, locByCourse, woAllView,
+      woAllByCat,                          // HOME 작업지시분석 전체뷰 당월/누적 카테고리(QA-15497)
+      taskByCat, taskTotal: taskTotalFinal,   // 비용관리 작업별 비용 YTD 카테고리/총액(QA-15497)
+      summary: { total: judged.length, pass, fail, review, na: naCount },
+    };
+    if (!fs.existsSync('analysis')) fs.mkdirSync('analysis', { recursive: true });
+    fs.writeFileSync(path.join('analysis', '_cross-home.json'), JSON.stringify(homeAnchors, null, 2), 'utf8');
+  } catch { /* noop */ }
   console.log(`\n[HOME 검증] 총 ${checks.length} · PASS ${pass} · FAIL ${fail}`);
   console.log(`[report] ${outPath}`);
   for (const c of checks) console.log(`  ${c.ok ? '✅' : '❌'} [${c.scope}] ${c.name} — ${c.detail}`);

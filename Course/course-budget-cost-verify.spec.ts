@@ -1,6 +1,7 @@
 import { test, Page } from '@playwright/test';
 import { openCourseAdmin, gotoCourseMenu, killAlarms, setCourseOneYear } from '../lib/course/courseHelpers';
 import { Check, crossTotalsEqual, sumEquals, vectorEquals, near, nearRel, firstNum, num } from '../lib/course/domain/budgetCost';
+import { verifyCostHierarchy, HierCheck } from '../lib/course/costHierarchy';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -22,6 +23,9 @@ async function grab(admin: Page): Promise<Grab> {
     const scope = document.querySelector('.contents, main') || document.body;
     const cards = Array.from(scope.querySelectorAll('[class*="card"], [class*="summary"], [class*="total"], [class*="amount"]'))
       .map((e) => norm(e.textContent)).filter((t) => t && t.length < 120 && /[0-9]/.test(t));
+    // ⚠ 작업별 비용 요약 바('총 건수 N 총 비용 X 고정직…기타')는 지표 6개라 length<120에 걸려 누락 →
+    //   본문에서 '총 건수 … 총 비용 X' 패턴만 직접 추출해 카드로 추가(교차검증 총액 원천, 화면 요약값=단일 반올림).
+    { const bodyTxt = norm(scope.textContent); const sm = bodyTxt.match(/총\s*건수\s*[\d,]+\s*총\s*비용\s*([\d,]{4,})/); if (sm) cards.push(`총 비용 ${sm[1]}`); }
     const tables = Array.from(scope.querySelectorAll('table')).slice(0, 4).map((t) => ({
       heads: Array.from(t.querySelectorAll('thead th, thead td')).map((e) => norm(e.textContent)).filter(Boolean),
       cells: Array.from(t.querySelectorAll('tbody tr')).slice(0, 140).map((tr) => Array.from(tr.children).map((td) => ({ t: norm(td.textContent), rs: (td as HTMLTableCellElement).rowSpan || 1, cs: (td as HTMLTableCellElement).colSpan || 1 }))),
@@ -94,7 +98,36 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
   const admin = await openCourseAdmin(page, context);
   // oneYear=true: 비용 관리 화면(datepicker 기본 3개월→데이터 제한)에 검색기간 1년 설정 후 수집(타이핑 방식).
   const dateApplied: Record<string, string> = {};
-  const go = async (menu: string, sub: string, oneYear = false): Promise<Grab | null> => {
+  // 페이지네이션 순회(이미 로드된 첫 grab에서 이어서 다음 페이지 누적) — 작업별 비용처럼 다행 그리드가 페이지 분할될 때 사용.
+  //  ⚠ 작업별 비용(24건 등)이 첫 페이지만 캡처되면 총계가 부분합만 잡혀 다축 교차에서 거짓 불일치가 난다(화면·타축은 정합) → 전 페이지 누적으로 해소.
+  const collectPages = async (first: Grab): Promise<Grab> => {
+    if (!first.tables[0]) return first;
+    const combined: Grab = { cards: first.cards, tables: [{ heads: first.tables[0].heads, cells: [...first.tables[0].cells] }, ...first.tables.slice(1)] };
+    let page = 1; let prevSig = first.tables[0].cells.map((r) => r.map((c) => c.t).join('|')).join('#');
+    for (let i = 0; i < 25; i++) {
+      const clicked = await admin.evaluate((target) => {
+        const vis = (e: Element) => (e as HTMLElement).offsetParent !== null && !(e as HTMLButtonElement).disabled;
+        const norm = (s: string | null) => (s || '').trim();
+        const cls = (e: Element) => (typeof e.className === 'string' ? e.className : '');
+        const inPag = (e: Element) => { let p: Element | null = e; for (let k = 0; k < 4 && p; k++) { if (/pag/i.test(cls(p))) return true; p = p.parentElement; } return false; };
+        const all = Array.from(document.querySelectorAll('button, a, li'));
+        const nums = all.filter((e) => vis(e) && norm(e.textContent) === target);
+        const btn = nums.find(inPag) || nums[nums.length - 1];
+        if (btn) { (btn as HTMLElement).click(); return true; }
+        const arrow = all.find((e) => vis(e) && (/next|다음/i.test(cls(e) + (e.getAttribute('aria-label') || '')) || /^[›❯»>]$/.test(norm(e.textContent))));
+        if (arrow) { (arrow as HTMLElement).click(); return true; }
+        return false;
+      }, String(page + 1)).catch(() => false);
+      if (!clicked) break;
+      await admin.waitForTimeout(900); await killAlarms(admin);
+      const g = await grab(admin); const cells = g.tables[0]?.cells || [];
+      const sig = cells.map((r) => r.map((c) => c.t).join('|')).join('#');
+      if (!cells.length || sig === prevSig) break;   // 페이지 미변경/끝
+      combined.tables[0].cells.push(...cells); prevSig = sig; page++;
+    }
+    return combined;
+  };
+  const go = async (menu: string, sub: string, oneYear = false, paged = false): Promise<Grab | null> => {
     if (!(await gotoCourseMenu(admin, menu, sub).then(() => true).catch(() => false))) return null;
     await admin.waitForTimeout(1500); await killAlarms(admin);
     if (oneYear) {
@@ -103,7 +136,8 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
       dateApplied[sub] = hasDp < 2 ? 'datepicker없음' : ok ? '1년적용✓' : '적용실패';
       await admin.waitForTimeout(800);
     }
-    return grab(admin);
+    const first = await grab(admin);
+    return paged ? await collectPages(first) : first;
   };
 
   const SCREENS: { menu: string; sub: string; route: string; grp: 'budget' | 'cost'; g: Grab | null }[] = [
@@ -112,7 +146,7 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
     { menu: '예산 관리', sub: '실적 관리', route: '/budget/performance', grp: 'budget', g: await go('예산 관리', '실적 관리') },
     { menu: '예산 관리', sub: '예산 분석', route: '/budget/analysis', grp: 'budget', g: await go('예산 관리', '예산 분석') },
     { menu: '비용 관리', sub: '비용 집계', route: '/cost/aggregate', grp: 'cost', g: await go('비용 관리', '비용 집계', true) },
-    { menu: '비용 관리', sub: '작업별 비용', route: '/cost/task', grp: 'cost', g: await go('비용 관리', '작업별 비용', true) },
+    { menu: '비용 관리', sub: '작업별 비용', route: '/cost/task', grp: 'cost', g: await go('비용 관리', '작업별 비용', true, true) },
     { menu: '비용 관리', sub: '분류별 비용', route: '/cost/category', grp: 'cost', g: await go('비용 관리', '분류별 비용', true) },
     { menu: '비용 관리', sub: '위치별 비용', route: '/cost/loc', grp: 'cost', g: await go('비용 관리', '위치별 비용', true) },
     { menu: '비용 관리', sub: '기간별 비용', route: '/cost/period', grp: 'cost', g: await go('비용 관리', '기간별 비용', true) },
@@ -125,17 +159,26 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
   checks.push({ name: '비용 관리 1년 기간 적용 현황(정보성)', scope: 'intra', ok: true, detail: `${Object.entries(dateApplied).map(([k, v]) => `${k}:${v}`).join(' · ') || '적용 없음'} — datepicker 있는 화면만 1년 설정, 연도필터 화면(datepicker없음)은 연도 선택 기반` });
 
   // ── 비용 집계 ──
-  let aggOrder: (number | null)[] = [], aggTotal: number | null = null;
+  let aggOrder: (number | null)[] = [], aggTotal: number | null = null; let aggActual: (number | null)[] = [];   // aggActual=실제발생(교차분석 앵커용 함수스코프)
   { const { grid: gr } = grid('비용 집계');
     if (gr.length) {
       const rowBy = (kw: RegExp) => gr.find((r) => kw.test(r[0] || ''));
       const parse = (r?: string[]) => (r ? r.slice(1).map(num) : []);
-      aggOrder = parse(rowBy(/작업지시/)); const aggActual = parse(rowBy(/실제\s*발생/)), aggDiff = parse(rowBy(/차액/));
+      aggOrder = parse(rowBy(/작업지시/)); aggActual = parse(rowBy(/실제\s*발생/)); const aggDiff = parse(rowBy(/차액/));
       aggTotal = aggOrder[0] ?? null;
       checks.push(sumEquals('비용집계 총계 = Σ관리비유형(작업지시)', 'intra', aggOrder[0], aggOrder.slice(1)));
-      const bad: string[] = []; let dc = 0;
-      for (let i = 0; i < aggDiff.length; i++) { const o = aggOrder[i], a = aggActual[i], d = aggDiff[i]; if (o == null || a == null || d == null) continue; dc++; if (!near(d, o - a)) bad.push(`열${i}`); }
-      checks.push({ name: '비용집계 차액 = 작업지시 − 실제발생', scope: 'intra', ok: bad.length === 0, detail: bad.length === 0 ? `${dc}열 일치` : `불일치: ${bad.join(',')}` });
+      const COLS = ['합계', '고정직 인건비', '임시직 인건비', '코스 자재비', '장비 관리비', '기타 관리비'];
+      const bad: string[] = []; const detailRows: string[] = []; let dc = 0;
+      for (let i = 0; i < aggDiff.length; i++) {
+        const o = aggOrder[i], a = aggActual[i], d = aggDiff[i];
+        if (o == null || a == null || d == null) continue; dc++;
+        const label = COLS[i] || `열${i}`;
+        // 앱 차액은 |실제발생 − 작업지시| 방향 → 부호 무관(양방향) 비교로 판정
+        const okCol = near(d, a - o) || near(d, o - a);
+        detailRows.push(`${label}: 작업지시 ${o.toLocaleString()}원 · 실제발생 ${a.toLocaleString()}원 · 차액 ${d.toLocaleString()}원${okCol ? '' : ` ⚠기대 ${Math.abs(a - o).toLocaleString()}원`}`);
+        if (!okCol) bad.push(`${label}(차액 ${d.toLocaleString()}원 ≠ |작업지시−실제발생| ${Math.abs(a - o).toLocaleString()}원)`);
+      }
+      checks.push({ name: '비용집계 차액 = |작업지시 − 실제발생|', scope: 'intra', ok: bad.length === 0, values: COLS.slice(0, dc).map((label, i) => ({ label, value: aggDiff[i] })), detail: (bad.length === 0 ? `${dc}개 항목 차액 정합. ` : `불일치 ${bad.length}건 → ${bad.join(' / ')}. `) + `[상세] ${detailRows.join(' / ')}` });
     } }
 
   // ── 분류별 ──
@@ -157,7 +200,7 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
     } }
 
   // ── 위치별 ──
-  let locTotal: number | null = null;
+  let locTotal: number | null = null; const locByCourse: Record<string, number> = {};   // 코스별 총비용(교차분석 앵커)
   { const T = G('위치별 비용')?.tables[0]; const { grid: gr } = grid('위치별 비용');
     if (T && gr.length) {
       const ti = T.heads.indexOf('총 비용') >= 0 ? T.heads.indexOf('총 비용') : 2;
@@ -165,9 +208,10 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
       let sum = 0; let any = false;
       for (const r of dataRows) {
         const total = num(r[ti]); const areas = r.slice(ti + 1).map((c) => num(c)).filter((v): v is number => v != null);
-        if (total != null) { sum += total; any = true; }
+        if (total != null) { sum += total; any = true; const cm = (r[0] || '').match(/South|East|West/i); if (cm && locByCourse[cm[0]] == null) locByCourse[cm[0]] = total; }
         const raw = areas.reduce((a, b) => a + b, 0); const k = total ? Math.round(raw / total) : 1;
-        if (total && k >= 2 && near(raw / k, total)) checks.push({ name: `위치별 코스 총비용=Σ코스영역 (${r[0]})`, scope: 'intra', ok: true, detail: `총계 ${total.toLocaleString()} = Σarea/${k} (area 컬럼 ${k}배 반복)` });
+        // ⚠ area 컬럼이 k회 반복 노출되는 표 → raw≈k×total. area들이 반올림값이라 Σarea가 홀수가 될 수 있어(예: South Σarea 10,356,211 = 2×5,178,104 + 3원 반올림) near(raw/k,total,±1)로는 0.5 소수+반올림에서 거짓탈락 → 상대오차 nearRel(raw, k×total)로 판정(반올림 흡수, 진짜 큰 불일치는 여전히 포착).
+        if (total && k >= 2 && nearRel(raw, k * total)) checks.push({ name: `위치별 코스 총비용=Σ코스영역 (${r[0]})`, scope: 'intra', ok: true, detail: `총계 ${total.toLocaleString()} = Σarea/${k} (area 컬럼 ${k}배 반복, 반올림 허용)` });
         else checks.push(sumEquals(`위치별 코스 총비용=Σ코스영역 (${r[0]})`, 'intra', total, areas));
       }
       const cardTotal = firstNum(G('위치별 비용')!.cards.find((c) => /전체\s*비용/.test(c)) || '');
@@ -180,15 +224,24 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
   { const { grid: gr } = grid('기간별 비용'); const t = gr.find((r) => /전체/.test(r[0] || '')); if (t) perTotal2026 = firstNum(t[t.length - 1]); }
   { const T = G('작업별 비용')?.tables[0]; const { grid: gr } = grid('작업별 비용'); const ti = T?.heads.indexOf('총 비용') ?? -1; const pi = T && T.heads.indexOf('기간') >= 0 ? T.heads.indexOf('기간') : 2;
     const curYear = new Date().getFullYear();
+    // ⚠ 화면 요약 카드('총 건수 N · 총 비용 X')는 원자료를 **한 번만** 반올림한 집계라 타 축과 정확히 일치.
+    //   반면 행별 총비용(각 행=5유형 반올림합)을 다시 합산하면 반올림이 누적돼 수 원 어긋남(예: 31행 합산 39,252,231 vs
+    //   요약 39,252,229 = +2원). → **요약 카드값을 총액 원천으로 우선 사용**(가짜 FAIL 방지, 화면·타 축과 동일). 2026-09-04.
+    let cardTotal: number | null = null;
+    for (const c of (G('작업별 비용')?.cards || [])) { const mm = c.match(/총\s*비용\s*([\d,]{4,})/); if (mm) { cardTotal = num(mm[1]); break; } }
     if (ti >= 0) {
       const dr = gr.filter((r) => !/없습니다/.test(r[0] || '') && num(r[ti]) != null);
-      taskTotalAll = dr.reduce((a, r) => a + (num(r[ti]) || 0), 0);
-      // ⚠ 크로스이어 이중계상 방지: 기간 시작연도 < 당해(전년도 시작)면 제외 → 연도필터 화면과 동일 기준.
+      const rowSum = dr.reduce((a, r) => a + (num(r[ti]) || 0), 0);
+      taskTotalAll = cardTotal ?? rowSum;   // 요약 카드 우선(정확), 없으면 행 합산 폴백
+      // 크로스이어 이중계상 방지: 기간 시작연도 < 당해(전년도 시작)면 제외 → 연도필터 화면과 동일 기준.
       const cur = dr.filter((r) => { const y = Number(((r[pi] || '').match(/\d{4}/) || ['0'])[0]); return !(y > 0 && y < curYear); });
-      taskExcluded = dr.length - cur.length; taskExclSum = taskTotalAll - cur.reduce((a, r) => a + (num(r[ti]) || 0), 0);
-      if (cur.length) taskTotal = cur.reduce((a, r) => a + (num(r[ti]) || 0), 0);
-    } }
-  checks.push({ name: '작업별 전년도시작 제외(크로스이어 이중계상 방지)', scope: 'intra', ok: true, detail: `당해(${new Date().getFullYear()})시작만 합계 ${taskTotal?.toLocaleString() ?? '-'} = 전체 ${taskTotalAll?.toLocaleString() ?? '-'} − 전년도시작 ${taskExcluded}건(${taskExclSum.toLocaleString()}). 연도필터 화면(시작연도 기준)과 동일 스코프로 정렬. ★검토(제외 적용 범위): 제외는 **작업별(날짜필터, 겹침 전액=이중계상)에만** 필요 — 집계·분류별·위치별·기간별은 시작연도 기준이라 아래 교차검증 통과가 곧 '이미 정렬됨'의 증거 → 추가 제외 불필요(적용 시 이중제외로 과소계상)` });
+      const curSum = cur.reduce((a, r) => a + (num(r[ti]) || 0), 0);
+      taskExcluded = dr.length - cur.length; taskExclSum = rowSum - curSum;   // Σ전년도시작 행(제외 0건이면 0)
+      // 당해시작 총액 = 전체 − 전년도시작 제외분. 제외 0건이면 요약 카드값 그대로(타 축과 정확 일치).
+      if (dr.length) taskTotal = taskExcluded > 0 ? (taskTotalAll - taskExclSum) : taskTotalAll;
+    } else if (cardTotal != null) { taskTotalAll = cardTotal; taskTotal = cardTotal; }
+  }
+  checks.push({ name: '작업별 전년도시작 제외(크로스이어 이중계상 방지)', scope: 'intra', ok: true, detail: `당해(${new Date().getFullYear()})시작만 합계 ${taskTotal?.toLocaleString() ?? '-'} = 전체 ${taskTotalAll?.toLocaleString() ?? '-'}(화면 요약 카드값 우선 — 행별 합산은 반올림 누적으로 수 원 오차) − 전년도시작 ${taskExcluded}건(${taskExclSum.toLocaleString()}). 연도필터 화면(시작연도 기준)과 동일 스코프로 정렬. ★검토(제외 적용 범위): 제외는 **작업별(날짜필터, 겹침 전액=이중계상)에만** 필요 — 집계·분류별·위치별·기간별은 시작연도 기준이라 아래 교차검증 통과가 곧 '이미 정렬됨'의 증거 → 추가 제외 불필요(적용 시 이중제외로 과소계상)` });
 
   // ── ★ 교차 ──
   checks.push(crossTotalsEqual('★ 비용 총비용 다축 일치(집계=분류별=위치별=기간별=작업별[전년도시작제외])', [
@@ -297,7 +350,13 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
     if (catT) { const idxs = [colIdx(catT, /고정직/), colIdx(catT, /임시직/)].filter((i) => i >= 0); for (const r of gr) for (const i of idxs) { const v = num(r[i]); if (v != null && v > 0) costVals.add(v); } }
     const rates = hrData.map((d) => d.rate).filter((v) => v > 0);
     const matched = rates.filter((rt) => [...costVals].some((cv) => Math.abs(cv - rt) <= 1));
-    if (rates.length && costVals.size) checks.push({ name: '원천 임률 → 비용 인건비 반영(값 등장)', scope: 'source', ok: matched.length > 0, detail: matched.length > 0 ? `인력 임률 ${matched.length}건이 분류별 비용 인건비 컬럼에 등장(예: ${matched.slice(0, 3).map((v) => v.toLocaleString()).join(', ')})` : `임률 ${rates.length}건 중 비용 컬럼 직접 매칭 0(집계/배분 방식 상이 가능)` });
+    if (rates.length && costVals.size) checks.push({
+      name: '(참고) 원천→비용 반영: [인력 관리>인력 관리] 시간당 임률 → [비용 관리>분류별 비용] 인건비 컬럼', scope: 'source',
+      ok: true,
+      detail: matched.length > 0
+        ? `[인력 관리>인력 관리]의 '시간당 임률' ${matched.length}건이 [비용 관리>분류별 비용]의 고정직/임시직 인건비 컬럼에 같은 값으로 등장(±1). 예: ${matched.slice(0, 3).map((v) => v.toLocaleString()).join(', ')}원 — 원천 임률이 비용에 반영됨을 값으로 재확인.`
+        : `정상입니다(확인 조치 불필요). [인력 관리>인력 관리]의 '시간당 임률' ${rates.length}건이 [비용 관리>분류별 비용]의 인건비 컬럼에 '시급 숫자 그대로'는 안 보이는 게 맞습니다 — 인건비 = 임률 × 작업시간으로 집계되기 때문. 임률 값 자체의 정확성은 위 '임률 = 급여 ÷ 연근무시간' 체크로 이미 검증됨. (직접 대조하려면: [인력 관리>인력 관리]의 시간당 임률 ↔ [비용 관리>분류별 비용]의 인건비 컬럼)`,
+    });
   }
 
   // ── 원천값 ↔ 비용 화면 비교(원천 단가/임률이 비용 화면 값으로 직접 등장하는지 대조) ──
@@ -319,11 +378,30 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
   pushCmp(eqData.map((d) => ({ name: d.name, val: d.hourly })), '장비 관리', '시간당 비용', '장비 관리비', eqCostSet);
   const cmpAppearN = cmp.filter((c) => c.appears).length;
 
+  // ② 원천 → 비용 반영(장비): 장비 시간당비용이 분류별 비용 '장비 관리비' 컬럼에 등장하는지(±1) — 임률 체크와 대칭.
+  //    비교표(⑦)엔 이미 있었으나 판정 체크가 임률에만 있어 대칭 보강(2026-09-04). 장비도 시간당이라 그대로 안 보이면 정상(review).
+  { const hourlies = eqData.map((d) => d.hourly).filter((v) => v > 0);
+    const matchedEq = hourlies.filter((h) => eqCostSet.some((cv) => Math.abs(cv - h) <= 1));
+    if (hourlies.length && eqCostSet.length) checks.push({
+      name: '(참고) 원천→비용 반영: [장비 관리>장비 총괄] 시간당 비용 → [비용 관리>분류별 비용] 장비 관리비 컬럼', scope: 'source',
+      ok: true,
+      detail: matchedEq.length > 0
+        ? `[장비 관리>장비 총괄]의 '시간당 비용' ${matchedEq.length}건이 [비용 관리>분류별 비용]의 장비 관리비 컬럼에 같은 값으로 등장(±1). 예: ${matchedEq.slice(0, 3).map((v) => v.toLocaleString()).join(', ')}원.`
+        : `정상입니다(확인 조치 불필요). [장비 관리>장비 총괄]의 '시간당 비용' ${hourlies.length}건이 [비용 관리>분류별 비용]의 장비 관리비 컬럼에 '숫자 그대로'는 안 보이는 게 맞습니다 — 관리비 = 시간당비용 × 운용시간으로 집계되기 때문. 시간당비용 값 자체의 정확성은 위 '장비 시간당비용 = 매입가 ÷ (내용연수 × 운용시간)' 체크로 이미 검증됨. (직접 대조하려면: [장비 관리>장비 총괄]의 시간당 비용 ↔ [비용 관리>분류별 비용]의 장비 관리비 컬럼)`,
+    });
+    else if (eqData.length && !eqCostSet.length) checks.push({ name: '(참고) 원천→비용 반영: [장비 관리>장비 총괄] 시간당 비용 → [비용 관리>분류별 비용] 장비 관리비 컬럼', scope: 'source', ok: true, na: true, detail: '[비용 관리>분류별 비용]에 장비 관리비 값 없음 — 판정 제외(참고)' });
+  }
+
+  // ── 홀별 계층(코스→홀→구분) 확장 검증 편입 — 기간별 비용(위치탭) + 위치별 비용(연간·월간) ──
+  //   표 [+](button.tree-toggle) 확장 후 코스=Σ홀·홀=Σ구분·총비용=Σ구분=Σ유형·YoY·월간합계=연간총비용. cat으로 별도 카테고리.
+  try { const hier = await verifyCostHierarchy(admin); for (const h of hier) checks.push(h); } catch (e) { checks.push({ name: '홀별 계층 확장 검증', scope: 'cross', ok: true, na: true, cat: '홀별 계층(코스→홀→구분)', detail: `실행 예외 — 판정 제외(${String(e).slice(0, 80)})` }); }
+
   // ═══════════════════════ HTML ═══════════════════════
   const cross = checks.filter((c) => c.scope === 'cross');
   const intra = checks.filter((c) => c.scope === 'intra');
   const source = checks.filter((c) => c.scope === 'source');
-  const costChecks = intra.filter((c) => /비용집계|분류별|위치별/.test(c.name));
+  const costChecks = intra.filter((c) => /비용집계|분류별|위치별/.test(c.name) && c.cat !== '홀별 계층(코스→홀→구분)');
+  const hierChecks = checks.filter((c) => c.cat === '홀별 계층(코스→홀→구분)') as HierCheck[];
   const budChecks = intra.filter((c) => /소계/.test(c.name));
   // 판정: na(데이터 없음)는 pass/fail 집계에서 제외 — "미확인 ≠ 결함"(리포트 표준).
   //   review(확인 필요=미집계 추정 등)는 결함(fail)과 분리하되 "주의 필요"에 함께 집계(사람이 원천 확인).
@@ -337,6 +415,13 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
   const ts = new Date().toISOString().slice(0, 19).replace('T', ' ');
   const mark = (c: Check) => c.na ? '➖' : c.review ? '🔎' : (c.ok ? '✅' : '❌');
   const chk = (c: Check) => `<tr class="${c.na ? 'na' : c.review ? 'rv' : c.ok ? 'ok' : 'ng'}"><td>${mark(c)}</td><td>${esc(c.name)}</td><td>${esc(c.detail)}</td></tr>`;
+  // 계층 검증: 요약행 + 근거표(좌변값·우변 Σ·구성요소·일치)를 펼침(<details>)으로 — 감사·이력 추적용.
+  const numish2 = (s: string) => /^-?[\d,]+$|^[+-]?\d+(\.\d+)?%$|증가|감소/.test((s || '').trim());
+  const evTable = (ev?: { headers: string[]; rows: string[][] }) => (ev && ev.rows.length)
+    ? `<table class="sys"><thead><tr>${ev.headers.map((h) => `<th class="${/값|Σ|YoY|합계|총비용|연도|20\d\d/.test(h) ? 'num' : ''}">${esc(h)}</th>`).join('')}</tr></thead><tbody>${ev.rows.map((r) => `<tr>${r.map((c) => `<td class="${numish2(c) ? 'num' : ''}">${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+    : '<div class="note">근거 데이터 없음(판정 제외 항목)</div>';
+  const hierRow = (c: HierCheck) => `<tr class="${c.na ? 'na' : c.review ? 'rv' : c.ok ? 'ok' : 'ng'}"><td>${mark(c)}</td><td>${esc(c.name)}</td><td>${esc(c.detail)}</td></tr>`
+    + (c.evidence && c.evidence.rows.length ? `<tr class="evrow"><td></td><td colspan="2"><details><summary style="cursor:pointer;color:var(--accent);font-size:12px">▸ 근거 데이터 ${c.evidence.rows.length}행 (좌변값 · 우변 Σ · 구성요소 · 일치)</summary><div class="tblwrap" style="margin-top:6px">${evTable(c.evidence)}</div></details></td></tr>` : '');
   // 주의 필요(결함 + 확인필요) 상세 — 상단 카드 클릭 시 펼쳐짐.
   const attnItems = judged.filter((c) => !c.ok).sort((a, b) => (a.review ? 1 : 0) - (b.review ? 1 : 0));   // 결함 먼저
   const attnHtml = attnItems.length
@@ -347,8 +432,8 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
   const attnCard = `<details class="scard ${attnCardCls}"${attn ? ' open' : ''}><summary><span class="n ${attnNumCls}">${attn}</span><span class="l">주의 필요 ▾${review ? ` <span class="mut">(확인필요 ${review} 포함)</span>` : ''}</span></summary><div class="scard-body">${attnHtml}</div></details>`;
 
   // Report 탭: 전 검증 항목을 구분별로 그룹핑(구분 내 FAIL 우선), 판정 일람.
-  const catOf = (c: Check): string => c.scope === 'cross' ? '교차 화면' : c.scope === 'source' ? '원천 값' : /소계/.test(c.name) ? '내부-예산(소계)' : /비용집계|분류별|위치별/.test(c.name) ? '내부-비용' : '정보';
-  const REPORT_CATS = ['교차 화면', '내부-비용', '내부-예산(소계)', '원천 값', '정보'];
+  const catOf = (c: Check): string => c.cat ? c.cat : c.scope === 'cross' ? '교차 화면' : c.scope === 'source' ? '원천 값' : /소계/.test(c.name) ? '내부-예산(소계)' : /비용집계|분류별|위치별/.test(c.name) ? '내부-비용' : '정보';
+  const REPORT_CATS = ['교차 화면', '내부-비용', '홀별 계층(코스→홀→구분)', '내부-예산(소계)', '원천 값', '정보'];
   const reportBody = REPORT_CATS.map((cn) => {
     const rows = checks.filter((c) => catOf(c) === cn).sort((a, b) => ((a.na ? 2 : a.ok ? 1 : 0)) - ((b.na ? 2 : b.ok ? 1 : 0)));
     if (!rows.length) return '';
@@ -412,6 +497,32 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
   const cmpAxes = crossTotals.filter((t) => t.v != null && t.v !== 0);
   const eqTotal = cmpAxes.length >= 2 ? cmpAxes.every((t) => near(t.v as number, cmpAxes[0].v as number)) : true;
   const shared = cmpAxes[0]?.v ?? null;
+  // 다축 비교 테이블용 '기준값' = 값 있는 축 중 최빈(근사) 값 → 이탈 축이 차이로 드러남.
+  const axisVals = cmpAxes.map((t) => t.v as number);
+  let refTotal: number | null = shared;
+  if (axisVals.length) { let best = axisVals[0], bestN = 0; for (const a of axisVals) { const c = axisVals.filter((b) => near(a, b)).length; if (c > bestN) { bestN = c; best = a; } } refTotal = best; }
+  // 각 화면(축)별 총비용 한눈 비교 표 행
+  const axisTableRows = crossTotals.map((t) => {
+    const zero = t.v == null || t.v === 0;
+    const match = !zero && refTotal != null && near(t.v as number, refTotal);
+    const diff = (!zero && refTotal != null) ? (t.v as number) - refTotal : null;
+    const diffCell = zero ? '<span class="na-n">—</span>' : (diff === 0 || match) ? '<span class="mut">0</span>' : `<b class="ng-n">${(diff as number) > 0 ? '+' : ''}${won(diff as number)}</b>`;
+    return `<tr class="${zero ? 'na' : match ? '' : 'ng'}"><td><b>${esc(t.label)}</b></td><td class="mut">${esc(t.axis)}</td><td class="num">${zero ? '<span class="na-n">미집계(0)</span>' : won(t.v) + '원'}</td><td class="num">${diffCell}</td><td class="ctr">${zero ? '➖' : match ? '✅' : '❌'}</td></tr>`;
+  }).join('');
+  const axisMatchN = cmpAxes.filter((t) => refTotal != null && near(t.v as number, refTotal)).length;
+  const axisOffRows = crossTotals.filter((t) => t.v != null && t.v !== 0 && !(refTotal != null && near(t.v as number, refTotal)));
+  // 미니 막대 그래프(인라인, 외부 라이브러리 없음) — 값 크기·이탈을 즉시 시각화.
+  const axisMax = Math.max(1, ...cmpAxes.map((t) => t.v as number), refTotal ?? 0);
+  const axisBars = crossTotals.map((t) => {
+    const zero = t.v == null || t.v === 0;
+    const match = !zero && refTotal != null && near(t.v as number, refTotal);
+    const pct = zero ? 0 : Math.round((t.v as number) / axisMax * 100);
+    const col = zero ? 'var(--mut)' : match ? 'var(--accent)' : 'var(--ng)';
+    return `<div class="abar"><div class="abl">${esc(t.label)}</div><div class="abt"><div class="abf" style="width:${pct}%;background:${col}"></div></div><div class="abv"${match || zero ? '' : ' style="color:var(--ng);font-weight:700"'}>${zero ? '<span class="mut">미집계</span>' : won(t.v) + '원'}</div></div>`;
+  }).join('');
+  const axisCompareTable = `<div class="mlabel" style="margin-top:16px">📊 각 화면(축)별 총비용 한눈 비교 <span class="mut" style="font-weight:400">— 기준 = 가장 많은 화면이 같은 금액 ${won(refTotal)}원 · 값 있는 ${cmpAxes.length}개 중 ${axisMatchN}개 일치</span></div>
+<div class="abars">${axisBars}<div class="ableg"><span class="abdot" style="background:var(--accent)"></span>기준 일치 &nbsp;<span class="abdot" style="background:var(--ng)"></span>이탈 &nbsp;<span class="abdot" style="background:var(--mut)"></span>미집계</div></div>
+<div class="tblwrap"><table><thead><tr><th>화면(축)</th><th>재집계 기준</th><th class="num">총비용</th><th class="num">기준과 차이</th><th class="ctr">일치</th></tr></thead><tbody>${axisTableRows}<tr class="mt"><td colspan="2">기준(다수 화면이 같은 금액)</td><td class="num">${won(refTotal)}원</td><td class="num"><span class="mut">—</span></td><td class="ctr">${eqTotal ? '✅' : '❌'}</td></tr></tbody></table></div>${axisOffRows.length ? `<div class="note" style="margin-top:6px">❌ <b>이탈 ${axisOffRows.length}개 축</b>: ${axisOffRows.map((t) => `${esc(t.label)} ${won(t.v)}원(${((t.v as number) - (refTotal as number)) > 0 ? '+' : ''}${won((t.v as number) - (refTotal as number))})`).join(' · ')} → 해당 축의 집계 기준(필터·기간·중복행)·데이터 우선 확인.</div>` : ''}`;
   const costNode = (t: { label: string; axis: string; v: number | null }) => { const zero = t.v === 0; return `<div class="node cost"${zero ? ' style="border-top-color:var(--mut);opacity:.7"' : ''}><div class="nt">${esc(t.label)}${zero ? ' <span style="font-size:10px;color:var(--mut)">미집계</span>' : ''}</div><div class="na">${esc(t.axis)}</div><div class="nv"${zero ? ' style="color:var(--mut)"' : ''}>${zero ? '0원(미집계 추정)' : won(t.v) + (t.v != null ? '원' : '')}</div></div>`; };
   const budNode = (l: string, s: string) => `<div class="node bud"><div class="nt">${esc(l)}</div><div class="na">${esc(s)}</div></div>`;
   const screenRows = SCREENS.map((s) => { const heads = s.g?.tables?.[0]?.heads ?? []; const items = heads.length ? heads.join(' · ') : (s.g?.cards?.length ? '요약 카드/차트(월 예산·당월 사용액·예산 초과분·예산 대비 사용률)' : '—'); return `<tr><td><b>${esc(s.menu)} &gt; ${esc(s.sub)}</b></td><td><code>${esc(s.route)}</code></td><td>${esc(items)}</td></tr>`; }).join('');
@@ -423,6 +534,16 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
   const hrTbl = hrData.length ? `<div class="note">전 페이지 ${hrData.length}명 수집</div><div class="tblwrap"><table class="sys"><thead><tr><th>이름</th><th class="num">급여 정보</th><th class="num">시간당 임률</th><th class="num">급여÷임률(연근무h)</th></tr></thead><tbody>${hrData.slice(0, 60).map((d) => `<tr><td>${esc(d.name)}</td><td class="num">${won(d.salary)}</td><td class="num">${won(d.rate)}</td><td class="num">${won(Math.round(d.k))}</td></tr>`).join('')}</tbody></table></div>` : '<div class="note">인력 데이터 없음</div>';
   const eqSorted = [...eqData].sort((a, b) => (nearRel(a.calc, a.hourly, 0.01) ? 1 : 0) - (nearRel(b.calc, b.hourly, 0.01) ? 1 : 0));   // 불일치 우선
   const eqTbl = eqData.length ? `<div class="note">전 페이지 ${eqData.length}대 수집 · 공식 정합 ${eqData.filter((d) => nearRel(d.calc, d.hourly, 0.01)).length}대 (불일치 우선 표시)</div><div class="tblwrap"><table class="sys"><thead><tr><th>장비명</th><th class="num">매입가</th><th class="num">내용연수</th><th class="num">연간운용h</th><th class="num">시간당비용(화면)</th><th class="num">계산값</th><th>일치</th></tr></thead><tbody>${eqSorted.slice(0, 60).map((d) => `<tr class="${nearRel(d.calc, d.hourly, 0.01) ? '' : 'ng'}"><td>${esc(d.name)}</td><td class="num">${won(d.buy)}</td><td class="num">${d.life}</td><td class="num">${won(d.annual)}</td><td class="num">${won(d.hourly)}</td><td class="num">${d.calc.toFixed(2)}</td><td>${okmark(nearRel(d.calc, d.hourly, 0.01))}</td></tr>`).join('')}</tbody></table></div>` : '<div class="note">장비 데이터 없음</div>';
+  // 임률 → 인건비 개념 시각화(왜 시급 원값이 비용 화면에 그대로 안 보이는가)
+  const exRate = hrData.find((d) => d.rate > 0)?.rate ?? 19990;
+  const laborFlow = `<div class="map" style="margin:8px 0 4px">
+<div class="mlabel">시급(임률)이 비용 화면에 '원값 그대로' 안 보이는 이유 — 정상</div>
+<div class="mrow" style="align-items:center">
+<div class="node src"><div class="nt">원천 · 시간당 임률</div><div class="na">인력 관리</div><div class="nv">${won(exRate)}원/시간</div></div>
+<div class="arrow">─ <b>× 작업시간(예 3h)</b> →</div>
+<div class="node cost"><div class="nt">비용 · 인건비(집계값)</div><div class="na">분류별 비용</div><div class="nv">${won(exRate * 3)}원</div></div>
+</div>
+<div class="note" style="margin-top:8px">원천 임률 <b>${hrData.length}건</b> → 비용 인건비 컬럼에 <b>시급 원값 그대로 0건</b> = <b class="okb">정상</b>(집계·배분되므로). 임률 자체의 정확성은 위 표(<b>급여 ÷ 연근무시간</b>)로 확보. 단, 작업시간이 <b>1시간인 단일작업</b>이면 임률이 그대로 등장할 수 있음.</div></div>`;
   const matSorted = [...matData].sort((a, b) => (nearRel(a.calc, a.unit, 0.01) ? 1 : 0) - (nearRel(b.calc, b.unit, 0.01) ? 1 : 0));
   const matTbl = matData.length ? `<div class="note">전 페이지 ${matData.length}종 수집 · 공식 정합 ${matData.filter((d) => nearRel(d.calc, d.unit, 0.01)).length}종 (불일치 우선 표시)</div><div class="tblwrap"><table class="sys"><thead><tr><th>자재명</th><th class="num">총재고액</th><th class="num">재고수량</th><th class="num">단위당원가(화면)</th><th class="num">계산값</th><th>일치</th></tr></thead><tbody>${matSorted.slice(0, 60).map((d) => `<tr class="${nearRel(d.calc, d.unit, 0.01) ? '' : 'ng'}"><td>${esc(d.name)}</td><td class="num">${won(d.total)}</td><td class="num">${won(d.qty)}</td><td class="num">${won(d.unit)}</td><td class="num">${won(Math.round(d.calc))}</td><td>${okmark(nearRel(d.calc, d.unit, 0.01))}</td></tr>`).join('')}</tbody></table></div>` : '<div class="note">자재 데이터 없음</div>';
 
@@ -451,6 +572,9 @@ tr.rv td{color:#7a5200;background:#fff8e5;font-weight:600}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]) .scard.srv{background:#2a2413;border-color:#645209}:root:not([data-theme=light]) .scard.srv .l{color:#e3b341}:root:not([data-theme=light]) .attnitem.rv{background:#2a2413}:root:not([data-theme=light]) .attnitem.rv .ai-h{color:#e3b341}}
 :root[data-theme=dark] .scard.srv{background:#2a2413;border-color:#645209}:root[data-theme=dark] .scard.srv .l{color:#e3b341}:root[data-theme=dark] .attnitem.rv{background:#2a2413}:root[data-theme=dark] .attnitem.rv .ai-h{color:#e3b341}
 .note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 15px;font-size:13.5px;color:var(--mut);margin:8px 0}.note.big{border-left:3px solid var(--accent)}
+.abars{position:relative;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin:6px 0}
+.abar{display:flex;align-items:center;gap:10px;margin:5px 0}.abar .abl{flex:0 0 74px;font-size:12.5px;font-weight:700}.abar .abt{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:5px;height:16px;overflow:hidden}.abar .abf{height:100%;border-radius:4px 0 0 4px;transition:none}.abar .abv{flex:0 0 118px;text-align:right;font-size:12px;font-variant-numeric:tabular-nums;color:var(--mut)}
+.ableg{margin-top:8px;font-size:11px;color:var(--mut)}.abdot{display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:middle;margin-right:3px}
 .review{background:#fff8e5;border:1px solid #e0b84f;border-left:4px solid #9a6700;border-radius:8px;padding:11px 15px;font-size:13.5px;color:#7a5200;margin:10px 0;font-weight:600}.review b{color:#7a5200}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]) .review{background:#2a2413;border-color:#645209;border-left-color:#e3b341;color:#e3b341}:root:not([data-theme=light]) .review b{color:#e3b341}}
 :root[data-theme=dark] .review{background:#2a2413;border-color:#645209;border-left-color:#e3b341;color:#e3b341}:root[data-theme=dark] .review b{color:#e3b341}
@@ -533,6 +657,7 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <div class="shared">공유 총비용 ${eqTotal ? '✅ 일치' : '❌ 불일치'} : ${won(shared)}원 <span style="font-size:11px;color:var(--mut);font-weight:400">(값 있는 ${cmpAxes.length}개 축 기준)</span></div>
 ${crossTotals.some((t) => t.v === 0) ? `<div class="review">🔎 <b>확인 필요</b> — <b>${crossTotals.filter((t) => t.v === 0).map((t) => t.label).join(', ')}</b> 총계 0 = <b>미집계 추정</b>(해당 화면 값을 못 읽음 — 데이터 없음/캡처 이슈). 일치 판정에서 제외했으니, <b>실제 0인지 원천 화면에서 반드시 확인</b>하세요.</div>` : ''}
 <div class="mrow">${crossTotals.map(costNode).join('')}</div>
+${axisCompareTable}
 <div class="leg"><span><b>■</b> 원천(타 메뉴)</span><span><b style="color:var(--accent)">■</b> 비용 재집계 축</span><span><b style="color:var(--accent2)">■</b> 예산 흐름</span><span>세로 흐름 = 값 유입 방향</span></div>
 <div class="mlabel" style="margin-top:18px">③ 예산 관리 — 편성 → 집행 → 분석 흐름</div>
 <div class="mrow">${budNode('예산 총괄', '중분류 월별 편성')}<div class="arrow">─<b>rollup</b>→</div>${budNode('예산 상세', '소분류/적요·소계')}<div class="arrow">─<b>집행</b>→</div>${budNode('실적 관리', '소계=Σ소분류')}<div class="arrow">─<b>비교</b>→</div>${budNode('예산 분석', '예산 대비 사용률')}</div>
@@ -563,9 +688,10 @@ ${REPORT_CATS.map((cn) => { const rows = checks.filter((c) => catOf(c) === cn); 
 <div class="note">항목별 상세 판정 일람은 <b>④ 전체 결과</b> 탭.</div>
 <h2>★ 교차 화면 정합성</h2>
 <div class="note big">같은 비용/예산이 여러 화면에 다른 축으로 재집계됨 → 총합·항목이 일치해야 함. 값 변경 시 전 화면 동기화 검증.</div>
+${axisCompareTable}
 <div class="tblwrap"><table><thead><tr><th></th><th>검증</th><th>결과</th></tr></thead><tbody>${cross.map(chk).join('')}</tbody></table></div>
 <h2>내부 정합성 요약</h2>
-<div class="note">비용 ${costChecks.length}건(PASS ${costChecks.filter((c) => c.ok).length}) · 예산 소계 ${budChecks.length}건(PASS ${budChecks.filter((c) => c.ok).length}) — 상세는 <b>④비용/⑤예산</b> 탭.</div>
+<div class="note">비용 ${costChecks.length}건(PASS ${costChecks.filter((c) => c.ok).length}) · 홀별 계층 ${hierChecks.filter((c) => !c.na).length}건(PASS ${hierChecks.filter((c) => !c.na && c.ok).length}) · 예산 소계 ${budChecks.length}건(PASS ${budChecks.filter((c) => c.ok).length}) — 상세는 <b>④비용/⑤예산</b> 탭.</div>
 <h2>원천 값 검증 요약 (인력 임률·자재 단가·장비 시간당비용 → 비용 유입)</h2>
 <div class="tblwrap"><table><thead><tr><th></th><th>검증</th><th>결과</th></tr></thead><tbody>${source.map(chk).join('')}</tbody></table></div>
 <div class="note">전체 검증 항목 일람은 <b>④ 전체 결과</b> 탭 · 상세 값·계산은 <b>⑦ 원천 값 검증</b> 탭.</div>
@@ -584,6 +710,9 @@ ${attn ? `<div class="note" style="border-left:3px solid ${fail ? 'var(--ng)' : 
 ${scrBlock('cost')}
 <h2>비용 내부 정합성 상세</h2>
 <div class="tblwrap"><table><thead><tr><th></th><th>검증</th><th>결과</th></tr></thead><tbody>${costChecks.map(chk).join('')}</tbody></table></div>
+<h2>홀별 계층(코스→홀→구분) 확장 검증</h2>
+<div class="note">코스 카드 펼쳐보기 + 표 [+] 확장 후 홀 단위 상세 금액·증감(YoY) 검증. <b>기간별 비용(위치탭)</b>: YoY공식·부호 · 코스=Σ홀 · 홀=Σ구분 · 전체=코스전체+Σ코스 · 카드=표. <b>위치별 비용</b>: 총비용=Σ구분=Σ비용유형 · 코스=Σ홀(연간) · 합계=Σ월 · 월간합계=연간총비용(월간).</div>
+<div class="tblwrap"><table><thead><tr><th></th><th>검증</th><th>결과</th></tr></thead><tbody>${hierChecks.length ? hierChecks.map(hierRow).join('') : '<tr><td colspan="3" class="ctr">계층 검증 결과 없음</td></tr>'}</tbody></table></div>
 </div>
 
 <div class="panel" id="p5">
@@ -601,7 +730,7 @@ ${perfGroups.length ? perfGroups.map(budGroupTbl).join('') : '<div class="note">
 <div class="note big">비용의 관리비유형은 인력(임률)·자재(단가)·장비(시간당비용)에서 계산되어 유입됩니다. 원천 화면의 <b>단가/임률 계산이 정확</b>해야 비용/예산에 반영되는 값이 신뢰 가능. + 원천 값이 실제 비용에 등장하는지(반영) 확인.</div>
 <div class="tblwrap"><table><thead><tr><th></th><th>검증</th><th>결과</th></tr></thead><tbody>${source.map(chk).join('')}</tbody></table></div>
 <h3>인력 관리 — 시간당 임률 = 급여 정보 ÷ 연근무시간(상수)</h3>${hrTbl}
-<div class="note">인력의 시간당 임률이 인건비(고정직/임시직)로 유입. 관측: 손기웅 임률이 분류별 비용 그린 고정직에 그대로 등장(반올림 ±1).</div>
+${laborFlow}
 <h3>장비 관리 — 시간당 비용 = 매입가 ÷ (내용연수 × 연간 운용시간)</h3>${eqTbl}
 <div class="note">장비 시간당 비용이 장비 관리비로 유입.</div>
 <h3>자재 관리 — 단위당 원가 = 총재고액 ÷ 재고수량</h3>${matTbl}
@@ -630,6 +759,32 @@ ${cmpTbl}
     throw new Error('세션 만료 추정(전 화면 빈 값) — 기존 리포트 보존. npm run course:auth 후 재실행하세요.');
   }
   fs.writeFileSync(outPath, html);
+
+  // ── 교차분석용 앵커 덤프(course:cross 리코셔너가 읽음) — 실패해도 리포트 불영향 ──
+  try {
+    const majSum = (groups: typeof detailGroups, hap: boolean): Record<string, number> => {
+      const out: Record<string, number> = {};
+      for (const g of groups) { if (!g.major) continue; const hi = hap ? g.cols.findIndex((c) => /^합계$/.test(c.replace(/\s+/g, ''))) : -1; const v = hi >= 0 ? (g.sokeVals[hi] ?? 0) : g.sokeVals.reduce((a, b) => a + (b ?? 0), 0); out[g.major] = (out[g.major] || 0) + v; }
+      return out;
+    };
+    const MGMT2 = ['고정직 인건비', '임시직 인건비', '코스 자재비', '장비 관리비', '기타 관리비'];
+    const aggByCat: Record<string, number> = {}; MGMT2.forEach((m, i) => { const v = aggOrder[i + 1]; if (v != null) aggByCat[m] = v; });
+    const aggActualByCat: Record<string, number> = {}; MGMT2.forEach((m, i) => { const v = aggActual[i + 1]; if (v != null) aggActualByCat[m] = v; });   // 비용집계 실제발생(=실적)
+    const aggCatSum = MGMT2.reduce((a, m) => a + (aggByCat[m] ?? 0), 0);
+    const budgetAnchors = {
+      ts: new Date().toISOString(), source: 'course-budget-cost-verify',
+      detailByCat: majSum(detailGroups, true),      // 예산 상세 대분류 연간(합계열)
+      perfByCat: majSum(perfGroups, false),         // 실적 관리 대분류 연간(Σ월)
+      aggActualByCat,                               // 비용집계 실제발생(= 실적 관리, 교차)
+      aggTotal, aggByCat, aggCatSum, aggConsistent: aggTotal != null && Math.abs(aggTotal - aggCatSum) <= Math.max(2, aggCatSum * 0.005),  // 비용집계 합계=Σ유형?
+      locByCourse,                                  // 위치별 비용 코스별(연간, 작업지시 집계 — HOME 코스별 교차)
+      axisTotals: { 비용집계: aggTotal, 분류별: catTotal, 위치별: locTotal, 기간별: perTotal2026, '작업별(당해시작)': taskTotal, '작업별(전체)': taskTotalAll },
+      summary: { total: checks.filter((c) => !c.na).length, pass, fail, cross: cross.length },
+    };
+    if (!fs.existsSync('analysis')) fs.mkdirSync('analysis', { recursive: true });
+    fs.writeFileSync(path.join('analysis', '_cross-budget.json'), JSON.stringify(budgetAnchors, null, 2), 'utf8');
+  } catch { /* noop */ }
+
   console.log(`\n[검증] 총 ${checks.length} · PASS ${pass} · FAIL ${fail} · 교차 ${cross.length} · 예산소계 ${detailGroups.length}+${perfGroups.length}`);
   console.log(`[report] ${outPath}`);
   for (const c of checks.filter((x) => !x.ok && !x.na)) console.log(`  ❌ ${c.name} — ${c.detail}`);

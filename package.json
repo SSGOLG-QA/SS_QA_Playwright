@@ -29,6 +29,7 @@
     "course:suite": "playwright test --config=Course/playwright.config.ts --project=course Course/course-suite.spec.ts",
     "course:inventory": "playwright test --config=Course/playwright.config.ts --project=course Course/component-inventory.spec.ts",
     "course:coverage": "tsc --project tsconfig.json && node dist/scripts/courseCoverage.js",
+    "course:cross": "tsc --project tsconfig.json && node dist/scripts/courseCross.js",
     "course:write": "playwright test --config=Course/playwright.config.ts --project=course Course/course-write-path.spec.ts",
     "course:budget-crud": "playwright test --config=Course/playwright.config.ts --project=course Course/course-budget-class-crud.spec.ts",
     "course:budget-sub-crud": "playwright test --config=Course/playwright.config.ts --project=course Course/course-budget-subclass-crud.spec.ts",
@@ -46,6 +47,8 @@
     "course:wo-verify2": "playwright test --config=Course/playwright.config.ts --project=course Course/_probe-workorder-verify2.spec.ts --no-deps",
     "course:wo-cleanup": "playwright test --config=Course/playwright.config.ts --project=course Course/course-workorder-cleanup.spec.ts --no-deps",
     "course:wo-delbtn": "playwright test --config=Course/playwright.config.ts --project=course Course/_probe-workorder-delbtn.spec.ts --no-deps",
+    "course:cost-decomp": "playwright test --config=Course/playwright.config.ts --project=course Course/course-cost-decomp.spec.ts --no-deps",
+    "course:hidden-cat": "playwright test --config=Course/playwright.config.ts --project=course Course/course-hidden-category-probe.spec.ts --no-deps",
     "course:cost-hier": "playwright test --config=Course/playwright.config.ts --project=course Course/_probe-cost-loc-hierarchy.spec.ts --no-deps",
     "course:cost-hier-verify": "playwright test --config=Course/playwright.config.ts --project=course Course/course-cost-hierarchy-verify.spec.ts --no-deps",
     "course:cost-monthly-probe": "playwright test --config=Course/playwright.config.ts --project=course Course/_probe-cost-loc-monthly.spec.ts --no-deps",
@@ -133,7 +136,8 @@
     "course:quality": "playwright test --config=Course/playwright.config.ts --project=course Course/course-quality-suite.spec.ts",
     "course:e2e": "playwright test --config=Course/playwright.config.ts --project=course Course/course-e2e-suite.spec.ts",
     "course:locfilter": "playwright test --config=Course/playwright.config.ts --project=course Course/course-location-filter.spec.ts --no-deps",
-    "course:notif": "playwright test --config=Course/playwright.config.ts --project=course Course/course-notification-format.spec.ts --no-deps"
+    "course:notif": "playwright test --config=Course/playwright.config.ts --project=course Course/course-notification-format.spec.ts --no-deps",
+    "course:restock": "playwright test --config=Course/playwright.config.ts --project=course Course/course-material-restock.spec.ts --no-deps"
   },
   "keywords": [],
   "author": "",

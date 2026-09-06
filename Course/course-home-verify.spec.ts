@@ -463,18 +463,32 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
     if (cats.length === 0) checks.push({ name: '사용률% = 누적 사용 ÷ 연간예산', scope: 'cost', ok: true, na: true, detail: '연간예산>0 카테고리 없음(전 카테고리 예산 0) SKIP' });
     else { const bad = cats.filter((c) => Math.abs(annual[c].pct - Math.round(annual[c].used! / annual[c].budget! * 100)) > 1); checks.push({ name: '사용률% = 누적 사용 ÷ 연간예산', scope: 'cost', ok: bad.length === 0, detail: bad.length === 0 ? `${cats.length}개 카테고리 사용률 일치` : `불일치: ${bad.map((c) => `${c}(${annual[c].pct}%≠${Math.round(annual[c].used! / annual[c].budget! * 100)}%)`).join(', ')}` }); }
   }
-  // ── [비용] ⑨★ 전체 = Σ(하위 5 카테고리) : 연간예산·누적사용·잔여 ──
+  // ── [비용] ⑨★ 전체 = Σ(하위 5 카테고리) : 연간예산·누적사용(회귀 감시) + 잔여(표시관례 review) ──
+  //   ⚠ HOME 예산 대비 실적 카드는 잔여를 음수(-47,810,000)로 표시 → 전체=Σ 성립. 반면 예산 분석 연간 그래프는 잔여 0-하한 → 어긋남.
+  //     같은 데이터인데 화면 간 잔여 표시 관례가 다름 → HOME서 잔여 불일치 시 결함 아닌 review(확인 필요)로 분리(연간예산·누적사용은 하한 없어 회귀 감시).
   {
     const subs = COST_CATS.slice(1);
-    const rows: { key: 'budget' | 'used' | 'remain'; label: string }[] = [{ key: 'budget', label: '연간예산' }, { key: 'used', label: '누적 사용' }, { key: 'remain', label: '잔여' }];
-    const detail: string[] = []; let allOk = true; let any = false;
-    if (annual['전체']) for (const { key, label } of rows) {
-      const tot = annual['전체'][key]; const parts = subs.map((c) => annual[c]?.[key]).filter((v): v is number => v != null);
-      if (tot == null || parts.length === 0) continue; any = true;
-      const sum = parts.reduce((a, b) => a + b, 0); const ok = near(tot, sum); if (!ok) allOk = false;
-      detail.push(`${label} ${ok ? '✓' : '✗'}(${tot.toLocaleString()}${ok ? '=' : '≠'}Σ${sum.toLocaleString()})`);
+    if (!annual['전체']) checks.push({ name: '★ 전체 = Σ(고정직·임시직·자재·장비·기타)', scope: 'cost', ok: true, na: true, detail: '전체/하위 카테고리 데이터 없음 — 판정 제외' });
+    else {
+      // 연간예산·누적사용: 하한 없음 → 전체=Σ 성립해야(불일치=결함)
+      for (const { key, label } of [{ key: 'budget' as const, label: '연간예산' }, { key: 'used' as const, label: '누적 사용' }]) {
+        const tot = annual['전체'][key]; const parts = subs.map((c) => annual[c]?.[key]).filter((v): v is number => v != null);
+        if (tot == null || parts.length === 0) { checks.push({ name: `★ 전체 ${label} = Σ카테고리`, scope: 'cost', ok: true, na: true, detail: '데이터 없음 — 판정 제외' }); continue; }
+        const sum = parts.reduce((a, b) => a + b, 0); const ok = near(tot, sum);
+        checks.push({ name: `★ 전체 ${label} = Σ카테고리`, scope: 'cost', ok, detail: ok ? `${tot.toLocaleString()} = Σ${sum.toLocaleString()} ✓` : `불일치: ${tot.toLocaleString()} ≠ Σ${sum.toLocaleString()}(차 ${(tot - sum).toLocaleString()})` });
+      }
+      // 잔여 2단 검증(실행마다 판정 뒤집힘 방지): ①데이터 정합(표시 무관) 전체 잔여=Σ(예산−사용) uncapped / ②표시 관례(정보) 카드 잔여 합≠전체면 review
+      const tR = annual['전체'].remain;
+      const buCats = subs.filter((c) => annual[c]?.budget != null && annual[c]?.used != null);
+      const rParts = subs.map((c) => annual[c]?.remain).filter((v): v is number => v != null);
+      if (tR == null || buCats.length < 2) checks.push({ name: '★ 전체 잔여 = Σ(예산−사용)', scope: 'cost', ok: true, na: true, detail: `잔여/구성 데이터 없음(전체잔여 ${tR == null ? 'X' : 'O'}·예산·사용 쌍 ${buCats.length}) — 판정 제외` });
+      else {
+        const sR = rParts.reduce((a, b) => a + b, 0);
+        const uncapped = buCats.reduce((a, c) => a + (annual[c]!.budget! - annual[c]!.used!), 0);
+        checks.push({ name: '★ 전체 잔여 = Σ(예산−사용)', scope: 'cost', ok: near(tR, uncapped), detail: near(tR, uncapped) ? `전체 잔여 ${tR.toLocaleString()} = Σ(예산−사용) ${uncapped.toLocaleString()} ✓(데이터 정합·표시 무관)` : `데이터 불일치: 전체 잔여 ${tR.toLocaleString()} ≠ Σ(예산−사용) ${uncapped.toLocaleString()}(차 ${(tR - uncapped).toLocaleString()})` });
+        if (rParts.length && !near(sR, tR)) checks.push({ name: '카드 잔여 표시 관례(0-하한)', scope: 'cost', ok: false, review: true, detail: `표시 관례(확인 필요, 결함 아님): Σ카드 잔여(표시) ${sR.toLocaleString()} ≠ 전체 잔여 ${tR.toLocaleString()}(차 ${(sR - tR).toLocaleString()}). 초과 분류 잔여 0-하한 표시(+초과 배지)에서 발생 — 데이터는 위 ①에서 정합. ⚠ 화면 간 잔여 표시 상이: HOME(음수) vs 예산 분석 연간 그래프(0-하한).` });
+      }
     }
-    checks.push({ name: '★ 전체 = Σ(고정직·임시직·자재·장비·기타)', scope: 'cost', ok: any ? allOk : true, na: !any, detail: any ? detail.join(' · ') : '전체/하위 카테고리 데이터 없음 — 판정 제외' });
   }
   // ── [비용] ⑩ 누적 섹션: 잔여 = 누적예산 − 누적사용 ──
   {

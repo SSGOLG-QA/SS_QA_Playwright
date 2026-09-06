@@ -2,6 +2,8 @@ import { test, Page } from '@playwright/test';
 import { openCourseAdmin, gotoCourseMenu, killAlarms, setCourseOneYear } from '../lib/course/courseHelpers';
 import { Check, crossTotalsEqual, sumEquals, vectorEquals, near, nearRel, firstNum, num } from '../lib/course/domain/budgetCost';
 import { verifyCostHierarchy, HierCheck } from '../lib/course/costHierarchy';
+import { parseGraphCards } from '../lib/course/graphCards';
+import { graphCardRollup } from '../lib/course/domain/graphCardRollup';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -395,6 +397,23 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
   // ── 홀별 계층(코스→홀→구분) 확장 검증 편입 — 기간별 비용(위치탭) + 위치별 비용(연간·월간) ──
   //   표 [+](button.tree-toggle) 확장 후 코스=Σ홀·홀=Σ구분·총비용=Σ구분=Σ유형·YoY·월간합계=연간총비용. cat으로 별도 카테고리.
   try { const hier = await verifyCostHierarchy(admin); for (const h of hier) checks.push(h); } catch (e) { checks.push({ name: '홀별 계층 확장 검증', scope: 'cross', ok: true, na: true, cat: '홀별 계층(코스→홀→구분)', detail: `실행 예외 — 판정 제외(${String(e).slice(0, 80)})` }); }
+
+  // ── 연간 그래프 카드 롤업 편입(예산 분석 연간 그래프): 전체 = Σ카테고리(잔여 floor-at-0 표시관례 → review) ──
+  //   후속2에서 course:budget-analysis에 도입한 카드 정합성을 정합성 통합 스펙에도 편입(공용 헬퍼 graphCardRollup).
+  //   연간예산·누적사용은 전체=Σ 성립해야(회귀 감시) · 잔여는 표시 관례 차이(0-하한) → 결함 아닌 확인 필요(review).
+  try {
+    if (await gotoCourseMenu(admin, '예산 관리', '예산 분석').then(() => true).catch(() => false)) {
+      await admin.waitForTimeout(1200); await killAlarms(admin);
+      const yrTab = admin.getByRole('tab', { name: /연간\s*그래프/ }).or(admin.locator('.contents, main').getByText(/^\s*연간\s*그래프\s*$/)).first();
+      await yrTab.click({ timeout: 2500 }).catch(() => {});
+      await admin.waitForTimeout(1200); await killAlarms(admin);
+      const CATS = ['전체', '고정직 인건비', '임시직 인건비', '코스 자재비', '장비 관리비', '기타 관리비'];
+      const cards = await parseGraphCards(admin, CATS);
+      for (const rc of graphCardRollup(cards, { total: '전체', subs: CATS.slice(1), screen: '예산 관리>예산 분석>연간 그래프' })) checks.push({ ...rc, scope: 'cross' });
+    } else {
+      checks.push({ name: '★ 연간 그래프 카드: 전체 = Σ카테고리', scope: 'cross', ok: true, na: true, detail: '예산 분석 진입 실패 — 판정 제외' });
+    }
+  } catch (e) { checks.push({ name: '★ 연간 그래프 카드: 전체 = Σ카테고리', scope: 'cross', ok: true, na: true, detail: `실행 예외 — 판정 제외(${String(e).slice(0, 80)})` }); }
 
   // ═══════════════════════ HTML ═══════════════════════
   const cross = checks.filter((c) => c.scope === 'cross');

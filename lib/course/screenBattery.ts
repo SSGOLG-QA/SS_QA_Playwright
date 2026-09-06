@@ -195,17 +195,83 @@ async function checkDatePreset(admin: Page, P: string, tcRef: string, tcId: stri
   } catch (e) { record(m, 'FAIL', { error: '프리셋 예외', detail: (e as Error).message.slice(0, 120) }); }
 }
 
+// 내보내기 오류 신호 분류(에러 알럿/토스트 · pageerror · 4xx). course-export-audit와 동일 로직 이식.
+const EXP_ERR_RE = /오류|실패|에러|error|exception|처리\s*(할|되지|중)|불가|잘못|다시\s*시도|문제가|찾을\s*수\s*없|권한/i;
+const EXP_NODATA_RE = /없습니다|없음|데이터가\s*없|내역이\s*없|대상이\s*없/;
+
 async function checkExport(admin: Page, P: string, tcRef: string, tcId: string) {
-  const m: CheckMeta = { path: `${P} > 내보내기`, tcRef, tcId, desc: '[내보내기] → 파일 다운로드', failMsg: '다운로드 미발생' };
-  const btn = mainScope(admin).getByRole('button', { name: '내보내기' }).first();
-  if (!(await btn.isVisible({ timeout: 1_500 }).catch(() => false))) { skip(m, '내보내기 버튼 미노출'); return; }
-  const [dl] = await Promise.all([admin.waitForEvent('download', { timeout: 12_000 }).catch(() => null), btn.click().catch(() => {})]);
-  if (!dl) { skip(m, '다운로드 이벤트 미발생(빈 데이터/구조)'); return; }
-  const name = dl.suggestedFilename(); const sp = `reports/downloads/${name}`;
-  await dl.saveAs(sp).catch(() => {});
-  const size = fs.existsSync(sp) ? fs.statSync(sp).size : 0;
-  if (/\.(xlsx|xls|csv)$/i.test(name) && size > 0) record(m, 'PASS', { actual: `${name} (${size}b)` }); else record(m, 'FAIL', { error: '파일 이상', detail: `${name}/${size}b` });
-  try { if (fs.existsSync(sp)) fs.unlinkSync(sp); } catch { /* noop */ }
+  const m: CheckMeta = { path: `${P} > 내보내기`, tcRef, tcId, desc: '[내보내기] → 파일 다운로드(오류 없이)', failMsg: '내보내기 오류/미발생' };
+  // 로케이터 보강: 스코프 제거(상단 툴바 대응) + button/a/role/class + 정규식 + 스크롤/재시도
+  const btn = admin.getByRole('button', { name: /내보내기/ })
+    .or(admin.locator('button, a, [role="button"], [class*="btn"], [class*="button"]').filter({ hasText: /내보내기/ }))
+    .or(admin.getByText(/^\s*내보내기\s*$/)).first();
+  let btnVisible = false;
+  for (let tryN = 0; tryN < 2 && !btnVisible; tryN++) {
+    await btn.scrollIntoViewIfNeeded({ timeout: 1_200 }).catch(() => {});
+    btnVisible = await btn.isVisible({ timeout: 1_800 }).catch(() => false);
+    if (!btnVisible) await admin.waitForTimeout(800);
+  }
+  if (!btnVisible) { skip(m, '내보내기 버튼 미노출(재시도·페이지 전역 탐색 후)'); return; }
+
+  // ① 클릭 전 오류 관찰자 설치(killAlarms가 닫기 전 에러 알럿/토스트 텍스트 포착)
+  await admin.evaluate(() => {
+    const w = window as unknown as { __exp?: { hits: string[] }; __expMO?: MutationObserver };
+    w.__exp = { hits: [] };
+    const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+    const grab = (el: Element) => {
+      if (!(el instanceof HTMLElement)) return;
+      const cls = typeof el.className === 'string' ? el.className : '';
+      const t = norm(el.textContent); if (!t) return;
+      if (/modal-group/.test(cls) && /alarm|notice/.test(cls)) w.__exp!.hits.push('ALERT:' + t.slice(0, 200));
+      else if (/toast/i.test(cls)) w.__exp!.hits.push('TOAST:' + t.slice(0, 200));
+    };
+    const mo = new MutationObserver((muts) => muts.forEach((mu) => mu.addedNodes.forEach((n) => {
+      if (!(n instanceof HTMLElement)) return; grab(n);
+      n.querySelectorAll('.modal-group, [class*="toast"]').forEach(grab);
+    })));
+    mo.observe(document.body, { childList: true, subtree: true }); w.__expMO = mo;
+    document.querySelectorAll('.modal-group.alarm, [class*="toast"]').forEach(grab);
+  }).catch(() => {});
+
+  // ② 콘솔/페이지에러/4xx 감시
+  const pageErr: string[] = []; const badResp: string[] = [];
+  const onPageErr = (e: Error) => pageErr.push((e.message || '').slice(0, 160));
+  const onResp = (r: { status: () => number; url: () => string }) => { const u = r.url(); if (r.status() >= 400 && /(export|download|excel|xls|report|file)/i.test(u)) badResp.push(`${r.status()} ${u.split('?')[0].slice(-60)}`); };
+  admin.on('pageerror', onPageErr as never); admin.on('response', onResp as never);
+
+  // ③ 클릭 + 다운로드/오류 대기(오류 포착 전 killAlarms 금지)
+  const [dl] = await Promise.all([admin.waitForEvent('download', { timeout: 12_000 }).catch(() => null), btn.click({ timeout: 3_000 }).catch(() => {})]);
+  await admin.waitForTimeout(1_800);
+  const hits = await admin.evaluate(() => {
+    const w = window as unknown as { __exp?: { hits: string[] }; __expMO?: MutationObserver };
+    try { w.__expMO?.disconnect(); } catch { /* noop */ }
+    return w.__exp?.hits || [];
+  }).catch(() => [] as string[]);
+  admin.off('pageerror', onPageErr as never); admin.off('response', onResp as never);
+
+  const alertErrs = hits.filter((h) => EXP_ERR_RE.test(h) && !EXP_NODATA_RE.test(h));
+  const anyErr = alertErrs.length > 0 || pageErr.length > 0 || badResp.length > 0;
+
+  let dlOk = false; let name = '';
+  if (dl) {
+    name = dl.suggestedFilename(); const sp = `reports/downloads/${name}`;
+    await dl.saveAs(sp).catch(() => {});
+    const size = fs.existsSync(sp) ? fs.statSync(sp).size : 0;
+    dlOk = /\.(xlsx|xls|csv)$/i.test(name) && size > 0;
+    try { if (fs.existsSync(sp)) fs.unlinkSync(sp); } catch { /* noop */ }
+  }
+
+  if (anyErr) {
+    const detail = [alertErrs.length ? `에러알럿: ${alertErrs.join(' | ')}` : '', badResp.length ? `HTTP: ${badResp.join(', ')}` : '', pageErr.length ? `pageerror: ${pageErr.join(' | ')}` : ''].filter(Boolean).join(' · ');
+    record(m, 'FAIL', { error: '내보내기 클릭 시 오류 발생', detail: detail + (dl ? ' (다운로드도 발생 — 부분 오류)' : ' (다운로드 미발생)') });
+  } else if (dlOk) {
+    record(m, 'PASS', { actual: `다운로드 정상: ${name}` });
+  } else if (dl && !dlOk) {
+    record(m, 'FAIL', { error: '다운로드 파일 이상', detail: `${name} (확장자/크기 비정상)` });
+  } else {
+    skip(m, `다운로드 이벤트 미발생(빈 데이터/구조 — 오류 신호 없음)${hits.length ? ' · 알림: ' + hits.join(' | ').slice(0, 120) : ''}`);
+  }
+  await killAlarms(admin);   // 정리(다음 검사 위해)
 }
 
 // 화면 균일 심화 배터리 실행(12종 + 버튼 감사). key = tcId/tcRef 프리픽스.

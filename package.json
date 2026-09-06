@@ -47,6 +47,7 @@
     "course:wo-verify2": "playwright test --config=Course/playwright.config.ts --project=course Course/_probe-workorder-verify2.spec.ts --no-deps",
     "course:wo-cleanup": "playwright test --config=Course/playwright.config.ts --project=course Course/course-workorder-cleanup.spec.ts --no-deps",
     "course:wo-delbtn": "playwright test --config=Course/playwright.config.ts --project=course Course/_probe-workorder-delbtn.spec.ts --no-deps",
+    "course:export-audit": "playwright test --config=Course/playwright.config.ts --project=course Course/course-export-audit.spec.ts --no-deps",
     "course:cost-decomp": "playwright test --config=Course/playwright.config.ts --project=course Course/course-cost-decomp.spec.ts --no-deps",
     "course:hidden-cat": "playwright test --config=Course/playwright.config.ts --project=course Course/course-hidden-category-probe.spec.ts --no-deps",
     "course:cost-hier": "playwright test --config=Course/playwright.config.ts --project=course Course/_probe-cost-loc-hierarchy.spec.ts --no-deps",

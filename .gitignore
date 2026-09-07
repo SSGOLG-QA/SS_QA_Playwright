@@ -56,3 +56,10 @@ _probe2.txt
 _probe_delete_me.txt
 _tc.xlsx.sLDH
 _tc_new.xlsx
+_extract_tmp.js
+_lf*.txt
+*.xlsx.sLDH
+
+# 진단 프로브(일회성 덤프, 커밋 제외)
+Course/_probe-*.spec.ts
+Admin/_probe-*.spec.ts

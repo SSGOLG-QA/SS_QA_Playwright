@@ -62,6 +62,7 @@
     "course:tabs-probe": "playwright test --config=Course/playwright.config.ts --project=course Course/_probe-tabs.spec.ts --no-deps",
     "course:budget-p1": "playwright test --config=Course/playwright.config.ts --project=course Course/course-budget-cost-p1.spec.ts --no-deps",
     "course:budget-analysis": "playwright test --config=Course/playwright.config.ts --project=course Course/course-budget-analysis.spec.ts --no-deps",
+    "course:graph-cards": "playwright test --config=Course/playwright.config.ts --project=course Course/course-graph-cards.spec.ts --no-deps",
     "course:probe-cards": "playwright test --config=Course/playwright.config.ts --project=course Course/_probe-summary-cards.spec.ts --no-deps",
     "course:card-verify": "playwright test --config=Course/playwright.config.ts --project=course Course/course-card-verify.spec.ts --no-deps",
     "course:budget-annual": "playwright test --config=Course/playwright.config.ts --project=course Course/course-budget-annual.spec.ts --no-deps",

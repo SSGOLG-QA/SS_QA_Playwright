@@ -146,16 +146,8 @@ test('작업 지시 — 1~7월 2건씩 등록(14건)', async ({ page, context })
     const mm = String(p.month).padStart(2, '0');
     rec.dates = await setWODates(admin, `2026-${mm}-05`, `2026-${mm}-10`);
 
-    // ⑤ 기타 투입(장비/자재 1~5건 가변, ≥1) — 위치 저장 前!
-    const total = (p.i % 5) + 1; const matTarget = Math.floor(total / 2); let eqTarget = total - matTarget;
-    const eq = await investEquipmentFirst(admin, eqTarget);
-    let mat = { checked: 0, names: [] as string[] };
-    if (matTarget > 0) mat = await investMaterialsFirst(admin, matTarget, 0.2);
-    // ≥1 보장: 아무것도 안 잡혔으면 장비 1건 재시도
-    if (eq.checked + mat.checked === 0) { const eq2 = await investEquipmentFirst(admin, 1); eq.checked += eq2.checked; eq.names.push(...eq2.names); }
-    rec.invest = { target: total, eq: eq.checked, eqNames: eq.names, mat: mat.checked, matNames: mat.names };
-
-    // ⑥ 작업 위치: 코스 + 홀1 + 구분(임의·인덱스) + 구역(첫) + [위치 저장]
+    // ⑤ 작업 위치 선택(투입 前! — 프로브 확정: 투입 후 코스 선택 드롭다운 옵션이 빔 → 반드시 투입 전에 선택)
+    //   코스 + 홀1 + 구분(임의·인덱스) + 구역(첫). [위치 저장]은 투입 뒤(⑦)로 분리(셰브론 nth 밀림 방지).
     rec.locCourse = await checkLocOption(admin, '코스 선택', new RegExp(`^\\s*${p.course}\\s*$`));
     rec.locHole = await checkLocOption(admin, '홀 선택', /^\s*1\s*$/);
     await admin.waitForTimeout(500);
@@ -164,6 +156,17 @@ test('작업 지시 — 1~7월 2건씩 등록(14건)', async ({ page, context })
     rec.locZone = await checkLocByIndex(admin, '구역 선택', p.i);
     const gubunOk = /^(?!\(없음\)|\(vs없음\)).+/.test(String(rec.locGubun));
     const zoneOk = /^(?!\(없음\)|\(vs없음\)).+/.test(String(rec.locZone));
+
+    // ⑥ 기타 투입(장비/자재 1~5건 가변, ≥1) — 위치 선택 後·위치 저장 前(셰브론 nth 밀림 방지)
+    const total = (p.i % 5) + 1; const matTarget = Math.floor(total / 2); const eqTarget = total - matTarget;
+    const eq = await investEquipmentFirst(admin, eqTarget);
+    let mat = { checked: 0, names: [] as string[] };
+    if (matTarget > 0) mat = await investMaterialsFirst(admin, matTarget, 0.2);
+    // ≥1 보장: 아무것도 안 잡혔으면 장비 1건 재시도
+    if (eq.checked + mat.checked === 0) { const eq2 = await investEquipmentFirst(admin, 1); eq.checked += eq2.checked; eq.names.push(...eq2.names); }
+    rec.invest = { target: total, eq: eq.checked, eqNames: eq.names, mat: mat.checked, matNames: mat.names };
+
+    // ⑦ 위치 저장(투입 後) 또는 폴백
     if (rec.locCourse && gubunOk && zoneOk) {
       const saveBtn = admin.getByRole('button', { name: /위치\s*저장/ }).first();
       if (await saveBtn.isVisible({ timeout: 1_000 }).catch(() => false)) { await saveBtn.click({ timeout: 2_000 }).catch(() => {}); await admin.waitForTimeout(800); await killAlarms(admin); }

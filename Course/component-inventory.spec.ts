@@ -51,7 +51,14 @@ async function extractState(page: Page, tabLabel: string): Promise<StateOut> {
       || /^\d+차$/.test(label)                                    // 'N차'(회차 데이터)
       || /I-\d{4,}/.test(label)                                   // 이슈 ID I-00001
       || /\.(pdf|xlsx?|pptx?|docx?|hwp|png|jpe?g|gif|zip)$/i.test(label)   // 첨부 파일명
-      || /(월|화|수|목|금|토|일)요일/.test(label);                // 요일/날짜 컬럼('월요일 09.07' 등)
+      || /(월|화|수|목|금|토|일)요일/.test(label)                 // 요일/날짜 컬럼('월요일 09.07' 등)
+      // A3(2026-09-07): 추가 데이터 인스턴스 패턴 — 차트 추세값·부호수치·날짜접미·코스 홀 인스턴스
+      || /^[▲▼△▽]/.test(label)                                   // 차트 증감 추세('▲ 8.0%')
+      || /^-[\d,]+$/.test(label)                                  // 음수 수치('-21,600,000')
+      || /[↓↑]\s*\d/.test(label)                                 // 범위 표시('범위밖 ↓3% ↑56%')
+      || /\(20\d\d-\d\d-\d\d\)/.test(label)                       // 날짜 접미 인명('박경선(2026-09-03)')
+      || /(South|East|West)\s*-\s*\d+\s*홀/.test(label)           // 코스 홀 인스턴스('East - 2홀'·'West - 1홀 - 그린')
+      || /^\d+홀\b/.test(label);                                  // 'N홀' 인스턴스
     const push = (kind: string, label: string) => {
       label = norm(label).slice(0, (kind === 'text' || kind === 'title') ? 200 : 44);   // 안내문구/제목은 길게(잘림 방지)
       if (!label) return;

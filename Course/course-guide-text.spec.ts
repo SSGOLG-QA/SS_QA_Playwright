@@ -48,6 +48,29 @@ const GUIDES: Guide[] = [
     probe: '주요 구역의 잔디 정보를 일별로 기록합니다',
     full: '그린, 페어웨이, 러프, 티박스 등 주요 구역의 잔디 정보를 일별로 기록합니다 담당자가 모바일을 통해서 입력하거나 PC에서 입력 가능하며 이는 작업일보에도 자동으로 반영됩니다',
   },
+  // 커버리지 심화 2차(2026-09-07): coverage-tree 미커버 안내문구 중 실재 정적 텍스트/라벨.
+  {
+    menu: '코스 현황 관리', sub: '식생 분석', screenKey: '코스 현황 관리 > 식생 분석', tcId: 'GUIDE-VEG-LEGEND',
+    probe: '창밖=배경',
+    full: '창밖=배경 · 낮음=빨강(나지) · 높음=초록(건강)',
+  },
+  {
+    menu: '작업 관리', sub: '예측 정보', screenKey: '작업 관리 > 예측 정보', tcId: 'GUIDE-PREDICT',
+    probe: '코스관리에 중요한 고려사항으로 등록된 이슈',
+    full: '코스관리에 중요한 고려사항으로 등록된 이슈 및 아래에서 선택된 기준연도에 이루어진 작업중에 이후연도에도 참고할 필요가 있는 작업으로 판단되어 선택된 작업들이 노출됩니다. 이를 활용하여 이후 기간의 코스관리를 계획하고 실행하는데 활용할 수 있습니다',
+  },
+  {
+    menu: '자재 관리', sub: '자재 총괄', screenKey: '자재 관리 > 자재 총괄', tcId: 'GUIDE-MAT-CNT',
+    probe: '품목수', full: '품목수',
+  },
+  {
+    menu: '자재 관리', sub: '자재 총괄', screenKey: '자재 관리 > 자재 총괄', tcId: 'GUIDE-MAT-QTY',
+    probe: '총단위수량', full: '총단위수량',
+  },
+  {
+    menu: '자재 관리', sub: '자재 총괄', screenKey: '자재 관리 > 자재 총괄', tcId: 'GUIDE-MAT-AMT',
+    probe: '총재고금액', full: '총재고금액',
+  },
 ];
 
 async function clickTab(admin: Page, re: RegExp): Promise<boolean> {

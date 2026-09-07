@@ -89,28 +89,42 @@ async function readWoView(admin: Page): Promise<WoView> {
   }).catch(() => ({ ok: false as const, headRows: [], bodyRows: [] }));
 }
 
-// 코스별 뷰 전용: '전체' 행의 합계 열(첫 3 수치 = South/East/West)을 당월/누적 표에서 각각 파싱.
-//   ⚠ 코스별 뷰는 2D 그리드 — 행 라벨=영역축(전체/그린/티박스/…), 코스명(S/E/W)은 '합계' 그룹의 하위 열 헤더.
+// 코스별 뷰 전용: '전체' 행의 '합계' 그룹 열(코스별 총액)을 당월/누적 표에서 각각 파싱.
+//   ⚠ 코스별 뷰는 2D 그리드 — 행 라벨=영역축(전체/그린/티박스/…), 코스명은 '합계' 그룹의 하위 열 헤더.
 //   과거 대조 코드가 코스명을 행 라벨에서 찾아 항상 0건('데이터 없음' 오표기)이던 근본원인 → 열 기반으로 정정(2026-09-07).
-//   당월=첫 표, 누적=둘째 표. 전체 행 나머지 셀의 첫 3 유효 수치 = 합계 South/East/West.
-async function readCourseTotals(admin: Page): Promise<{ cur: Record<string, number>; cum: Record<string, number> }> {
+//   ✨ 2026-09-08 구조 변경 반영: 하위 열이 [South/East/West] → [South/East/West/전체 골프장](코스무관/미귀속) 4열로 확장.
+//     헤더 서브라벨로 그룹 크기(3 or 4)를 자동 감지 → 4번째('전체 골프장')도 파싱. 반환 키 = 서브라벨 그대로.
+async function readCourseTotals(admin: Page): Promise<{ cur: Record<string, number>; cum: Record<string, number>; groupLabels: string[] }> {
   return admin.evaluate(() => {
     const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
     const numOf = (t: string) => { const c = (t || '').replace(/[^0-9.\-]/g, ''); if (c === '' || c === '-' || c === '.') return null; const v = Number(c); return Number.isFinite(v) ? v : null; };
     const sc = document.querySelector('.contents, main') || document.body;
     const tables = Array.from(sc.querySelectorAll('table')).filter((t) => t.querySelectorAll('tbody tr').length >= 1);
-    const readTotals = (tbl: Element | undefined): Record<string, number> => {
+    // 헤더 2행(서브라벨)에서 '합계' 그룹의 하위 열 라벨 추출 → 6개 지표 기준 그룹 크기.
+    const groupLabelsOf = (tbl: Element | undefined): string[] => {
+      if (!tbl) return ['South', 'East', 'West'];
+      const rows = Array.from(tbl.querySelectorAll('thead tr'));
+      const sub = rows.length >= 2 ? Array.from(rows[1].children).map((c) => norm(c.textContent)).filter((t) => t) : [];
+      if (sub.length >= 6) { const g = Math.round(sub.length / 6); if (g >= 1 && g <= 6) return sub.slice(0, g); }   // 6지표 균등 분할
+      return ['South', 'East', 'West'];
+    };
+    const readTotals = (tbl: Element | undefined, labels: string[]): Record<string, number> => {
       const out: Record<string, number> = {};
       if (!tbl) return out;
       const totalRow = Array.from(tbl.querySelectorAll('tbody tr')).find((tr) => /^전체$/.test(norm((tr.children[0] || {}).textContent).replace(/\s+/g, '')));
       if (!totalRow) return out;
       const nums = Array.from(totalRow.children).slice(1).map((c) => numOf(norm(c.textContent))).filter((n): n is number => n != null);
-      if (nums.length >= 3) { out['South'] = nums[0]; out['East'] = nums[1]; out['West'] = nums[2]; }
+      // '합계' 그룹 = 첫 labels.length 개 수치. 라벨 순서대로 매핑(South/East/West/전체 골프장…).
+      labels.forEach((lb, i) => { if (nums[i] != null) out[norm(lb)] = nums[i]; });
       return out;
     };
-    return { cur: readTotals(tables[0]), cum: readTotals(tables[1]) };
-  }).catch(() => ({ cur: {} as Record<string, number>, cum: {} as Record<string, number> }));
+    const labels = groupLabelsOf(tables[0]);
+    return { cur: readTotals(tables[0], labels), cum: readTotals(tables[1], groupLabelsOf(tables[1]) ), groupLabels: labels };
+  }).catch(() => ({ cur: {} as Record<string, number>, cum: {} as Record<string, number>, groupLabels: [] as string[] }));
 }
+// 코스무관(코스 미귀속) 버킷 키 정규화 — 구현 '전체 골프장' / 기획 '작업장소 해당없음' 양쪽 수용.
+const COURSE_NONE_RE = /전체\s*골프장|작업장소\s*해당없음|코스무관|미지정/;
+const courseNoneVal = (m: Record<string, number>): number | null => { const k = Object.keys(m).find((k) => COURSE_NONE_RE.test(k)); return k ? m[k] : null; };
 
 // 롤업/비음수용 행 파생: 각 tbody 행 → { label(첫 셀), nums(나머지 셀 숫자화), cellCount }.
 function woRows(view: WoView): WoRow[] {
@@ -221,8 +235,8 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
   //  ⚠ 전체 뷰(영역축)와 코스별 뷰(코스축)는 집계 축이 달라 상호 총합 일치 아님(코스 미지정 작업 존재) → 뷰별 자기 롤업만 검증. 비파괴.
   let woGuide = ''; let woToggleFound = false;
   const woViews: Record<string, WoView> = {};
-  let homeCourseCur: Record<string, number> = {};   // 코스별 뷰 당월 전체행 합계(S/E/W)
-  let homeCourseCum: Record<string, number> = {};   // 코스별 뷰 누적(YTD) 전체행 합계(S/E/W)
+  let homeCourseCur: Record<string, number> = {};   // 코스별 뷰 당월 전체행 합계(S/E/W[/전체 골프장])
+  let homeCourseCum: Record<string, number> = {};   // 코스별 뷰 누적(YTD) 전체행 합계(S/E/W[/전체 골프장])
   {
     const toggle = admin.locator('.contents, main').getByText(/작업지시에\s*근거한\s*비용\s*분석/).first();
     woToggleFound = await toggle.isVisible({ timeout: 2500 }).catch(() => false);
@@ -630,16 +644,32 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
           });
         }
       }
-      // ⑱ C: 코스무관(특정 코스 미귀속) 작업 비용 가시화 — HOME 코스별: 전체 − Σ코스 = 코스무관(= 위치별 '전체 골프장' 버킷)
+      // ⑱ C: 코스무관(코스 미귀속) 작업 비용 — ✨2026-09-08 구조 변경: HOME 코스별에 '전체 골프장'(코스무관) 열 직접 신설.
+      //   이전엔 코스별 뷰에 S/E/W만 있어 위치별 화면에 의존했으나, 이제 HOME 자체에서 코스무관 버킷 검증 가능.
       {
-        // ⚠ 코스별 뷰엔 S/E/W 외 별도 '코스무관' 열이 없음(전체 행 합계 = South+East+West = 그랜드총계) →
-        //   HOME 측 '전체−Σ코스'는 구조상 0(무의미). 실질 코스무관 버킷은 [위치별 비용]의 '전체 골프장' 행(locBucket).
-        const homeGrand = ['South', 'East', 'West'].reduce((a, c) => a + (homeCourseCur[c] ?? 0), 0);
-        const grandNote = homeGrand > 0 ? ` (HOME 코스별 당월 그랜드총계 = South+East+West = ${homeGrand.toLocaleString()}원, 별도 코스무관 열 없음.)` : '';
-        if (locBucket != null) {
-          checks.push({ name: '코스무관(코스 미지정) 작업 비용 가시화', scope: 'woc', ok: true, detail: `[비용 관리>위치별 비용]의 '전체 골프장'(코스무관) 버킷 = ${locBucket.toLocaleString()}원 — 특정 코스(South/East/West)에 안 잡히는 작업. 위치별 그랜드총계 = Σ코스 + 코스무관.${grandNote}` });
+        const homeNoneCur = courseNoneVal(homeCourseCur);   // 당월 코스무관(전체 골프장)
+        const homeNoneCum = courseNoneVal(homeCourseCum);   // 누적 코스무관
+        const noneKey = Object.keys(homeCourseCur).find((k) => COURSE_NONE_RE.test(k)) || Object.keys(homeCourseCum).find((k) => COURSE_NONE_RE.test(k));
+        if (homeNoneCur != null || homeNoneCum != null) {
+          // ⑱-1 코스무관 가시화(HOME 직접)
+          checks.push({ name: '코스무관(코스 미지정) 작업 비용 가시화 — HOME 코스별 열', scope: 'woc', ok: true, detail: `HOME 코스별에 '${noneKey}' 열 노출(특정 코스 미귀속 작업) — 당월 ${homeNoneCur?.toLocaleString() ?? '-'}원 · 누적 ${homeNoneCum?.toLocaleString() ?? '-'}원.${locBucket != null ? ` [비용 관리>위치별 비용] '전체 골프장' 버킷 ${locBucket.toLocaleString()}원과 대응.` : ''}` });
+          // ⑱-2 그랜드 항등: HOME 코스별 당월 전체 = South+East+West+코스무관 = 전체뷰 당월 총계(woViews['전체'] 전체행 첫 수치)
+          const sew = ['South', 'East', 'West'].reduce((a, c) => a + (homeCourseCur[c] ?? 0), 0);
+          const grand = sew + (homeNoneCur ?? 0);
+          const wv = woViews['전체'];
+          const wvTotal = wv?.ok ? (woRows(wv).find((r) => /^전체$/.test(r.label.replace(/\s+/g, '')))?.nums.find((n) => n != null) ?? null) : null;
+          if (sew > 0 && wvTotal != null) {
+            const near2 = (a: number, b: number) => Math.abs(a - b) <= Math.max(4, Math.abs(b) * 0.005);
+            checks.push({ name: '★ HOME 코스별: 전체 = South+East+West+코스무관 (당월 그랜드 항등)', scope: 'woc', ok: near2(grand, wvTotal), detail: near2(grand, wvTotal) ? `당월 그랜드 항등 성립: S+E+W+코스무관 ${grand.toLocaleString()} = 전체뷰 당월 총계 ${wvTotal.toLocaleString()}` : `불일치: S+E+W+코스무관 ${grand.toLocaleString()} ≠ 전체뷰 당월 ${wvTotal.toLocaleString()}(차 ${(grand - wvTotal).toLocaleString()})` });
+          }
+          // ⑱-3 기획-구현 라벨 차이(정보성) — 기획 '작업장소 해당없음' vs 구현 '전체 골프장'
+          if (noneKey && /전체\s*골프장/.test(noneKey)) {
+            checks.push({ name: '기획-구현 차이: 코스무관 열 라벨', scope: 'woc', ok: true, review: true, detail: `기획(Figma) 라벨 '작업장소 해당없음' ↔ 구현 라벨 '${noneKey}' 상이 — 의미 혼동 소지('전체 골프장'=코스 전역 vs '작업장소 해당없음'=위치 미지정). QA 확인 요망(결함 아님·표기 통일 검토).` });
+          }
+        } else if (locBucket != null) {
+          checks.push({ name: '코스무관(코스 미지정) 작업 비용 가시화 — HOME 코스별 열', scope: 'woc', ok: true, na: true, detail: `HOME 코스별에 코스무관 열 미검출(구조 3열?) — [위치별 비용] '전체 골프장' 버킷 ${locBucket.toLocaleString()}원으로 대체 참고.` });
         } else {
-          checks.push({ name: '코스무관(코스 미지정) 작업 비용 가시화', scope: 'woc', ok: true, na: true, detail: `[비용 관리>위치별 비용]에 '전체 골프장'(코스무관) 버킷 행 미검출 — 판정 제외.${grandNote}` });
+          checks.push({ name: '코스무관(코스 미지정) 작업 비용 가시화 — HOME 코스별 열', scope: 'woc', ok: true, na: true, detail: 'HOME 코스별 코스무관 열·위치별 버킷 모두 미검출 — 판정 제외.' });
         }
       }
       // ⑳ D: 전체뷰 '전체' 행 가로 정합 — 합계 컬럼 = Σ(카테고리 컬럼) (당월·누적 각 블록)
@@ -673,25 +703,28 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
       //   코스별: 열=[합계·고정직·임시직·자재·장비·기타]×[South·East·West](18). per-course 합계=Σ5메트릭 → 미귀속 시 review
       //           (⑳ 당월 미귀속 260,639이 코스로 분산 — West 정확·South/East 집중).
       //   기간별: 열=[관리유형5][작업분류13](18), 행=전체+1~12월. Σ관리유형=Σ작업분류(같은 총액 2분류 교차) + Σ(1~12월)=전체.
-      //   ⚠ 18열 행만 판정(구조 확정분). 다른 구조=na. 불일치=결함 단정 아닌 review(내부 정합·미귀속 현상).
+      //   ✨2026-09-08 코스별 구조 변경: [S·E·W](18) → [S·E·W·전체 골프장](24). ㉒ 코스별은 그룹크기 G(3/4) 자동 대응.
+      //   ⚠ 코스별 18/24열·기간별 18열 행만 판정(구조 확정분). 다른 구조=na. 불일치=결함 단정 아닌 review(내부 정합·미귀속 현상).
       {
         const near2 = (a: number, b: number) => Math.abs(a - b) <= Math.max(2, Math.abs(b) * 0.005);
-        // 코스별: per-course '합계' = Σ5메트릭
+        // 코스별: per-course '합계' = Σ5메트릭. ✨2026-09-08 3열(S/E/W·18)/4열(S/E/W/전체골프장·24) 자동 대응(그룹크기 G=nums/6).
         {
           const vw = woViews['코스별'];
-          const rows = vw?.ok ? woRows(vw).filter((r) => r.nums.filter((n) => n != null).length === 18) : [];
-          if (rows.length === 0) checks.push({ name: "★ 코스별뷰: 코스 '합계' = Σ5메트릭", scope: 'woc', ok: true, na: true, detail: '코스별 뷰 18열 행 없음 — 판정 제외(구조 상이)' });
+          const rows = vw?.ok ? woRows(vw).filter((r) => { const c = r.nums.filter((n) => n != null).length; return c === 18 || c === 24; }) : [];
+          if (rows.length === 0) checks.push({ name: "★ 코스별뷰: 코스 '합계' = Σ5메트릭", scope: 'woc', ok: true, na: true, detail: '코스별 뷰 18/24열 행 없음 — 판정 제외(구조 상이)' });
           else {
             let judged = 0, bad = 0; const exs: string[] = [];
             for (const r of rows) {
-              const n = r.nums.filter((x): x is number => x != null);   // [합계,고정,임시,자재,장비,기타]×[S,E,W]
-              for (let c = 0; c < 3; c++) {
-                const total = n[c]; const metricSum = n[3 + c] + n[6 + c] + n[9 + c] + n[12 + c] + n[15 + c];
+              const n = r.nums.filter((x): x is number => x != null);   // [합계,고정,임시,자재,장비,기타]×[코스 G개]
+              const G = n.length / 6;   // 3(S/E/W) 또는 4(S/E/W/전체골프장)
+              const labels = G === 4 ? ['South', 'East', 'West', '전체 골프장'] : ['South', 'East', 'West'];
+              for (let c = 0; c < G; c++) {
+                const total = n[c]; const metricSum = n[G + c] + n[2 * G + c] + n[3 * G + c] + n[4 * G + c] + n[5 * G + c];
                 judged++;
-                if (!near2(total, metricSum)) { bad++; if (exs.length < 5) exs.push(`${r.label}/${['South', 'East', 'West'][c]}(합계 ${total.toLocaleString()}≠Σ ${metricSum.toLocaleString()}, 차 ${(total - metricSum).toLocaleString()})`); }
+                if (!near2(total, metricSum)) { bad++; if (exs.length < 5) exs.push(`${r.label}/${labels[c]}(합계 ${total.toLocaleString()}≠Σ ${metricSum.toLocaleString()}, 차 ${(total - metricSum).toLocaleString()})`); }
               }
             }
-            checks.push({ name: "★ 코스별뷰: 코스 '합계' = Σ5메트릭", scope: 'woc', ok: bad === 0, review: bad > 0, detail: bad === 0 ? `${judged}개 행×코스 '합계'=Σ메트릭 성립` : `내부 불일치(확인 필요) ${bad}/${judged}: ${exs.join(', ')}. 미귀속분이 합계에 포함(⑳ 전체뷰 당월 미귀속의 코스별 분산). 화면: HOME>[비용]>작업지시에 근거한 비용 분석>코스별.` });
+            checks.push({ name: "★ 코스별뷰: 코스 '합계' = Σ5메트릭", scope: 'woc', ok: bad === 0, review: bad > 0, detail: bad === 0 ? `${judged}개 행×코스 '합계'=Σ메트릭 성립(${rows[0].nums.filter((n) => n != null).length === 24 ? '4열·전체골프장 포함' : '3열'})` : `내부 불일치(확인 필요) ${bad}/${judged}: ${exs.join(', ')}. 미귀속분이 합계에 포함(⑳ 전체뷰 당월 미귀속의 코스별 분산). 화면: HOME>[비용]>작업지시에 근거한 비용 분석>코스별.` });
           }
         }
         // 기간별: 행별 Σ관리유형 = Σ작업분류 + Σ(1~12월) = 전체

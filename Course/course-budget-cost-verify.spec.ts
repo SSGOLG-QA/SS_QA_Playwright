@@ -510,6 +510,47 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
     } else checks.push({ name: '★ 분류별 월간 탭', scope: 'intra', cat: '내부-비용', ok: true, na: true, detail: '분류별 비용 진입 실패 — 판정 제외' });
   } catch (e) { checks.push({ name: '★ 분류별 월간 탭', scope: 'intra', cat: '내부-비용', ok: true, na: true, detail: `실행 예외 — 판정 제외(${String(e).slice(0, 80)})` }); }
 
+  // ── 예산 총괄 월간/연간 탭 내부 정합(갭 보완): 월간 Σ12월 = 연간 당해예산(중분류별 편성 정합) ──
+  //   구조(라이브 2026-09-07): 월간 탭=[대분류·중분류][1~12월](합계열 없음), 연간 탭=[대분류·중분류][2024·2025(YoY)·2026(YoY)].
+  //   ★ 월간 편성 Σ12월 = 연간 탭 당해(rightmost 연도) 값 — 중분류별. (연간 셀은 값+YoY 혼재 → firstNum으로 값만 추출)
+  try {
+    if (await gotoCourseMenu(admin, '예산 관리', '예산 총괄').then(() => true).catch(() => false)) {
+      await admin.waitForTimeout(1200); await killAlarms(admin);
+      const readSummary = () => admin.evaluate(() => {
+        const nm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+        const firstNum = (s: string) => { const m = (s || '').match(/-?[\d,]+/); return m ? Number(m[0].replace(/,/g, '')) : null; };
+        const isNum = (s: string) => /\d/.test(s || '') && /^-?[\d,]/.test((s || '').trim());
+        const sc = document.querySelector('.contents, main') || document.body;
+        const tbl = Array.from(sc.querySelectorAll('table')).find((t) => t.querySelectorAll('tbody tr').length >= 1);
+        if (!tbl) return [] as { label: string; nums: number[] }[];
+        return Array.from(tbl.querySelectorAll('tbody tr')).map((tr) => {
+          const cells = Array.from(tr.children).map((td) => nm(td.textContent));
+          let li = -1; for (let i = 0; i < cells.length; i++) { if (cells[i] && !isNum(cells[i])) li = i; else if (isNum(cells[i])) break; }
+          const label = (li >= 0 ? cells[li] : '').replace(/\s/g, '');
+          const nums = cells.slice(li + 1).map(firstNum).filter((v): v is number => v != null);
+          return { label, nums };
+        }).filter((r) => r.label && r.nums.length);
+      }).catch(() => [] as { label: string; nums: number[] }[]);
+      const sumBy = (rows: { label: string; nums: number[] }[], pick: (n: number[]) => number) => { const m = new Map<string, number>(); for (const r of rows) m.set(r.label, (m.get(r.label) ?? 0) + pick(r.nums)); return m; };
+      // 월간 탭
+      const mTab = admin.getByRole('tab', { name: /^월간$/ }).or(admin.locator('.contents, main').getByText(/^\s*월간\s*$/)).first();
+      if (await mTab.isVisible({ timeout: 1500 }).catch(() => false)) { await mTab.click({ timeout: 2000 }).catch(() => {}); await admin.waitForTimeout(1000); await killAlarms(admin); }
+      const monthly = sumBy(await readSummary(), (n) => n.slice(0, 12).reduce((a, b) => a + b, 0));   // 중분류별 Σ12월
+      // 연간 탭
+      const yTab = admin.getByRole('tab', { name: /^연간$/ }).or(admin.locator('.contents, main').getByText(/^\s*연간\s*$/)).first();
+      if (!(await yTab.isVisible({ timeout: 1500 }).catch(() => false))) {
+        checks.push({ name: '★ 예산 총괄: 월간 Σ12월 = 연간 당해예산', scope: 'cross', ok: true, na: true, detail: '연간 탭 미노출 — 판정 제외' });
+      } else {
+        await yTab.click({ timeout: 2000 }).catch(() => {}); await admin.waitForTimeout(1000); await killAlarms(admin);
+        const annual = sumBy(await readSummary(), (n) => n[n.length - 1]);   // 중분류별 당해(rightmost 연도)
+        const labels = [...monthly.keys()].filter((k) => annual.has(k) && (monthly.get(k)! > 0 || annual.get(k)! > 0));
+        if (labels.length === 0) checks.push({ name: '★ 예산 총괄: 월간 Σ12월 = 연간 당해예산(중분류)', scope: 'cross', ok: true, na: true, detail: `중분류 라벨 매칭 0(월간 ${monthly.size}·연간 ${annual.size}) — 판정 제외` });
+        else { let bad = 0; const ex: string[] = []; for (const k of labels) { const mv = monthly.get(k)!; const yv = annual.get(k)!; if (!nearRel(mv, yv, 0.005)) { bad++; if (ex.length < 4) ex.push(`${k}(월간Σ ${mv.toLocaleString()}≠연간 ${yv.toLocaleString()})`); } }
+          checks.push({ name: '★ 예산 총괄: 월간 Σ12월 = 연간 당해예산(중분류 편성 정합)', scope: 'cross', ok: bad === 0, review: bad > 0, detail: bad === 0 ? `${labels.length}개 중분류 월간 편성 Σ12월 = 연간 당해예산 ✓(월간↔연간 정합)` : `불일치(확인 필요) ${bad}/${labels.length}: ${ex.join(', ')}. 월간 편성합과 연간예산 상이 — 화면: 예산 관리>예산 총괄>월간↔연간.` }); }
+      }
+    } else checks.push({ name: '★ 예산 총괄 월간/연간 탭', scope: 'cross', ok: true, na: true, detail: '예산 총괄 진입 실패 — 판정 제외' });
+  } catch (e) { checks.push({ name: '★ 예산 총괄 월간/연간 탭', scope: 'cross', ok: true, na: true, detail: `실행 예외 — 판정 제외(${String(e).slice(0, 80)})` }); }
+
   // ═══════════════════════ HTML ═══════════════════════
   const cross = checks.filter((c) => c.scope === 'cross');
   const intra = checks.filter((c) => c.scope === 'intra');

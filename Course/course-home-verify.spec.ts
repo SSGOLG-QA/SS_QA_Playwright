@@ -638,6 +638,31 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
           });
         }
       }
+      // ㉒ 코스별·기간별 뷰 가로 정합 — 각 데이터 행 '합계' = Σ카테고리(⑳ 전체뷰의 타 뷰 확장).
+      //   ⚠ 구조 안전장치: 전체뷰 '전체' 행 수치개수(knownLen=[당월 합계+5][누적 합계+5]=12)와 같은 행만 동일 분할로 판정,
+      //     다른 열구조 행은 skip(na) — 거짓 결과 방지. 불일치는 결함 단정 아닌 review(⑳과 동일, 미귀속분 귀속 현상).
+      {
+        const refTv = woViews['전체'];
+        const refRow = refTv?.ok ? woRows(refTv).find((r) => /^전체$/.test(r.label.replace(/\s+/g, ''))) : undefined;
+        const knownLen = (refRow?.nums.filter((n): n is number => n != null).length) || 0;
+        for (const vname of ['코스별', '기간별']) {
+          const vw = woViews[vname];
+          if (!vw?.ok || woRows(vw).length === 0 || knownLen < 4 || knownLen % 2 !== 0) { checks.push({ name: `★ ${vname}뷰 가로 정합: '합계' = Σ카테고리`, scope: 'woc', ok: true, na: true, detail: `${vname} 뷰 데이터 없음/기준 구조 미확정(knownLen ${knownLen}) — 판정 제외` }); continue; }
+          const half = knownLen / 2;
+          let judged = 0, bad = 0; const exs: string[] = [];
+          for (const r of woRows(vw)) {
+            const nums = r.nums.filter((n): n is number => n != null);
+            if (nums.length !== knownLen) continue;   // 기준 열구조와 다른 행 skip(안전)
+            for (const [i, blk] of [[0, '당월'], [half, '누적']] as [number, string][]) {
+              const total = nums[i]; const catSum = nums.slice(i + 1, i + half).reduce((a, b) => a + b, 0);
+              judged++;
+              if (Math.abs(total - catSum) > Math.max(2, Math.abs(total) * 0.005)) { bad++; if (exs.length < 4) exs.push(`${r.label}/${blk}(합계 ${total.toLocaleString()}≠Σ ${catSum.toLocaleString()}, 차 ${(total - catSum).toLocaleString()})`); }
+            }
+          }
+          if (judged === 0) checks.push({ name: `★ ${vname}뷰 가로 정합: '합계' = Σ카테고리`, scope: 'woc', ok: true, na: true, detail: `${vname} 뷰에 기준 열구조(${knownLen}수치) 행 없음 — 판정 제외(열구조 상이)` });
+          else checks.push({ name: `★ ${vname}뷰 가로 정합: '합계' = Σ카테고리`, scope: 'woc', ok: bad === 0, review: bad > 0, detail: bad === 0 ? `${judged}개 행×블록 '합계'=Σ카테고리 성립` : `내부 불일치(확인 필요) ${bad}/${judged}: ${exs.join(', ')}. 표시 카테고리로 설명 안 되는 금액이 합계에 포함(미귀속분 귀속 추정 — ⑳ 전체뷰와 동일 현상). 화면: HOME>[비용]>작업지시에 근거한 비용 분석>${vname}.` });
+        }
+      }
       // ㉑ QA-15497: HOME 작업지시분석(누적) 금액 = 비용관리 작업별 비용(YTD) 금액 — 두 화면 직접 대조
       //   등록 버그(QA-15497): 두 화면 금액 상이. 같은 스코프(당해 YTD)로 대조 → 일치하면 수정됨(회귀 통과), 상이하면 버그 재현(review).
       {
@@ -936,6 +961,14 @@ ${woDetailSections}` : '<div class="note" style="border-left:3px solid var(--mut
       ts: new Date().toISOString(), source: 'course-home-verify',
       annualByCat, usedByCat, perfByCat, budgetDetailByCat, locByCourse, woAllView,
       woAllByCat,                          // HOME 작업지시분석 전체뷰 당월/누적 카테고리(QA-15497)
+      // ㉒ 후속: 코스별/기간별 뷰 실제 열구조 덤프(전체뷰와 열구조 상이 → 정확 분할 파악용)
+      woViewStruct: (['코스별', '기간별'] as const).reduce((o, v) => {
+        const vw = woViews[v];
+        o[v] = vw?.ok
+          ? { head: vw.headRows.map((hr) => hr.map((c) => `${c.t}${c.cs > 1 ? '*' + c.cs : ''}`)), body: vw.bodyRows.slice(0, 5).map((br) => br.map((c) => c.t)), rowsParsed: woRows(vw).map((r) => ({ label: r.label, numCount: r.nums.filter((n) => n != null).length, cellCount: r.cellCount })) }
+          : { ok: false };
+        return o;
+      }, {} as Record<string, unknown>),
       taskByCat, taskTotal: taskTotalFinal,   // 비용관리 작업별 비용 YTD 카테고리/총액(QA-15497)
       summary: { total: judged.length, pass, fail, review, na: naCount },
     };

@@ -415,6 +415,56 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
     }
   } catch (e) { checks.push({ name: '★ 연간 그래프 카드: 전체 = Σ카테고리', scope: 'cross', ok: true, na: true, detail: `실행 예외 — 판정 제외(${String(e).slice(0, 80)})` }); }
 
+  // ── 비용 집계 월간 탭 편입(신규 탭): 작업지시/실제발생/차액 × (합계+12월) 정합 + 기본 뷰 교차 ──
+  //   구조(라이브 2026-09-07): 행=작업지시 비용 합계·실제 발생 비용 합계·차액, 열=합계+1~12월.
+  //   ① 작업지시 합계=Σ12월 ② 실제발생 합계=Σ12월 ③ 차액 합계=Σ12월(롤업) ④ 월별 차액=|작업지시−실제발생|
+  //   ⑤★ 월간 합계 = 기본 뷰 총계(작업지시=aggTotal · 실제발생=aggActual[0]) — 월간↔기본 정합.
+  //   ⚠ 월간 차액합계(Σ|월차액|) ≠ 기본 차액(|Σ|) 이라 그 교차는 안 함(정상적 집계차).
+  try {
+    if (await gotoCourseMenu(admin, '비용 관리', '비용 집계').then(() => true).catch(() => false)) {
+      await admin.waitForTimeout(1200); await killAlarms(admin);
+      const monTab = admin.getByRole('tab', { name: /월간|월별/ }).or(admin.locator('.contents, main').getByText(/^\s*(월간|월별)\s*$/)).first();
+      if (!(await monTab.isVisible({ timeout: 2500 }).catch(() => false))) {
+        checks.push({ name: '★ 비용 집계 월간 탭: 합계=Σ12월', scope: 'intra', cat: '내부-비용', ok: true, na: true, detail: '월간 탭 미노출 — 판정 제외(탭 구조 확인)' });
+      } else {
+        await monTab.click({ timeout: 2500 }).catch(() => {});
+        await admin.waitForTimeout(1200); await killAlarms(admin);
+        const rows = await admin.evaluate(() => {
+          const nm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+          const NM = (s: string) => { const c = (s || '').replace(/[^0-9.\-]/g, ''); if (!c || c === '-' || c === '.') return null; const v = Number(c); return Number.isFinite(v) ? v : null; };
+          const sc = document.querySelector('.contents, main') || document.body;
+          const tbl = Array.from(sc.querySelectorAll('table')).find((t) => t.querySelectorAll('tbody tr').length >= 1);
+          if (!tbl) return {} as Record<string, number[]>;
+          const out: Record<string, number[]> = {};
+          tbl.querySelectorAll('tbody tr').forEach((tr) => {
+            const cells = Array.from(tr.children).map((td) => nm(td.textContent));
+            if (!cells.length) return;
+            const label = (cells.find((c) => c && !/^-?[\d,.%]+$/.test(c)) || cells[0]).replace(/\s/g, '');
+            out[label] = cells.map(NM).filter((v): v is number => v != null);
+          });
+          return out;
+        }).catch(() => ({} as Record<string, number[]>));
+        const findRow = (re: RegExp) => { const k = Object.keys(rows).find((x) => re.test(x)); return k ? rows[k] : null; };
+        const wo = findRow(/작업지시/); const ac = findRow(/실제.*발생/); const df = findRow(/^차액/);
+        const rollupOne = (name: string, row: number[] | null) => {
+          if (!row || row.length < 13) { checks.push({ name, scope: 'intra', cat: '내부-비용', ok: true, na: true, detail: `행 미검출/열 부족(${row?.length ?? 0}) — 판정 제외` }); return; }
+          const total = row[0]; const sum = row.slice(1, 13).reduce((a, b) => a + b, 0);
+          checks.push({ name, scope: 'intra', cat: '내부-비용', ok: nearRel(total, sum, 0.005), detail: nearRel(total, sum, 0.005) ? `합계 ${total.toLocaleString()} = Σ12월 ${sum.toLocaleString()} ✓` : `불일치: 합계 ${total.toLocaleString()} ≠ Σ12월 ${sum.toLocaleString()}(차 ${(total - sum).toLocaleString()})` });
+        };
+        rollupOne('★ 비용 집계 월간: 작업지시 합계 = Σ12월', wo);
+        rollupOne('★ 비용 집계 월간: 실제발생 합계 = Σ12월', ac);
+        rollupOne('비용 집계 월간: 차액 합계 = Σ12월', df);
+        if (wo && ac && df && wo.length >= 13 && ac.length >= 13 && df.length >= 13) {
+          let m = 0, bad = 0; const ex: string[] = [];
+          for (let i = 1; i <= 12; i++) { const w = wo[i], a = ac[i], d = df[i]; if (w == null || a == null || d == null) continue; m++; if (!nearRel(d, Math.abs(w - a), 0.005)) { bad++; if (ex.length < 3) ex.push(`${i}월(차액 ${d.toLocaleString()}≠|${w.toLocaleString()}−${a.toLocaleString()}|)`); } }
+          checks.push({ name: '비용 집계 월간: 월별 차액 = |작업지시 − 실제발생|', scope: 'intra', cat: '내부-비용', ok: bad === 0, na: m === 0, detail: m === 0 ? '대상 없음' : `${m}개월 중 ${m - bad} 일치${bad ? ` · 불일치 ${bad}(${ex.join(', ')})` : ''}` });
+        }
+        if (wo && aggTotal != null) checks.push({ name: '★ 비용 집계 월간 작업지시 합계 = 기본 뷰 총계', scope: 'cross', ok: nearRel(wo[0], aggTotal, 0.005), detail: nearRel(wo[0], aggTotal, 0.005) ? `월간 ${wo[0].toLocaleString()} = 기본 뷰 작업지시 총계 ${aggTotal.toLocaleString()} ✓(월간↔기본 정합)` : `불일치: 월간 ${wo[0].toLocaleString()} ≠ 기본 ${aggTotal.toLocaleString()}(차 ${(wo[0] - aggTotal).toLocaleString()})` });
+        if (ac && aggActual[0] != null) checks.push({ name: '★ 비용 집계 월간 실제발생 합계 = 기본 뷰 총계', scope: 'cross', ok: nearRel(ac[0], aggActual[0], 0.005), detail: nearRel(ac[0], aggActual[0], 0.005) ? `월간 ${ac[0].toLocaleString()} = 기본 뷰 실제발생 총계 ${aggActual[0].toLocaleString()} ✓(월간↔기본 정합)` : `불일치: 월간 ${ac[0].toLocaleString()} ≠ 기본 ${aggActual[0].toLocaleString()}(차 ${(ac[0] - aggActual[0]).toLocaleString()})` });
+      }
+    } else checks.push({ name: '★ 비용 집계 월간 탭', scope: 'intra', cat: '내부-비용', ok: true, na: true, detail: '비용 집계 진입 실패 — 판정 제외' });
+  } catch (e) { checks.push({ name: '★ 비용 집계 월간 탭', scope: 'intra', cat: '내부-비용', ok: true, na: true, detail: `실행 예외 — 판정 제외(${String(e).slice(0, 80)})` }); }
+
   // ═══════════════════════ HTML ═══════════════════════
   const cross = checks.filter((c) => c.scope === 'cross');
   const intra = checks.filter((c) => c.scope === 'intra');

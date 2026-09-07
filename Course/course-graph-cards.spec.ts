@@ -102,15 +102,17 @@ test('그래프 화면 카드 검증 스윕(비파괴)', async ({ page, context 
       } else checks.push({ name: `★ ${g1}: 그래프 카드 = 원천 표`, group: g1, ok: true, na: true, detail: '연간 테이블 탭 미노출 — 판정 제외' });
     } else checks.push({ name: `${g1}: 진입`, group: g1, ok: true, na: true, detail: '연간 그래프 탭 미노출 — 판정 제외' });
 
-    // ── ② 예산 분석 월간 그래프 (카드 롤업 + 카드=월간 테이블 교차, 라벨 상이 시 na) ──
+    // ── ② 예산 분석 월간 그래프 — ⚠ 라이브 확인(2026-09-07): 월간 그래프 = 카테고리별 '사용률(%)' 차트로,
+    //    연간처럼 [예산/사용/잔여 카드]가 없음 → 카드 롤업 부적합(설계상 na). 월간 정합은 budget-analysis 사용률 불변식 + 월간 테이블 DOM=API가 담당.
     const g2 = 'B. 예산 분석 · 월간 그래프';
     if (await clickTab(admin, /월간\s*그래프/)) {
       const cardsM = await parseGraphCards(admin, CATS); dump['월간그래프카드'] = cardsM;
-      const rolled = graphCardRollup(cardsM, { total: '전체', subs: SUBS, screen: '예산 분석>월간 그래프', prefix: '월간 그래프 카드' });
-      for (const rc of rolled) checks.push({ ...rc, group: g2 });
-      if (await clickTab(admin, /월간\s*테이블/)) {
-        const tblM = await readCatTable(admin); dump['월간테이블'] = tblM;
-        for (const c of crossCardTable(cardsM, tblM, g2, '예산 분석>월간 그래프↔월간 테이블')) checks.push(c);
+      if (Object.keys(cardsM).length >= 2) {
+        // 만약 향후 월간에도 금액 카드가 생기면 자동 검증(현재는 사용률% 차트라 미해당)
+        for (const rc of graphCardRollup(cardsM, { total: '전체', subs: SUBS, screen: '예산 분석>월간 그래프', prefix: '월간 그래프 카드' })) checks.push({ ...rc, group: g2 });
+        if (await clickTab(admin, /월간\s*테이블/)) { const tblM = await readCatTable(admin); dump['월간테이블'] = tblM; for (const c of crossCardTable(cardsM, tblM, g2, '예산 분석>월간 그래프↔월간 테이블')) checks.push(c); }
+      } else {
+        checks.push({ name: `${g2}: 월간 그래프 = 사용률(%) 차트(카드 없음)`, group: g2, ok: true, na: true, detail: '월간 그래프는 카테고리별 월별 사용률(%) 차트로 예산/사용/잔여 금액 카드가 없음(설계상) — 카드 롤업 미해당. 월별 정합은 budget-analysis 사용률·누적 불변식 + coverage-fill 월간 테이블이 담당(판정 제외/정보).' });
       }
     } else checks.push({ name: `${g2}: 진입`, group: g2, ok: true, na: true, detail: '월간 그래프 탭 미노출 — 판정 제외' });
   } else checks.push({ name: 'A. 예산 분석 진입', group: 'A. 예산 분석 · 연간 그래프', ok: true, na: true, detail: '예산 분석 진입 실패 — 판정 제외' });

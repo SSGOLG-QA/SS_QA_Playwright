@@ -63,3 +63,36 @@ _lf*.txt
 # 진단 프로브(일회성 덤프, 커밋 제외)
 Course/_probe-*.spec.ts
 Admin/_probe-*.spec.ts
+
+# 코스 일회성 실험 스펙(npm 미연결, 디스크 보존·추적 제외)
+Course/course-budget-explore.spec.ts
+Course/course-budget-money.spec.ts
+Course/course-budget-testdata.spec.ts
+Course/course-cost-check.spec.ts
+Course/course-draw-west.spec.ts
+Course/course-draw-west-delete.spec.ts
+Course/course-redraw-west4.spec.ts
+Course/course-west-extract.spec.ts
+Course/course-west-inspect.spec.ts
+Course/course-west-prep.spec.ts
+Course/course-equip-create.spec.ts
+Course/course-equip-explore.spec.ts
+Course/course-facility-create.spec.ts
+Course/course-issue-register.spec.ts
+Course/course-labor-explore.spec.ts
+Course/course-labor-explore2.spec.ts
+Course/course-material-create.spec.ts
+Course/course-material-dropdown-probe.spec.ts
+Course/course-material-explore.spec.ts
+Course/course-material-probe2.spec.ts
+Course/course-perf-explore.spec.ts
+Course/course-perf-testdata.spec.ts
+Course/course-vendor-create.spec.ts
+Course/course-vendor-explore.spec.ts
+Course/course-wo-complete.spec.ts
+Course/course-wo-confirm.spec.ts
+Course/course-wo-edit-danwon.spec.ts
+Course/course-wo-edit-temp.spec.ts
+Course/course-workorder-001.spec.ts
+Course/course-workorder-create.spec.ts
+Course/course-workorder-explore.spec.ts

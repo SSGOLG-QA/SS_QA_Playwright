@@ -45,11 +45,19 @@ async function extractState(page: Page, tabLabel: string): Promise<StateOut> {
       || /^[A-F][+-]?$/.test(t) || /^\d{4}년/.test(t) || /^\d+(년|월|일)$/.test(t) || /기준$/.test(t) || /^목표\s*[:：]/.test(t)   // 등급·날짜·기준일·목표값 등 데이터
       || /^총\s*[\d,]+\s*(건|명|개|점|일|회|원|건수)?$/.test(t) || /^총\s*건수\s*[\d,]*$/.test(t)   // '총 4건'·'총 9 명'·'총 건수 0' 등 집계 카운트(동적 데이터, 2026-09-07)
       || (/^[\d.,%\/\s↑↓]+$/.test(t) && /\d/.test(t));   // 차트 범례 순수수치('/ 63.1% / 1,174,246'·'↓3% ↑55%' 등, 문자/한글 없음 = 데이터
+    // 테스터/사용자 생성 데이터 라벨(인스턴스) 판별 — 화면 chrome 아님(2026-09-07, 재추출 시 대량 유입 차단).
+    //   ⚠ 안내문구(긴 text)엔 '[예산관리]' 등이 포함될 수 있어 길이 가드(<80) — 정본 가이드(>100자) 보호.
+    const isDataLabel = (label: string) => (label.length < 80 && /\[[가-힣A-Za-z]{1,3}\]/.test(label))   // 테스터 태그 [박]/[YS]/[석] 작업지시·이슈·장비·사진명
+      || /^\d+차$/.test(label)                                    // 'N차'(회차 데이터)
+      || /I-\d{4,}/.test(label)                                   // 이슈 ID I-00001
+      || /\.(pdf|xlsx?|pptx?|docx?|hwp|png|jpe?g|gif|zip)$/i.test(label)   // 첨부 파일명
+      || /(월|화|수|목|금|토|일)요일/.test(label);                // 요일/날짜 컬럼('월요일 09.07' 등)
     const push = (kind: string, label: string) => {
       label = norm(label).slice(0, (kind === 'text' || kind === 'title') ? 200 : 44);   // 안내문구/제목은 길게(잘림 방지)
       if (!label) return;
       if (kind === 'button' && /^알림$/.test(label)) return;
       if ((kind === 'button' || kind === 'nav') && /^\d{1,3}$/.test(label)) return;
+      if (isDataLabel(label)) return;   // 테스터/사용자 데이터 인스턴스 전역 차단(전 kind)
       const key = kind + '|' + label + '|' + tab;
       if (seen.has(key)) return; seen.add(key); capLabels.add(label);
       out.push({ kind, label, tab });

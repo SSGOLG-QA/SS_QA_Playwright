@@ -34,7 +34,7 @@ async function gotoScreen(admin: Page, menu: string, sub: string): Promise<boole
 
 // ══════════════════ 1) 컨트롤 배터리 ══════════════════
 interface Comp { kind: string; label: string; tab?: string; }
-const TARGET_KINDS = new Set(['nav', 'calendar', 'image', 'dropdown', 'button', 'column', 'input']);
+const TARGET_KINDS = new Set(['nav', 'calendar', 'image', 'dropdown', 'button', 'column', 'input', 'toggle']);   // toggle 편입(2026-09-07, 존재검증·비파괴)
 
 function loadInventory(): Record<string, Comp[]> {
   const p = path.join(process.cwd(), 'baselines', `course-components.${COURSE_SUBDOMAIN}.json`);
@@ -63,11 +63,17 @@ async function presenceMap(page: Page, items: Comp[]): Promise<Record<string, bo
       });
     };
     void cls;
+    // 토글(스위치) 존재 — 비파괴(클릭 안 함). 아이콘/커스텀 스위치 포함.
+    const hasToggle = Array.from(root.querySelectorAll('input[type="checkbox"], [role="switch"], .switch, [class*="toggle"], [class*="switch"], .el-switch, .v-switch, .form-switch')).some((e) => vis(e));
+    // 비시맨틱 이전/다음(아이콘형) nav — 텍스트 없이 화살표만 있는 경우 대응.
+    const hasNav = Array.from(root.querySelectorAll('[class*="prev"], [class*="next"], [class*="arrow"], [class*="ico-left"], [class*="ico-right"], [class*="paging"], [class*="pagination"], .swiper-button-prev, .swiper-button-next, [aria-label*="이전"], [aria-label*="다음"], [title*="이전"], [title*="다음"]')).some((e) => vis(e));
     const out: Record<string, boolean> = {};
     for (const it of items) {
       const n = norm(it.label); let present = false;
       if (it.kind === 'calendar') present = hasCalendar || (n.length >= 2 && pageText.includes(n.replace(/^달력:?/, '')));
       else if (it.kind === 'image') { const alt = norm(it.label.replace(/^이미지:?/, '')); present = anyImg && ((imgs.some((im) => im.ok) && (!alt || imgs.some((im) => im.alt && (im.alt.includes(alt) || alt.includes(im.alt))))) || imgs.some((im) => im.ok)); }
+      else if (it.kind === 'toggle') present = hasToggle || elMatch(it.label);   // 존재만(비파괴)
+      else if (it.kind === 'nav') present = (n.length >= 2 && pageText.includes(n)) || elMatch(it.label) || hasNav;   // 아이콘형 이전/다음 포함
       else present = (n.length >= 2 && pageText.includes(n)) || elMatch(it.label);
       out[it.kind + '|' + it.label] = present;
     }

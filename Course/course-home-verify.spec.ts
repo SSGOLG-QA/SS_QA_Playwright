@@ -638,29 +638,49 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
           });
         }
       }
-      // ㉒ 코스별·기간별 뷰 가로 정합 — 각 데이터 행 '합계' = Σ카테고리(⑳ 전체뷰의 타 뷰 확장).
-      //   ⚠ 구조 안전장치: 전체뷰 '전체' 행 수치개수(knownLen=[당월 합계+5][누적 합계+5]=12)와 같은 행만 동일 분할로 판정,
-      //     다른 열구조 행은 skip(na) — 거짓 결과 방지. 불일치는 결함 단정 아닌 review(⑳과 동일, 미귀속분 귀속 현상).
+      // ㉒ 코스별·기간별 뷰 심화 정합(⑳ 전체뷰 확장) — 라이브 구조 확정(2026-09-07, 전체뷰와 다른 2D 그리드):
+      //   코스별: 열=[합계·고정직·임시직·자재·장비·기타]×[South·East·West](18). per-course 합계=Σ5메트릭 → 미귀속 시 review
+      //           (⑳ 당월 미귀속 260,639이 코스로 분산 — West 정확·South/East 집중).
+      //   기간별: 열=[관리유형5][작업분류13](18), 행=전체+1~12월. Σ관리유형=Σ작업분류(같은 총액 2분류 교차) + Σ(1~12월)=전체.
+      //   ⚠ 18열 행만 판정(구조 확정분). 다른 구조=na. 불일치=결함 단정 아닌 review(내부 정합·미귀속 현상).
       {
-        const refTv = woViews['전체'];
-        const refRow = refTv?.ok ? woRows(refTv).find((r) => /^전체$/.test(r.label.replace(/\s+/g, ''))) : undefined;
-        const knownLen = (refRow?.nums.filter((n): n is number => n != null).length) || 0;
-        for (const vname of ['코스별', '기간별']) {
-          const vw = woViews[vname];
-          if (!vw?.ok || woRows(vw).length === 0 || knownLen < 4 || knownLen % 2 !== 0) { checks.push({ name: `★ ${vname}뷰 가로 정합: '합계' = Σ카테고리`, scope: 'woc', ok: true, na: true, detail: `${vname} 뷰 데이터 없음/기준 구조 미확정(knownLen ${knownLen}) — 판정 제외` }); continue; }
-          const half = knownLen / 2;
-          let judged = 0, bad = 0; const exs: string[] = [];
-          for (const r of woRows(vw)) {
-            const nums = r.nums.filter((n): n is number => n != null);
-            if (nums.length !== knownLen) continue;   // 기준 열구조와 다른 행 skip(안전)
-            for (const [i, blk] of [[0, '당월'], [half, '누적']] as [number, string][]) {
-              const total = nums[i]; const catSum = nums.slice(i + 1, i + half).reduce((a, b) => a + b, 0);
-              judged++;
-              if (Math.abs(total - catSum) > Math.max(2, Math.abs(total) * 0.005)) { bad++; if (exs.length < 4) exs.push(`${r.label}/${blk}(합계 ${total.toLocaleString()}≠Σ ${catSum.toLocaleString()}, 차 ${(total - catSum).toLocaleString()})`); }
+        const near2 = (a: number, b: number) => Math.abs(a - b) <= Math.max(2, Math.abs(b) * 0.005);
+        // 코스별: per-course '합계' = Σ5메트릭
+        {
+          const vw = woViews['코스별'];
+          const rows = vw?.ok ? woRows(vw).filter((r) => r.nums.filter((n) => n != null).length === 18) : [];
+          if (rows.length === 0) checks.push({ name: "★ 코스별뷰: 코스 '합계' = Σ5메트릭", scope: 'woc', ok: true, na: true, detail: '코스별 뷰 18열 행 없음 — 판정 제외(구조 상이)' });
+          else {
+            let judged = 0, bad = 0; const exs: string[] = [];
+            for (const r of rows) {
+              const n = r.nums.filter((x): x is number => x != null);   // [합계,고정,임시,자재,장비,기타]×[S,E,W]
+              for (let c = 0; c < 3; c++) {
+                const total = n[c]; const metricSum = n[3 + c] + n[6 + c] + n[9 + c] + n[12 + c] + n[15 + c];
+                judged++;
+                if (!near2(total, metricSum)) { bad++; if (exs.length < 5) exs.push(`${r.label}/${['South', 'East', 'West'][c]}(합계 ${total.toLocaleString()}≠Σ ${metricSum.toLocaleString()}, 차 ${(total - metricSum).toLocaleString()})`); }
+              }
             }
+            checks.push({ name: "★ 코스별뷰: 코스 '합계' = Σ5메트릭", scope: 'woc', ok: bad === 0, review: bad > 0, detail: bad === 0 ? `${judged}개 행×코스 '합계'=Σ메트릭 성립` : `내부 불일치(확인 필요) ${bad}/${judged}: ${exs.join(', ')}. 미귀속분이 합계에 포함(⑳ 전체뷰 당월 미귀속의 코스별 분산). 화면: HOME>[비용]>작업지시에 근거한 비용 분석>코스별.` });
           }
-          if (judged === 0) checks.push({ name: `★ ${vname}뷰 가로 정합: '합계' = Σ카테고리`, scope: 'woc', ok: true, na: true, detail: `${vname} 뷰에 기준 열구조(${knownLen}수치) 행 없음 — 판정 제외(열구조 상이)` });
-          else checks.push({ name: `★ ${vname}뷰 가로 정합: '합계' = Σ카테고리`, scope: 'woc', ok: bad === 0, review: bad > 0, detail: bad === 0 ? `${judged}개 행×블록 '합계'=Σ카테고리 성립` : `내부 불일치(확인 필요) ${bad}/${judged}: ${exs.join(', ')}. 표시 카테고리로 설명 안 되는 금액이 합계에 포함(미귀속분 귀속 추정 — ⑳ 전체뷰와 동일 현상). 화면: HOME>[비용]>작업지시에 근거한 비용 분석>${vname}.` });
+        }
+        // 기간별: 행별 Σ관리유형 = Σ작업분류 + Σ(1~12월) = 전체
+        {
+          const vw = woViews['기간별'];
+          const rows = vw?.ok ? woRows(vw).filter((r) => r.nums.filter((n) => n != null).length === 18) : [];
+          if (rows.length === 0) checks.push({ name: '★ 기간별뷰: Σ관리유형 = Σ작업분류', scope: 'woc', ok: true, na: true, detail: '기간별 뷰 18열 행 없음 — 판정 제외(구조 상이)' });
+          else {
+            let judged = 0, bad = 0; const exs: string[] = []; const rowTot: Record<string, number> = {};
+            for (const r of rows) {
+              const n = r.nums.filter((x): x is number => x != null);   // [관리유형5][작업분류13]
+              const mgmt = n.slice(0, 5).reduce((a, b) => a + b, 0); const work = n.slice(5, 18).reduce((a, b) => a + b, 0);
+              rowTot[r.label.replace(/\s+/g, '')] = mgmt; judged++;
+              if (!near2(mgmt, work)) { bad++; if (exs.length < 4) exs.push(`${r.label}(관리유형Σ ${mgmt.toLocaleString()}≠작업분류Σ ${work.toLocaleString()})`); }
+            }
+            checks.push({ name: '★ 기간별뷰: Σ관리유형 = Σ작업분류(2분류 동일 총액)', scope: 'woc', ok: bad === 0, review: bad > 0, detail: bad === 0 ? `${judged}개 행 관리유형Σ=작업분류Σ 성립` : `불일치(확인 필요) ${bad}/${judged}: ${exs.join(', ')}` });
+            const monKeys = Object.keys(rowTot).filter((k) => /^\d+월$/.test(k));
+            const tot = rowTot['전체'];
+            if (tot != null && monKeys.length > 0) { const monSum = monKeys.reduce((a, k) => a + rowTot[k], 0); checks.push({ name: '★ 기간별뷰: Σ(1~12월) = 전체', scope: 'woc', ok: near2(monSum, tot), detail: near2(monSum, tot) ? `Σ${monKeys.length}개월 ${monSum.toLocaleString()} = 전체 ${tot.toLocaleString()} ✓` : `불일치: Σ월 ${monSum.toLocaleString()} ≠ 전체 ${tot.toLocaleString()}(차 ${(monSum - tot).toLocaleString()})` }); }
+          }
         }
       }
       // ㉑ QA-15497: HOME 작업지시분석(누적) 금액 = 비용관리 작업별 비용(YTD) 금액 — 두 화면 직접 대조

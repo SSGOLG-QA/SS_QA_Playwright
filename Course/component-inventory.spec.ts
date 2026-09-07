@@ -42,7 +42,9 @@ async function extractState(page: Page, tabLabel: string): Promise<StateOut> {
     };
     const directText = (e: Element) => { let t = ''; e.childNodes.forEach((n) => { if (n.nodeType === 3) t += n.textContent || ''; }); return norm(t); };
     const isDataText = (t: string) => /^\d+$/.test(t) || /^[월화수목금토일]$/.test(t) || /^\d{4}[-.]\d/.test(t) || /^[\d,]+\s*(원|건|명|%|개|점|일)?$/.test(t) || /^W-\d+$/.test(t)
-      || /^[A-F][+-]?$/.test(t) || /^\d{4}년/.test(t) || /^\d+(년|월|일)$/.test(t) || /기준$/.test(t) || /^목표\s*[:：]/.test(t);   // 등급·날짜·기준일·목표값 등 데이터
+      || /^[A-F][+-]?$/.test(t) || /^\d{4}년/.test(t) || /^\d+(년|월|일)$/.test(t) || /기준$/.test(t) || /^목표\s*[:：]/.test(t)   // 등급·날짜·기준일·목표값 등 데이터
+      || /^총\s*[\d,]+\s*(건|명|개|점|일|회|원|건수)?$/.test(t) || /^총\s*건수\s*[\d,]*$/.test(t)   // '총 4건'·'총 9 명'·'총 건수 0' 등 집계 카운트(동적 데이터, 2026-09-07)
+      || (/^[\d.,%\/\s↑↓]+$/.test(t) && /\d/.test(t));   // 차트 범례 순수수치('/ 63.1% / 1,174,246'·'↓3% ↑55%' 등, 문자/한글 없음 = 데이터
     const push = (kind: string, label: string) => {
       label = norm(label).slice(0, (kind === 'text' || kind === 'title') ? 200 : 44);   // 안내문구/제목은 길게(잘림 방지)
       if (!label) return;

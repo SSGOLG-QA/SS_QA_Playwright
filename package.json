@@ -131,6 +131,7 @@
     "course:display-verify": "playwright test --config=Course/playwright.config.ts --project=course Course/course-display-verify.spec.ts",
     "course:figma-extract": "node scripts/extractFigmaCourseTexts.js",
     "course:figma-checktext": "playwright test --config=Course/playwright.config.ts --project=course Course/course-figma-checktext.spec.ts",
+    "course:guide-text": "playwright test --config=Course/playwright.config.ts --project=course Course/course-guide-text.spec.ts --no-deps",
     "course:control-battery": "playwright test --config=Course/playwright.config.ts --project=course Course/course-control-battery.spec.ts",
     "course:chart-integrity": "playwright test --config=Course/playwright.config.ts --project=course Course/course-chart-integrity.spec.ts",
     "course:reconcile": "playwright test --config=Course/playwright.config.ts --project=course Course/course-budget-reconcile.spec.ts",

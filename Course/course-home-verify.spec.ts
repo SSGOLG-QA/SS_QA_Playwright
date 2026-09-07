@@ -131,7 +131,11 @@ function rollup(view: WoView): { na: boolean; ok: boolean; detail: string; grand
   for (let i = tIdx + 1; i < rows.length; i++) { if (/^전체$/.test(rows[i].label.replace(/\s+/g, ''))) break; children.push(rows[i]); }
   const aligned = children.filter((c) => c.cellCount === total.cellCount);
   if (aligned.length === 0) return { na: true, ok: true, detail: '정렬 가능한 하위 행 없음(구조 상이) — 판정 제외', grand: null };
-  const near = (a: number, b: number) => Math.abs(a - b) <= Math.max(2, Math.abs(b) * 0.005);
+  // 정수 원 반올림에 견고한 tolerance: 하위 N행 각각 정수 반올림(±1원)이 누적되므로 round(Σ)와 Σround가 최대 N원 차 가능.
+  //   → 절대 floor를 하위행 수(aligned.length)+1로(near-zero 기타 관리비 21원류 컬럼의 3원 반올림 노이즈 흡수).
+  //   대형 컬럼은 상대 0.5%가 지배(floor 무관) → 실제 결함(N원 초과)은 계속 검출. QA 무관 표시 반올림 false FAIL 제거(2026-09-07).
+  const floor = Math.max(2, aligned.length + 1);
+  const near = (a: number, b: number) => Math.abs(a - b) <= Math.max(floor, Math.abs(b) * 0.005);
   const bad: string[] = []; let cols = 0; let grand: number | null = null;
   for (let i = 0; i < total.nums.length; i++) {
     const tv = total.nums[i]; if (tv == null) continue;

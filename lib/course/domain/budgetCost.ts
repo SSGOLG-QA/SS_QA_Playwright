@@ -15,6 +15,7 @@ export interface Check {
   values?: { label: string; value: number | null }[];
   na?: boolean;   // 데이터 없음 = 판정 제외(참고). pass/fail 집계에서 제외 — "미확인 ≠ 결함".
   review?: boolean;   // 확인 필요(미집계 추정 등) — 결함은 아니나 사람이 확인해야 함. 주의 필요에 집계.
+  cat?: string;   // 리포트 카테고리 override(미지정 시 scope/name 기반 자동 분류).
 }
 
 export const near = (a: number, b: number, tol = 1) => Math.abs(a - b) <= tol;

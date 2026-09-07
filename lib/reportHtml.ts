@@ -58,7 +58,12 @@ export function renderStandardReportHtml(title: string, results: TCResult[], opt
     const gf = rows.filter((r) => r.status === 'FAIL').length;
     const grv = rows.filter(isReview).length;
     const gn = rows.filter((r) => r.status === 'SKIP').length - grv;
-    const body = rows.map((r) => `<tr class="${rowCls(r)}"><td class="ctr">${mark(r)}</td><td>${esc(tail(r.path) || r.desc)}</td><td>${esc(detailOf(r))}</td></tr>`).join('');
+    const body = rows.map((r) => {
+      // 기대값/원문(expected)이 있으면 결과·설명 아래에 회색 부가행으로 병기(언어검증=한국어 원문, 안내문구=TC 원문 등).
+      const exp = (r.expected || '').trim();
+      const expLine = exp && exp !== '-' ? `<div class="mut" style="font-size:12px;margin-top:2px">${esc(exp)}</div>` : '';
+      return `<tr class="${rowCls(r)}"><td class="ctr">${mark(r)}</td><td>${esc(tail(r.path) || r.desc)}</td><td>${esc(detailOf(r))}${expLine}</td></tr>`;
+    }).join('');
     return `<details class="grp"${gf || grv ? ' open' : ''}><summary><span class="gname">${esc(scr)}</span> <span class="gfrac"><span class="ok-n">${gp}</span>${gf ? ` · <span class="ng-n">${gf}</span>` : ''}${grv ? ` · <span class="rv-n">🔎${grv}</span>` : ''}${gn ? ` · <span class="na-n">${gn}</span>` : ''} / ${rows.length}</span></summary>
       <table><thead><tr><th class="ctr" style="width:34px"></th><th>항목</th><th>결과·설명</th></tr></thead><tbody>${body}</tbody></table></details>`;
   }).join('');

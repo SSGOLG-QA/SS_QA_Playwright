@@ -101,6 +101,9 @@ function kindMatch(kind, screenChecks) {
     // 테이블 위젯: 화면에 테이블 존재검증(표시보강 'table:테이블') 또는 컬럼 검증 PASS가 있으면 위젯 커버로 인정.
     //   (Task1) 라벨이 인접버튼으로 오캡처된 table 컴포넌트도 위젯 단위로 크레딧.
     case 'table': return anyPass(/테이블|\btable\b|thead|list-table|컬럼|COLUMN/i);
+    // 차트: course:chart-integrity가 해당 화면 차트 데이터를 검증(등급스케일·점수→등급·추세·목표=카드, CHART-C1~C5) PASS 시 크레딧.
+    //   chart-integrity는 Home 등급추세 전용 → 타 화면 차트엔 chart PASS 없어 과크레딧 없음(2026-09-07).
+    case 'chart': return anyPass(/CHART-C|등급\s*스케일|점수.{0,2}등급|추세|차트\s*정합/i);
     // 달력/이미지/이동(nav)은 느슨한 kind추정으로 오검(가짜 커버) 위험 → 배터리(course-control-battery)의
     //   실제 존재/왕복 검증 PASS를 라벨 매칭(repHit)으로만 크레딧(여기서 매칭하지 않음).
     default: return false;

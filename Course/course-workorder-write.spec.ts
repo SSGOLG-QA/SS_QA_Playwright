@@ -14,7 +14,9 @@ import * as fs from 'fs';
 //   작업기간    : 해당월 내(2026-0N-05 ~ 2026-0N-10, 전체 2026-01-01~07-31 범위)
 //   기타(투입)  : 장비/자재 1~5건 가변(각 주문 ≥1 필수) — 이름 무관 '첫 N개' 자동 선택(자산명 의존 제거)
 //   ⚠ 검증된 패턴(course-workorder-bytype, 2026-08-27 REG 8/8) 각색. 투입은 위치 저장 前(셰브론 nth 밀림 방지).
-//   env: WO_DRYRUN=1(등록 직전 취소·비파괴 리허설) · WO_MONTHS="1,2"(특정 월만) · WO_PER=N(월당 건수, 기본2).
+//   env: WO_DRYRUN=1(등록 직전 취소·비파괴 리허설) · WO_MONTHS="1,2"(특정 월만, 1~12) · WO_PER=N(건수, 기본2)
+//        · WO_C1="러프,법면"(분류 명시 — 각 월·각 분류 PER건 등록. 미지정 시 온코스 1분류 풀 로테이션).
+//        예) 러프·법면 9월 각 1건: WO_C1="러프,법면" WO_MONTHS="9" WO_PER="1" → 2건.
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.use({ viewport: { width: 1536, height: 950 } });
@@ -22,9 +24,12 @@ const dir = 'reports/_workorder-write';
 const LEADS = ['전영신_마스터1', '강나연'];
 const COURSES = ['West', 'South', 'East'];
 // 온코스 영역 1분류(코스/홀/구분 위치 해결 기대). 장비/시설/기타/조경/묘포장/폰드는 위치 폴백 위험 → 제외.
-const C1_POOL = ['그린', '그린칼라', '티박스', '페어웨이', '러프', '벙커', '법면'];
+const C1_ALL = ['그린', '그린칼라', '티박스', '페어웨이', '러프', '벙커', '법면'];
+// WO_C1="러프,법면" 지정 시 해당 분류만 등록(각 월·각 분류 PER건). 미지정 시 기존 로테이션 풀.
+const C1_SET = process.env.WO_C1 ? process.env.WO_C1.split(',').map((s) => s.trim()).filter(Boolean) : null;
+const C1_POOL = C1_SET || C1_ALL;
 const DRYRUN = process.env.WO_DRYRUN === '1';
-const MONTHS = process.env.WO_MONTHS ? process.env.WO_MONTHS.split(',').map((s) => Number(s.trim())).filter((n) => n >= 1 && n <= 7) : [1, 2, 3, 4, 5, 6, 7];
+const MONTHS = process.env.WO_MONTHS ? process.env.WO_MONTHS.split(',').map((s) => Number(s.trim())).filter((n) => n >= 1 && n <= 12) : [1, 2, 3, 4, 5, 6, 7];
 const PER = process.env.WO_PER ? Number(process.env.WO_PER) : 2;
 
 async function openWOModal(admin: Page) {
@@ -100,7 +105,8 @@ test('작업 지시 — 1~7월 2건씩 등록(14건)', async ({ page, context })
   // 등록 계획 수립(월×PER)
   const plan: Array<{ i: number; month: number; c1: string; course: string }> = [];
   let i = 0;
-  for (const month of MONTHS) for (let k = 0; k < PER; k++) { plan.push({ i, month, c1: C1_POOL[i % C1_POOL.length], course: COURSES[i % COURSES.length] }); i++; }
+  if (C1_SET) { for (const month of MONTHS) for (const c1 of C1_POOL) for (let k = 0; k < PER; k++) { plan.push({ i, month, c1, course: COURSES[i % COURSES.length] }); i++; } }   // 명시 분류: 각 분류 PER건
+  else for (const month of MONTHS) for (let k = 0; k < PER; k++) { plan.push({ i, month, c1: C1_POOL[i % C1_POOL.length], course: COURSES[i % COURSES.length] }); i++; }   // 기본: 풀 로테이션
   out.planCount = plan.length;
   console.log(`[wo-write] 계획 ${plan.length}건 (월 ${JSON.stringify(MONTHS)} × ${PER})${DRYRUN ? ' · DRYRUN(비파괴)' : ''}`);
 

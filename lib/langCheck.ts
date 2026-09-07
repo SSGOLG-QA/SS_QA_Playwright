@@ -190,10 +190,12 @@ const SCAN_ZONES: { zone: string; sel: string; attr?: string; keepInData?: boole
   { zone: '테이블헤더', sel: 'thead th' },
   { zone: '안내문구', sel: '.info-box-text, [class*="guide"], [class*="info-text"], [class*="desc"]' },
   // 섹션제목 — h1~h4/.box-title/.section-title 외에 실제로 많이 쓰이는 .sub-title(61건)·.title-20/16·.setting-name 보강(2026-06-10 census)
-  { zone: '섹션제목', sel: '.contents-box h1, .contents-box h2, .contents-box h3, .contents-box h4, .box-title, .section-title, .sub-title, .sub-title-box, .title-20, .title-16, .setting-name, .sub-title-text' },
+  //   + [class*="section-title"] 일반화(코스관리 .cost-stack-section-title·.period-section-title 등 -section-title 관례 화면 공통 포착, 2026-09-01)
+  { zone: '섹션제목', sel: '.contents-box h1, .contents-box h2, .contents-box h3, .contents-box h4, .box-title, .section-title, [class*="section-title"], .sub-title, .sub-title-box, .title-20, .title-16, .setting-name, .sub-title-text' },
   { zone: '요약카드', sel: '.summary-card__label, .summary-card__days, .summary-card__sub, [class*="summary"] [class*="label"], [class*="stat"] [class*="label"]', keepInData: true }, // 라벨/단위(값=__value 제외)
   // 카드/차트 범례 라벨(시스템) — 값(__value)·데이터는 제외하고 라벨/이름만(2026-06-10 census)
-  { zone: '카드/범례', sel: '.card-label, .card-sub, .legend-item, .legend-value, .donut-legend__name, .cbc-label, [class*="legend"] [class*="name"]', keepInData: true },
+  //   + 코스관리 차트 범례/카드명(.cost-stack-name·.cost-stack-course-name·.cost-stack-section-title 계열, 2026-09-01)
+  { zone: '카드/범례', sel: '.card-label, .card-sub, .legend-item, .legend-value, .donut-legend__name, .cbc-label, [class*="legend"] [class*="name"], .cost-stack-name, .cost-stack-course-name', keepInData: true },
   // 상태 뱃지(사용중·완료 등 시스템 enum) — .badge-label 등(2026-06-10 census)
   { zone: '뱃지/상태', sel: '.badge-label, [class*="badge"] > span, [class*="status-label"], [class*="state-label"]', keepInData: true },
   // 빈 상태 안내(시스템) — "내역이 없습니다" 등
@@ -428,15 +430,19 @@ const fmtShape = (s: string) => s.replace(/\d/g, '0'); // 2026.03.11 → 0000.00
 //  종료 시 한국어 원복. seen으로 전역요소(SNB/레이아웃) 중복 제거(홈에서 1회 귀속).
 // KO baseline ↔ FG 슬롯 비교 공통 로직. scanScreen 과 runLangCheckUnified 에서 공유.
 //  seen 중복 제거: 전역 SNB 등 같은 슬롯이 여러 메뉴에서 반복될 때 1회만 기록.
-function applySlotComparison(
+export function applySlotComparison(
   ko: { key: string; text: string; zone: string; clip?: boolean; ell?: boolean }[],
   fg: { key: string; text: string; zone: string; clip?: boolean; ell?: boolean }[],
-  lang: Lang, screen: string, tcRef: string, shot: string, seen: Set<string>
+  lang: Lang, screen: string, tcRef: string, shot: string, seen: Set<string>,
+  // 화면별 dedup 존(2026-09-01): 이 존의 슬롯은 seen 키에 screen을 포함 → 화면마다 별도 기록.
+  //   기본 빈 Set = 기존 런전역 dedup(admin 무영향). 코스는 context-dependent 드롭다운값을 화면별 노출하려 {'드롭다운값'} 전달.
+  screenScopedZones: Set<string> = new Set()
 ) {
   const koMap = new Map(ko.map(s => [s.key, s.text]));
   const fresh = (k: string) => { if (seen.has(k)) return false; seen.add(k); return true; };
+  const sp = (zone: string) => screenScopedZones.has(zone) ? `${screen}|` : '';   // 화면 스코프 prefix
   const fail = (zone: string, koText: string, fgText: string, phen: string) => {
-    if (!fresh(`${zone}|${phen}|${koText || fgText}`)) return;
+    if (!fresh(`${sp(zone)}${zone}|${phen}|${koText || fgText}`)) return;
     record(
       { path: `${screen} > 언어검증 > ${zone}`, tcRef, tcId: `LANG-${lang.ko}`, desc: `${lang.ko} ${phen}: "${(koText || fgText).slice(0, 40)}"`, expected: koText ? `한국어 원문: "${koText}"` : '-' },
       'FAIL',
@@ -444,7 +450,7 @@ function applySlotComparison(
     );
   };
   const pass = (zone: string, koText: string, fgText: string) => {
-    if (!fresh(`PASS|${zone}|${koText}`)) return;
+    if (!fresh(`${sp(zone)}PASS|${zone}|${koText}`)) return;
     record(
       { path: `${screen} > 언어검증 > ${zone}`, tcRef, tcId: `LANG-${lang.ko}`, desc: `${lang.ko} 번역 정상: "${koText.slice(0, 40)}"`, expected: `한국어 원문: "${koText}"` },
       'PASS',

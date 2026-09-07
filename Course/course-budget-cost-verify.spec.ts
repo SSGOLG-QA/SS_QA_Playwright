@@ -465,6 +465,51 @@ test('예산/비용 화면 간 계산 정합성 검증(비파괴)', async ({ pag
     } else checks.push({ name: '★ 비용 집계 월간 탭', scope: 'intra', cat: '내부-비용', ok: true, na: true, detail: '비용 집계 진입 실패 — 판정 제외' });
   } catch (e) { checks.push({ name: '★ 비용 집계 월간 탭', scope: 'intra', cat: '내부-비용', ok: true, na: true, detail: `실행 예외 — 판정 제외(${String(e).slice(0, 80)})` }); }
 
+  // ── 분류별 비용 월간 탭 편입(갭 보완): 작업분류별 합계=Σ12월 + ★월간↔연간 합계 교차 ──
+  //   구조(라이브 2026-09-07): 연간 탭=[1·2·3분류][합계][5관리유형], 월간 탭=[1·2·3분류][합계][1~12월]. 합계 열은 두 탭 동일.
+  //   ① 작업분류별 합계=Σ12월 ②★월간 탭 각 분류 합계 = 연간 탭 각 분류 합계(월간↔연간 정합).
+  try {
+    if (await gotoCourseMenu(admin, '비용 관리', '분류별 비용').then(() => true).catch(() => false)) {
+      await admin.waitForTimeout(1200); await killAlarms(admin);
+      const readCatRows = () => admin.evaluate(() => {
+        const nm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+        const NM = (s: string) => { const c = (s || '').replace(/[^0-9.\-]/g, ''); if (!c || c === '-' || c === '.') return null; const v = Number(c); return Number.isFinite(v) ? v : null; };
+        const sc = document.querySelector('.contents, main') || document.body;
+        const tbl = Array.from(sc.querySelectorAll('table')).find((t) => t.querySelectorAll('tbody tr').length >= 1);
+        if (!tbl) return [] as { label: string; nums: number[] }[];
+        return Array.from(tbl.querySelectorAll('tbody tr')).map((tr) => {
+          const cells = Array.from(tr.children).map((td) => nm(td.textContent));
+          const label = (cells.find((c) => c && !/^-?[\d,.%]+$/.test(c)) || '').replace(/\s/g, '');
+          return { label, nums: cells.map(NM).filter((v): v is number => v != null) };
+        }).filter((r) => r.label && r.nums.length);
+      }).catch(() => [] as { label: string; nums: number[] }[]);
+      // 연간 탭(기본일 수 있음) 명시 선택 후 수집
+      const yTab = admin.getByRole('tab', { name: /^연간$/ }).or(admin.locator('.contents, main').getByText(/^\s*연간\s*$/)).first();
+      if (await yTab.isVisible({ timeout: 1500 }).catch(() => false)) { await yTab.click({ timeout: 2000 }).catch(() => {}); await admin.waitForTimeout(1000); await killAlarms(admin); }
+      const annualRows = await readCatRows();
+      const mTab = admin.getByRole('tab', { name: /^월간$/ }).or(admin.locator('.contents, main').getByText(/^\s*월간\s*$/)).first();
+      if (!(await mTab.isVisible({ timeout: 1500 }).catch(() => false))) {
+        checks.push({ name: '★ 분류별 월간: 작업분류 합계 = Σ12월', scope: 'intra', cat: '내부-비용', ok: true, na: true, detail: '월간 탭 미노출 — 판정 제외' });
+      } else {
+        await mTab.click({ timeout: 2000 }).catch(() => {}); await admin.waitForTimeout(1200); await killAlarms(admin);
+        const monthlyRows = (await readCatRows()).filter((r) => r.nums.length >= 13);
+        // ① 작업분류별 합계=Σ12월
+        if (monthlyRows.length === 0) checks.push({ name: '★ 분류별 월간: 작업분류 합계 = Σ12월', scope: 'intra', cat: '내부-비용', ok: true, na: true, detail: '월간 탭 13열(합계+12월) 행 없음 — 판정 제외(구조 상이)' });
+        else {
+          let bad = 0; const ex: string[] = [];
+          for (const r of monthlyRows) { const total = r.nums[0]; const sum = r.nums.slice(1, 13).reduce((a, b) => a + b, 0); if (!nearRel(total, sum, 0.005)) { bad++; if (ex.length < 3) ex.push(`${r.label}(합계 ${total.toLocaleString()}≠Σ12월 ${sum.toLocaleString()})`); } }
+          checks.push({ name: '★ 분류별 월간: 작업분류 합계 = Σ12월', scope: 'intra', cat: '내부-비용', ok: bad === 0, detail: bad === 0 ? `${monthlyRows.length}개 작업분류 합계=Σ12월 성립` : `${monthlyRows.length}개 중 위반 ${bad}: ${ex.join(', ')}` });
+          // ②★ 월간 합계 = 연간 합계(분류별 교차)
+          const annualByLabel = new Map(annualRows.map((r) => [r.label, r.nums[0]]));
+          const pairs = monthlyRows.filter((r) => annualByLabel.has(r.label));
+          if (pairs.length === 0) checks.push({ name: '★ 분류별: 월간 합계 = 연간 합계(교차)', scope: 'cross', ok: true, na: true, detail: `라벨 매칭 0(월간 ${monthlyRows.length}·연간 ${annualRows.length}) — 판정 제외` });
+          else { let cbad = 0; const cex: string[] = []; for (const r of pairs) { const yv = annualByLabel.get(r.label)!; if (!nearRel(r.nums[0], yv, 0.005)) { cbad++; if (cex.length < 3) cex.push(`${r.label}(월간 ${r.nums[0].toLocaleString()}≠연간 ${yv.toLocaleString()})`); } }
+            checks.push({ name: '★ 분류별: 월간 합계 = 연간 합계(작업분류 교차)', scope: 'cross', ok: cbad === 0, detail: cbad === 0 ? `${pairs.length}개 작업분류 월간 합계 = 연간 합계 ✓(월간↔연간 정합)` : `${pairs.length}개 중 불일치 ${cbad}: ${cex.join(', ')}` }); }
+        }
+      }
+    } else checks.push({ name: '★ 분류별 월간 탭', scope: 'intra', cat: '내부-비용', ok: true, na: true, detail: '분류별 비용 진입 실패 — 판정 제외' });
+  } catch (e) { checks.push({ name: '★ 분류별 월간 탭', scope: 'intra', cat: '내부-비용', ok: true, na: true, detail: `실행 예외 — 판정 제외(${String(e).slice(0, 80)})` }); }
+
   // ═══════════════════════ HTML ═══════════════════════
   const cross = checks.filter((c) => c.scope === 'cross');
   const intra = checks.filter((c) => c.scope === 'intra');

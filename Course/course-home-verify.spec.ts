@@ -68,8 +68,12 @@ async function clickTab(admin: Page, name: string) {
   await admin.waitForTimeout(1500); await killAlarms(admin);
 }
 
-// [비용] 탭 → "작업지시에 근거한 비용 분석" 서브뷰 목록(모두 같은 '전체=Σ하위' 롤업 구조).
-const WO_VIEWS = ['전체', '코스별', 'South', 'East', 'West', '기간별'];
+// [비용] 탭 → "작업지시에 근거한 비용 분석" 서브뷰 탭 목록(모두 같은 '전체=Σ하위' 롤업 구조).
+//   ✨ 2026-09-09 재설계 반영(라이브 실측): 상단 서브탭 = 전체·코스별·기간별 3종.
+//   과거 South/East/West는 상단 탭이었으나 → **코스별 뷰 안의 '코스 선택' 드롭다운 옵션**으로 이동(홀별 드릴다운 신규).
+//   → S/E/W를 여기서 탭으로 찾으면 항상 미검출 = 거짓 '미렌더/데이터없음' 오판정. 코스별 드릴다운(S/E/W)은
+//     전용 스펙 course-home-costtab-drilldown.spec.ts가 홀별 불변식으로 검증(중복 회피).
+const WO_VIEWS = ['전체', '코스별', '기간별'];
 interface WCell { t: string; cs: number; rs: number; }
 interface WoRow { label: string; nums: (number | null)[]; cellCount: number; }
 interface WoView { ok: boolean; headRows: WCell[][]; bodyRows: WCell[][]; }
@@ -229,9 +233,10 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
   const annual = parseCostSection(annualSec, '연간예산');
   const cumul = parseCostSection(cumulSec, '누적 예산');
 
-  // ═══ [비용] 탭 → "작업지시에 근거한 비용 분석" 서브뷰(전체/코스별/South/East/West/기간별) ═══
+  // ═══ [비용] 탭 → "작업지시에 근거한 비용 분석" 서브뷰(전체/코스별/기간별) ═══
   //  토글(.tab-group.tab-type-line): [예산 대비 실적 분석 | 작업지시에 근거한 비용 분석]
-  //  서브탭(.tab-group.tab-type-box): 전체·코스별·South·East·West·기간별. 각 뷰 표: '전체' 행 = Σ(하위 행) 롤업.
+  //  서브탭(.tab-group.tab-type-box): 전체·코스별·기간별(3종). 각 뷰 표: '전체' 행 = Σ(하위 행) 롤업.
+  //   ✨ S/E/W는 코스별 뷰 '코스 선택' 드롭다운 옵션(홀별 드릴다운) — 전용 스펙 course-home-costtab-drilldown 위임.
   //  ⚠ 전체 뷰(영역축)와 코스별 뷰(코스축)는 집계 축이 달라 상호 총합 일치 아님(코스 미지정 작업 존재) → 뷰별 자기 롤업만 검증. 비파괴.
   let woGuide = ''; let woToggleFound = false;
   const woViews: Record<string, WoView> = {};
@@ -597,12 +602,12 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
   // ⑬ 서브뷰 구조 렌더(6종 진입·표·행) · ⑭ 뷰별 '전체=Σ하위' 롤업 정합 · ⑮ 비음수 · ⑯ 안내문구.
   {
     if (!woToggleFound) {
-      checks.push({ name: '★ 작업지시 기반 비용 분석 — 서브뷰 렌더(6종)', scope: 'woc', ok: true, na: true, detail: "'작업지시에 근거한 비용 분석' 토글 미노출 — 판정 제외(비용 탭 구조/데이터 확인)" });
+      checks.push({ name: '★ 작업지시 기반 비용 분석 — 서브뷰 렌더(3종)', scope: 'woc', ok: true, na: true, detail: "'작업지시에 근거한 비용 분석' 토글 미노출 — 판정 제외(비용 탭 구조/데이터 확인)" });
     } else {
-      // ⑬ 구조: 6개 서브뷰 진입·표·데이터 행
+      // ⑬ 구조: 서브탭 3종(전체·코스별·기간별) 진입·표·데이터 행. S/E/W는 코스별 드롭다운(전용 스펙 위임).
       const rendered = WO_VIEWS.filter((v) => woViews[v]?.ok && woViews[v].bodyRows.length > 0);
       const missing = WO_VIEWS.filter((v) => !(woViews[v]?.ok && woViews[v].bodyRows.length > 0));
-      checks.push({ name: '★ 작업지시 기반 비용 분석 — 서브뷰 렌더(6종)', scope: 'woc', ok: missing.length === 0, detail: missing.length === 0 ? `전체·코스별·South·East·West·기간별 6종 모두 표·데이터 렌더(${rendered.map((v) => `${v} ${woViews[v].bodyRows.length}행`).join(' · ')})` : `미렌더/데이터없음: ${missing.join(', ')}` });
+      checks.push({ name: '★ 작업지시 기반 비용 분석 — 서브뷰 렌더(3종)', scope: 'woc', ok: missing.length === 0, detail: missing.length === 0 ? `전체·코스별·기간별 3종 모두 표·데이터 렌더(${rendered.map((v) => `${v} ${woViews[v].bodyRows.length}행`).join(' · ')}) · S/E/W=코스별 드롭다운(course-home-costtab-drilldown 위임)` : `미렌더/데이터없음: ${missing.join(', ')}` });
 
       // ⑭ 뷰별 '전체 = Σ(하위 행)' 롤업 정합(영역/홀/월 축)
       const rolls = WO_VIEWS.map((v) => ({ v, r: rollup(woViews[v] || { ok: false, headRows: [], bodyRows: [] }) }));
@@ -820,10 +825,7 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
   };
   const woViewNote: Record<string, string> = {
     '전체': '영역(그린·티박스·페어웨이…)별 <b>당월/누적</b> 비용. \'전체\' 행 = Σ(영역 행).',
-    '코스별': '코스(South·East·West)별 카테고리 비용. \'전체\' 행 = Σ(영역 행). ⚠ 영역축이라 코스별 총합은 전체 뷰와 다를 수 있음(코스 미지정 작업).',
-    'South': 'South 코스 <b>홀별(1~9홀)</b> · 예산분류별/작업분류별 × 카테고리 × 영역. \'전체\' 행 = Σ(홀 행).',
-    'East': 'East 코스 홀별 · 예산분류별/작업분류별 × 카테고리 × 영역. \'전체\' 행 = Σ(홀 행).',
-    'West': 'West 코스 홀별 · 예산분류별/작업분류별 × 카테고리 × 영역. \'전체\' 행 = Σ(홀 행).',
+    '코스별': '코스(South·East·West·전체 골프장)별 카테고리 비용(당월/누적, 24열). \'전체\' 행 = Σ(영역 행). ⚠ 영역축이라 코스별 총합은 전체 뷰와 다를 수 있음(코스 미지정 작업). ✨ <b>코스 선택 드롭다운</b>에서 특정 코스 선택 시 <b>홀별(1~9홀) 드릴다운</b>(전용 스펙 course-home-costtab-drilldown 검증).',
     '기간별': '<b>월별(1~12월)</b> 비용 추이. \'전체\' 행 = Σ(월 행).',
   };
   const woDetailSections = woToggleFound
@@ -892,7 +894,7 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <div class="hrow ok"><span class="hic">✅</span><div class="hbody"><span class="hlbl">잡아냅니다</span><ul>
   <li>HOME 값이 <b>원천 화면과 다름</b> <span class="mut">(등급=목표설정 · 작업=작업지시 · 연간예산=예산관리)</span></li>
   <li>비용 탭(예산 대비 실적) <b>계산 항등이 깨짐</b> <span class="mut">(잔여=연간예산−누적 · 사용률% · 전체=Σ카테고리)</span></li>
-  <li>비용 탭(작업지시 분석) <b>'전체' 롤업이 깨짐</b> <span class="mut">(전체·코스별·South·East·West·기간별 각 뷰: 전체 행 = Σ 하위 행)</span></li></ul></div></div>
+  <li>비용 탭(작업지시 분석) <b>'전체' 롤업이 깨짐</b> <span class="mut">(전체·코스별·기간별 각 뷰: 전체 행 = Σ 하위 행)</span></li></ul></div></div>
 <div class="hrow warn"><span class="hic">⚠️</span><div class="hbody"><span class="hlbl">못 잡습니다 (한계)</span><ul>
   <li>HOME은 원천을 <b>가져다 보여주는</b> 화면 — <b>원천 자체가 틀리면</b> 같이 틀린 채 통과 <span class="mut">(원천 정확성은 각 원천 검증 담당)</span></li>
   <li><b>집계 범위가 다른</b> 항목(이번 달 vs 전체기간)은 직접 일치가 아니라 자기정합(≥0)만 확인</li></ul></div></div>
@@ -926,7 +928,7 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <div class="mrow"><div class="node"><div class="nt">예산 관리 &gt; 예산 총괄</div><div class="na">카테고리 연간예산(원천)</div></div><div class="arrow">─<b>입력값</b>→</div><div class="node hi"><div class="nt">HOME 비용 탭</div><div class="na">연간/누적 예산 대비 실적</div></div></div>
 <div class="mrow"><div class="node"><div class="nt">예산 관리 &gt; 실적 관리</div><div class="na">회계상 집계 전체 비용(분류×월)</div></div><div class="arrow">─<b>원천</b>→</div><div class="node hi"><div class="nt">HOME 누적 사용 금액</div><div class="na">회계 비용(작업지시 집계와 다른 축)</div></div></div>
 <div class="mlabel">[비용] 탭(작업지시 분석) — 작업지시서 집계 비용(6개 관점)</div>
-<div class="mrow"><div class="node"><div class="nt">작업 관리 &gt; 작업 지시(완료확정)</div><div class="na">작업별 원가 집계</div></div><div class="arrow">─<b>분석</b>→</div><div class="node hi"><div class="nt">HOME 작업지시 분석</div><div class="na">전체·코스별·South·East·West·기간별</div></div></div>
+<div class="mrow"><div class="node"><div class="nt">작업 관리 &gt; 작업 지시(완료확정)</div><div class="na">작업별 원가 집계</div></div><div class="arrow">─<b>분석</b>→</div><div class="node hi"><div class="nt">HOME 작업지시 분석</div><div class="na">전체·코스별(→S/E/W 홀별 드릴다운)·기간별</div></div></div>
 <div class="mrow" style="justify-content:center"><div class="node" style="border:none;background:none"><div class="na">각 뷰 롤업: '전체' 행 = Σ(영역/홀/월 하위 행)</div></div></div>
 </div>
 <h3>HOME 탭·블록·원천</h3>
@@ -938,7 +940,7 @@ details.gloss{margin:28px 0 0;font-size:13px;color:var(--mut);background:var(--c
 <tr><td>최근 작업 일보</td><td>일자·단일/반복 작업·고정직/임시직</td><td>작업 관리 &gt; 작업 일보</td></tr>
 <tr><td rowspan="3">비용</td><td>예산 대비 실적 — 연간 예산 대비 실적</td><td>카테고리별 누적 사용·잔여·연간예산·사용률%</td><td>예산 관리(예산 총괄 <b>연간 탭</b>/상세)</td></tr>
 <tr><td>예산 대비 실적 — 누적 예산 대비 현황</td><td>카테고리별 <b>누적 사용</b>(회계)·잔여·누적 예산</td><td>예산 관리 &gt; <b>실적 관리</b>(회계 비용 입력)</td></tr>
-<tr><td>작업지시에 근거한 비용 분석</td><td>전체·코스별·South·East·West·기간별(작업지시서 집계 비용)</td><td>작업 관리 &gt; 작업 지시(완료확정) · 비용 관리</td></tr>
+<tr><td>작업지시에 근거한 비용 분석</td><td>전체·코스별(→S/E/W 홀별 드릴다운)·기간별(작업지시서 집계 비용)</td><td>작업 관리 &gt; 작업 지시(완료확정) · 비용 관리</td></tr>
 </tbody></table>
 </div>
 
@@ -1006,10 +1008,10 @@ ${attn ? `<div class="note" style="border-left:3px solid ${fail ? 'var(--ng)' : 
 
 <div class="panel" id="p7">
 <h2>비용 탭 검증 — 작업지시에 근거한 비용 분석</h2>
-<div class="note big"><b>핵심</b>: [비용] 탭의 두 번째 분석 모드. <b>작업지시서로 집계된 비용</b>을 <b>전체·코스별·South·East·West·기간별</b> 6개 관점으로 제공(예산 대비 실적과 별개 축, 회계 비용과 차이 가능). 각 뷰의 <b>'전체' 행 = Σ(하위 행)</b> 롤업(영역/홀/월 축)이 성립하는지 검증(위치기반 열합 — 컬럼 의미와 무관하게 성립해야 함).</div>
+<div class="note big"><b>핵심</b>: [비용] 탭의 두 번째 분석 모드. <b>작업지시서로 집계된 비용</b>을 <b>전체·코스별·기간별</b> 3개 서브탭으로 제공(예산 대비 실적과 별개 축, 회계 비용과 차이 가능). ✨ 코스별 뷰의 <b>코스 선택 드롭다운</b>에서 특정 코스(South/East/West) 선택 시 <b>홀별(1~9홀) 드릴다운</b>(전용 스펙 course-home-costtab-drilldown 검증). 각 뷰의 <b>'전체' 행 = Σ(하위 행)</b> 롤업(영역/월 축)이 성립하는지 검증(위치기반 열합 — 컬럼 의미와 무관하게 성립해야 함).</div>
 ${woToggleFound ? `<h3>서브뷰별 롤업 정합성</h3>
 <div class="tblwrap">${wocSummaryTbl}</div>
-<div class="note">'전체' 대표총액 = 각 뷰 '전체' 행의 첫 유효 수치 열(대개 합계). 롤업 = '전체' 행이 그 아래 하위 행(전체 뷰=영역 / South·East·West=홀 / 기간별=월)의 열별 합과 일치하는지(반올림 off-by-1·상대 0.5% 허용). <b>⚠ 전체 뷰(영역축)와 코스별 뷰(코스축)는 집계 축이 달라</b> 서로의 총합이 일치하지 않는 것이 정상(코스 미지정·복수코스 작업 존재) → 뷰 간 총액 일치는 검증하지 않고 <b>각 뷰 자기 롤업</b>만 검증.</div>
+<div class="note">'전체' 대표총액 = 각 뷰 '전체' 행의 첫 유효 수치 열(대개 합계). 롤업 = '전체' 행이 그 아래 하위 행(전체 뷰=영역 / 코스별=영역 / 기간별=월)의 열별 합과 일치하는지(반올림 off-by-1·상대 0.5% 허용). <b>⚠ 전체 뷰(영역축)와 코스별 뷰(코스축)는 집계 축이 달라</b> 서로의 총합이 일치하지 않는 것이 정상(코스 미지정·복수코스 작업 존재) → 뷰 간 총액 일치는 검증하지 않고 <b>각 뷰 자기 롤업</b>만 검증. 코스별 드롭다운의 홀별 드릴다운(전체=Σ1~9홀)은 course-home-costtab-drilldown 스펙에서 검증.</div>
 <div class="note">안내문구: <i>${esc(woGuide || '—')}</i></div>
 <h2 style="margin-top:26px">서브뷰별 상세 분석 데이터</h2>
 <div class="note">각 서브뷰의 <b>실제 집계표</b>를 화면 그대로 재현(당월/누적·카테고리·영역·홀·월 포함). <span class="mt-legend" style="background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1px 6px">진한 행</span> = \'전체\' 롤업 행(하위 합계).</div>

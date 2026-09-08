@@ -1,6 +1,6 @@
 import { test, Page } from '@playwright/test';
 import { openCourseAdmin, gotoCourseMenu, killAlarms } from '../lib/course/courseHelpers';
-import { pickVSByText, investEquipment, investMaterials } from '../lib/course/workorderHelpers';
+import { pickVSByText, investEquipmentWithTime, investMaterials } from '../lib/course/workorderHelpers';
 import * as fs from 'fs';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -137,7 +137,9 @@ test('작업 지시 — 1분류당 2분류 1건씩 등록', async ({ page, conte
     // 작업기간
     rec.dates = await setWODates(admin, '2026-08-26', '2026-09-30');
     // 기타(장비/자재) — ⚠ 위치 저장 전에! (위치 저장이 셰브론 nth를 밀어 카드 매핑 깨짐) · 검증된 by-name 헬퍼 사용
-    rec.equip = await investEquipment(admin, EQUIP_NAMES);
+    // ⚠ 장비는 2026-09 신규 필수 '투입시간'(전체작업시간) 설정 포함(미설정 시 picker 등록 막힘)
+    const eqRes = await investEquipmentWithTime(admin, EQUIP_NAMES);
+    rec.equip = eqRes.sel; rec.timeDiag = eqRes.timeDiag;
     rec.material = await investMaterials(admin, MATERIAL_NAMES, 0.2);
     // 작업 위치: 코스 round-robin + 홀1 + 구분(첫) + 구역(첫) + 위치저장
     const course = COURSES[(idx - 1) % COURSES.length]; rec.course = course;

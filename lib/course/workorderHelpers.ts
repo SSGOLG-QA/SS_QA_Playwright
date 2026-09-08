@@ -112,6 +112,19 @@ export async function investEquipment(admin: Page, equipNames: string[]): Promis
   return sel;
 }
 
+/** 장비 투입(by-name) + 투입시간 설정(2026-09 신규 필수). 체크→setEquipmentInvestTimes→picker 등록.
+ *  investEquipment의 투입시간 대응 변형(bytype 등 by-name 경로용). sel=PickerSelectResult, timeDiag=모달 진단. */
+export async function investEquipmentWithTime(admin: Page, equipNames: string[], start = '0900', end = '1800'): Promise<{ sel: PickerSelectResult | null; timeDiag: any }> {
+  if (!equipNames.length) return { sel: null, timeDiag: null };
+  if (!(await openInvestCard(admin, INVEST_CARD.equip, '장비 선택'))) return { sel: null, timeDiag: null };
+  const sel = await selectInPicker(admin, equipNames, false, 0);
+  const any = sel.selected.some((s) => s.found && s.after);
+  let timeDiag: any = null;
+  if (any) { timeDiag = await setEquipmentInvestTimes(admin, start, end); await pickerRegister(admin); }
+  else await pickerCancel(admin);
+  return { sel, timeDiag };
+}
+
 /** 자재 투입: 셰브론 nth(1~4)를 전부 훑어(분류 분산 대응) 자재명 체크 + 투입량=재고×pct → 카드별 등록. */
 export async function investMaterials(admin: Page, materialNames: string[], pct = 0.2): Promise<Array<{ idx: number; sel: PickerSelectResult }>> {
   const results: Array<{ idx: number; sel: PickerSelectResult }> = [];

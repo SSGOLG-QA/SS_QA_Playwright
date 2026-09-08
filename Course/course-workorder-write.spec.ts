@@ -1,6 +1,6 @@
 import { test, Page } from '@playwright/test';
 import { openCourseAdmin, gotoCourseMenu, killAlarms } from '../lib/course/courseHelpers';
-import { pickVSByText, investEquipmentFirst, investMaterialsFirst } from '../lib/course/workorderHelpers';
+import { pickVSByText, investEquipmentFirstWithTime, investMaterialsFirst } from '../lib/course/workorderHelpers';
 import * as fs from 'fs';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -159,12 +159,14 @@ test('작업 지시 — 1~7월 2건씩 등록(14건)', async ({ page, context })
 
     // ⑥ 기타 투입(장비/자재 1~5건 가변, ≥1) — 위치 선택 後·위치 저장 前(셰브론 nth 밀림 방지)
     const total = (p.i % 5) + 1; const matTarget = Math.floor(total / 2); const eqTarget = total - matTarget;
-    const eq = await investEquipmentFirst(admin, eqTarget);
+    // 장비는 체크 직후 투입시간 설정(2026-09 신규 필수) → picker 등록. 자재는 투입량만(시간 불요).
+    const eq = await investEquipmentFirstWithTime(admin, eqTarget);
     let mat = { checked: 0, names: [] as string[] };
     if (matTarget > 0) mat = await investMaterialsFirst(admin, matTarget, 0.2);
-    // ≥1 보장: 아무것도 안 잡혔으면 장비 1건 재시도
-    if (eq.checked + mat.checked === 0) { const eq2 = await investEquipmentFirst(admin, 1); eq.checked += eq2.checked; eq.names.push(...eq2.names); }
+    // ≥1 보장: 아무것도 안 잡혔으면 장비 1건 재시도(투입시간 포함)
+    if (eq.checked + mat.checked === 0) { const eq2 = await investEquipmentFirstWithTime(admin, 1); eq.checked += eq2.checked; eq.names.push(...eq2.names); if (!eq.timeDiag) eq.timeDiag = eq2.timeDiag; }
     rec.invest = { target: total, eq: eq.checked, eqNames: eq.names, mat: mat.checked, matNames: mat.names };
+    rec.timeDiag = eq.timeDiag;   // 투입시간 모달 진단(첫 장비 모달 레이어 덤프 + 행별 mode)
 
     // ⑦ 위치 저장(투입 後) 또는 폴백
     if (rec.locCourse && gubunOk && zoneOk) {

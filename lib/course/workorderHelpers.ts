@@ -128,11 +128,9 @@ export async function investMaterials(admin: Page, materialNames: string[], pct 
 
 /** 열린 picker에서 이름 무관 '첫 N개' 사용가능 항목을 체크(+material qty). 자산명 의존 제거(1~5건 가변 투입용).
  *  select-all 오클릭 방지: 데이터 leaf 텍스트에서 시작해 상위 체크박스로 올라감(thead 체크박스는 제외). */
-export async function investFirstInCard(admin: Page, cardIdx: number, count: number, withQty: boolean, pct = 0.2): Promise<{ checked: number; total: number | null; names: string[] }> {
-  if (count <= 0) return { checked: 0, total: null, names: [] };
-  const expectTitle = cardIdx === INVEST_CARD.equip ? '장비 선택' : '선택';
-  if (!(await openInvestCard(admin, cardIdx, expectTitle))) return { checked: 0, total: null, names: [] };
-  const res = await admin.evaluate(({ count, withQty, pct }) => {
+/** 열린 picker에서 첫 N개 선택(evaluate만 — open/register 없음). investFirstInCard·투입시간 변형이 공유. */
+async function selectFirstRowsInOpenPicker(admin: Page, count: number, withQty: boolean, pct: number): Promise<{ checked: number; total: number | null; names: string[] }> {
+  return admin.evaluate(({ count, withQty, pct }) => {
     const vis = (e: Element) => { const r = (e as HTMLElement).getBoundingClientRect(); const s = getComputedStyle(e as HTMLElement); return r.width > 2 && r.height > 2 && s.visibility !== 'hidden' && s.display !== 'none'; };
     const totalEls = [...document.querySelectorAll('*')].filter((e) => /선택 총\s*\d+\s*개/.test((e as HTMLElement).innerText || '') && vis(e));
     const picker = totalEls.length ? (totalEls[totalEls.length - 1].closest('[class*="modal"], [class*="popup"], [class*="layer"]') as HTMLElement || document.body) : document.body;
@@ -166,6 +164,15 @@ export async function investFirstInCard(admin: Page, cardIdx: number, count: num
     const tm = (picker.innerText || '').match(/선택 총\s*(\d+)\s*개/);
     return { checked, total: tm ? +tm[1] : null, names };
   }, { count, withQty, pct }).catch((e) => ({ checked: 0, total: null, names: [], error: String(e) } as any));
+}
+
+/** 열린 picker에서 이름 무관 '첫 N개' 사용가능 항목을 체크(+material qty). 자산명 의존 제거(1~5건 가변 투입용).
+ *  select-all 오클릭 방지: 데이터 leaf 텍스트에서 시작해 상위 체크박스로 올라감(thead 체크박스는 제외). */
+export async function investFirstInCard(admin: Page, cardIdx: number, count: number, withQty: boolean, pct = 0.2): Promise<{ checked: number; total: number | null; names: string[] }> {
+  if (count <= 0) return { checked: 0, total: null, names: [] };
+  const expectTitle = cardIdx === INVEST_CARD.equip ? '장비 선택' : '선택';
+  if (!(await openInvestCard(admin, cardIdx, expectTitle))) return { checked: 0, total: null, names: [] };
+  const res = await selectFirstRowsInOpenPicker(admin, count, withQty, pct);
   if (res.checked > 0) await pickerRegister(admin); else await pickerCancel(admin);
   return res;
 }
@@ -176,6 +183,18 @@ export async function investEquipmentFirst(admin: Page, count: number): Promise<
   return { checked: r.checked, names: r.names };
 }
 
+/** 장비 카드에서 첫 N개 체크 → 각 장비 투입시간 설정(2026-09 신규 필수) → picker 등록.
+ *  체크와 등록 사이에 setEquipmentInvestTimes 삽입(picker 등록이 투입시간 미설정 시 막힘). timeDiag에 모달 진단 포함. */
+export async function investEquipmentFirstWithTime(admin: Page, count: number, start = '0900', end = '1800'): Promise<{ checked: number; names: string[]; timeDiag: any }> {
+  if (count <= 0) return { checked: 0, names: [], timeDiag: null };
+  if (!(await openInvestCard(admin, INVEST_CARD.equip, '장비 선택'))) return { checked: 0, names: [], timeDiag: null };
+  const res = await selectFirstRowsInOpenPicker(admin, count, false, 0);
+  let timeDiag: any = null;
+  if (res.checked > 0) { timeDiag = await setEquipmentInvestTimes(admin, start, end); await pickerRegister(admin); }
+  else await pickerCancel(admin);
+  return { checked: res.checked, names: res.names, timeDiag };
+}
+
 /** 자재 카드(1~4, 분류 분산)를 훑어 누계 N개까지 자재 투입(투입량=재고×pct). */
 export async function investMaterialsFirst(admin: Page, count: number, pct = 0.2): Promise<{ checked: number; names: string[] }> {
   let remaining = count; const names: string[] = [];
@@ -184,6 +203,86 @@ export async function investMaterialsFirst(admin: Page, count: number, pct = 0.2
     remaining -= r.checked; names.push(...r.names);
   }
   return { checked: count - remaining, names };
+}
+
+// 진단: 현재 떠 있는 모든 모달 레이어(크기 필터) 열거 — 투입시간 상세 모달 본문 확정용.
+async function dumpModalLayers(admin: Page): Promise<any> {
+  return admin.evaluate(() => {
+    const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+    const vis = (e: Element) => { const b = (e as HTMLElement).getBoundingClientRect(); const s = getComputedStyle(e as HTMLElement); return b.width > 40 && b.height > 60 && s.visibility !== 'hidden' && s.display !== 'none'; };
+    const layers = [...document.querySelectorAll('[class*="modal-group"],[class*="modal-container"],[class*="modal-content"],[class*="popup"],[class*="layer"]')].filter(vis) as HTMLElement[];
+    return layers.map((m) => ({ cls: m.className.slice(0, 44), text: norm(m.innerText).slice(0, 320),
+      inputs: [...m.querySelectorAll('input')].filter(vis).map((i) => ({ ph: (i as HTMLInputElement).placeholder, type: (i as HTMLInputElement).type, val: (i as HTMLInputElement).value })).slice(0, 12),
+      checks: [...m.querySelectorAll('input[type=checkbox],input[type=radio],[role=switch]')].filter(vis).map((c) => { const row = (c as HTMLElement).closest('tr,li,label,div'); return `${(c as HTMLInputElement).type || 'switch'}${(c as HTMLInputElement).checked ? ':on' : ''}|${norm(row?.textContent || '').slice(0, 34)}`; }).slice(0, 12) })).slice(0, 6);
+  }).catch(() => null);
+}
+
+// '투입시간 상세 설정' 서브모달에서 투입시간 확정: 전략 A(전체작업시간 토글) → 실패 시 B(시작/종료 시각 채움) → 저장.
+async function fillDetailTime(admin: Page, start: string, end: string): Promise<string> {
+  // 전략 A: 저장 포함 최상단 모달에서 '전체작업시간' 토글/체크 클릭
+  const a = await admin.evaluate(() => {
+    const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+    const vis = (e: Element) => { const b = (e as HTMLElement).getBoundingClientRect(); return b.width > 1 && b.height > 1; };
+    const foots = [...document.querySelectorAll('[class*="modal-footer"]')].filter((f) => vis(f) && /저장/.test(norm(f.textContent)));
+    const modal = (foots.length ? foots[foots.length - 1].closest('[class*="modal-group"],[class*="modal-container"],[class*="modal-content"]') : null) as HTMLElement | null;
+    const scope = modal || document.body;
+    const ft = [...scope.querySelectorAll('*')].find((e) => e.children.length === 0 && /전체\s*작업\s*시간/.test(norm((e as HTMLElement).textContent)) && vis(e)) as HTMLElement | undefined;
+    if (!ft) return false;
+    let row: HTMLElement | null = ft;
+    for (let i = 0; i < 5 && row; i++) { if (row.querySelector && (row.querySelector('input[type=checkbox]') || row.querySelector('[role=switch]') || row.querySelector('input[type=radio]'))) break; row = row.parentElement; }
+    const cb = row?.querySelector?.('input[type=checkbox], input[type=radio]') as HTMLInputElement | null;
+    if (cb) { if (!cb.checked) { const lbl = (row!.querySelector('label[for], label') as HTMLElement) || ft; lbl.click(); if (!cb.checked) cb.click(); } return true; }
+    ft.click(); return true;
+  }).catch(() => false);
+  let mode = a ? 'fulltime' : '';
+  if (!a) {
+    // 전략 B: 최상단 모달의 00:00 시각 input(마지막 2개=서브모달) 채움
+    const times = admin.locator('input[placeholder="00:00"]:visible');
+    const n = await times.count().catch(() => 0);
+    if (n >= 2) {
+      const s = times.nth(n - 2), e = times.nth(n - 1);
+      await s.click({ timeout: 1500 }).catch(() => {}); await admin.keyboard.press('Control+a').catch(() => {}); await s.pressSequentially(start, { delay: 60 }).catch(() => {});
+      await e.click({ timeout: 1500 }).catch(() => {}); await admin.keyboard.press('Control+a').catch(() => {}); await e.pressSequentially(end, { delay: 60 }).catch(() => {});
+      await admin.keyboard.press('Escape').catch(() => {});
+      mode = 'timefill';
+    } else mode = 'no-control';
+  }
+  await admin.waitForTimeout(300);
+  const save = admin.getByRole('button', { name: /^저장$/ }).last();
+  if (await save.isVisible({ timeout: 1000 }).catch(() => false)) { await save.click({ timeout: 2000 }).catch(() => {}); await admin.waitForTimeout(700); await killAlarms(admin); }
+  return mode;
+}
+
+/** 장비 picker에서 idx번째 체크된 행의 '투입시간 상세 설정' 클릭 → 서브모달 투입시간 확정 → 저장.
+ *  picker 등록은 투입시간 미설정 시 막히므로 등록 前 각 장비마다 호출. 첫 호출 시 모달 레이어 진단 덤프.
+ *  반환: 각 행 처리 결과 + (첫 행)모달 덤프. 비파괴(저장은 서브모달 내부 확정, WO 최종 등록 아님). */
+export async function setEquipmentInvestTimes(admin: Page, start = '0900', end = '1800'): Promise<any> {
+  const diag: any = { checked: 0, rows: [] as any[], modalDump: null };
+  diag.checked = await admin.evaluate(() => {
+    const vis = (e: Element) => { const b = (e as HTMLElement).getBoundingClientRect(); return b.width > 1 && b.height > 1; };
+    const totalEls = [...document.querySelectorAll('*')].filter((e) => /선택 총\s*\d+\s*개/.test((e as HTMLElement).innerText || '') && vis(e));
+    const picker = (totalEls.length ? totalEls[totalEls.length - 1].closest('[class*="modal"],[class*="popup"],[class*="layer"]') : document.body) as HTMLElement;
+    return [...picker.querySelectorAll('input[type=checkbox]')].filter((c) => (c as HTMLInputElement).checked && !c.closest('thead')).length;
+  }).catch(() => 0);
+
+  for (let idx = 0; idx < diag.checked; idx++) {
+    const clicked = await admin.evaluate((idx) => {
+      const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+      const vis = (e: Element) => { const b = (e as HTMLElement).getBoundingClientRect(); return b.width > 1 && b.height > 1; };
+      const totalEls = [...document.querySelectorAll('*')].filter((e) => /선택 총\s*\d+\s*개/.test((e as HTMLElement).innerText || '') && vis(e));
+      const picker = (totalEls.length ? totalEls[totalEls.length - 1].closest('[class*="modal"],[class*="popup"],[class*="layer"]') : document.body) as HTMLElement;
+      const rows = [...picker.querySelectorAll('input[type=checkbox]')].filter((c) => (c as HTMLInputElement).checked && !c.closest('thead')).map((c) => { let r = (c as HTMLElement).closest('tr,li,div'); for (let i = 0; i < 4 && r; i++) { if (/투입시간 상세 설정/.test((r as HTMLElement).innerText || '')) break; r = r.parentElement as HTMLElement | null; } return r; });
+      const row = rows[idx] as HTMLElement | undefined; if (!row) return false;
+      const det = [...row.querySelectorAll('.button-label, span, button, a')].find((e) => /투입시간 상세 설정/.test((e as HTMLElement).textContent || '') && vis(e)) as HTMLElement | undefined;
+      if (det) { ((det.closest('button, a') as HTMLElement) || det).click(); return true; }
+      return false;
+    }, idx).catch(() => false);
+    await admin.waitForTimeout(1000); await killAlarms(admin);
+    if (idx === 0) diag.modalDump = await dumpModalLayers(admin);
+    const mode = clicked ? await fillDetailTime(admin, start, end) : 'no-detail-btn';
+    diag.rows.push({ idx, clicked, mode });
+  }
+  return diag;
 }
 
 /** 작업 유형(단일/반복) + 작업 위치("작업장소 해당사항 없음" 체크로 우회) — 필수 통과. */

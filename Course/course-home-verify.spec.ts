@@ -823,7 +823,9 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
       //   QA-15497(검증대기·RD완료): 두 화면 금액 상이. 같은 스코프(당해 YTD)로 대조 → 일치하면 해소(회귀 통과), 상이하면 잔존(review).
       //   ✅확정 원인(프로브 _probe-worktask-gap 실측): 두 화면 다 '완료확정'만 집계(상태차 아님) → 차이는 '기간 귀속 방식'.
       //     작업별 비용=작업기간이 필터와 겹치면 전액 계상 / HOME=작업기간에 일할 배분(당월·누적 몫). 크로스먼스 완료확정 작업의 월경계분이 갭.
-      //     ⇒ 데이터결함 아닌 집계방식 차이(사양 유력) → review(확인 필요), FAIL 아님. 단 임시직 인건비 일부 잔차는 일할로 미설명(별도 점검).
+      //     ⇒ 데이터결함 아닌 집계방식 차이(사양 유력) → review(확인 필요), FAIL 아님.
+      //     ✅임시직 잔차 규명(2026-09-09 재분석): HOME 일할 배분이 카테고리별로 다른 분모 사용 — 고정직·자재·장비=달력일(잔차 <1%), 임시직=근무일(주말 제외).
+      //        임시직 달력추정 갭 1,909k(잔차 +135k) → 근무일추정 1,751k(잔차 -24k, 1.3%). 8월말 꼬리(08-26~31)에 주말 포함이라 근무일 8월비중(4/26)이 달력(6/36)보다 낮음 = -135k 방향 일치. 일당제 인건비의 정상 회계(별도 결함 아님).
       {
         const CAT5 = COST_CATS.slice(1);
         const pairs = CAT5.filter((c) => (woAllByCat.cum[c] ?? 0) > 0 && (taskByCat[c] ?? 0) > 0);
@@ -841,7 +843,7 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
               ? `✅ 두 화면 금액 일치(QA-15497 해소 추정) — 총액 HOME ${woAllByCat.cumTotal.toLocaleString()} = 작업별 ${taskTotal.toLocaleString()}, ${pairs.length}개 카테고리 일치`
               : `🔎 QA-15497 잔존 — 두 화면 금액 상이: 총액 HOME 작업지시분석 ${woAllByCat.cumTotal.toLocaleString()} ≠ 작업별 비용 ${taskTotal.toLocaleString()}(차 ${(taskTotal - woAllByCat.cumTotal).toLocaleString()})`
                 + (badCat.length ? ` · 카테고리 상이: ${badCat.map((c) => `${c}(HOME ${woAllByCat.cum[c].toLocaleString()} ≠ 작업별 ${taskByCat[c].toLocaleString()})`).join(', ')}` : '')
-                + `. 확정 원인=기간 귀속 방식 차이(작업별=필터겹침 전액 vs HOME=작업기간 일할 배분), 크로스먼스 완료확정 작업의 월경계분이 갭. 데이터결함 아닌 집계방식 차이(사양 유력)·임시직 잔차만 별도 확인. 상세 분해: Course/_probe-worktask-gap.spec.ts.`,
+                + `. 확정 원인=기간 귀속 방식 차이(작업별=필터겹침 전액 vs HOME=작업기간 일할 배분), 크로스먼스 완료확정 작업의 월경계분이 갭. 데이터결함 아닌 집계방식 차이(사양 유력). 임시직 잔차도 규명(HOME 일할 분모=고정직·자재·장비는 달력일, 임시직은 근무일 주말제외 → 5개 카테고리 전량 <1.5% 설명). 상세 분해: Course/_probe-worktask-gap.spec.ts.`,
           });
         }
       }
@@ -864,7 +866,7 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
               ? `✅ 당월 두 화면 금액 일치 — 총액 HOME ${woAllByCat.curTotal.toLocaleString()} = 작업별 ${taskTotalM.toLocaleString()}, ${pairsM.length}개 카테고리 일치(스코프 ${taskMonScope})`
               : `🔎 당월 금액 상이 — 총액 HOME 작업지시분석(당월) ${woAllByCat.curTotal.toLocaleString()} ≠ 작업별 비용(당월) ${taskTotalM.toLocaleString()}(차 ${(taskTotalM - woAllByCat.curTotal).toLocaleString()})`
                 + (badCatM.length ? ` · 카테고리 상이: ${badCatM.map((c) => `${c}(HOME ${woAllByCat.cur[c].toLocaleString()} ≠ 작업별 ${taskByCatMonth[c].toLocaleString()})`).join(', ')}` : '')
-                + `. 스코프=당월(${taskMonScope}), 스크린샷 총 비용과 동일 필터. 스코프차 배제된 순수 당월 갭 → 원인=기간 귀속 방식 차이(작업별=필터겹침 전액 vs HOME=작업기간 일할 배분): 크로스먼스 완료확정 작업의 8월 일할분이 갭 주원인(고정직·자재·장비는 일할로 <1% 오차 설명, 임시직 잔차만 별도 확인). 결함 단정 아님(집계방식 차이·QA-15497). 진단: Course/_probe-worktask-gap.spec.ts.`,
+                + `. 스코프=당월(${taskMonScope}), 스크린샷 총 비용과 동일 필터. 스코프차 배제된 순수 당월 갭 → 원인=기간 귀속 방식 차이(작업별=필터겹침 전액 vs HOME=작업기간 일할 배분): 크로스먼스 완료확정 작업의 8월 일할분이 갭. 5개 카테고리 전량 설명됨 — 고정직·자재·장비는 달력일 일할(<1% 오차), 임시직은 근무일 일할(주말 제외, 달력추정 잔차 135k→근무일추정 24k 1.3%). 결함 단정 아님(집계방식 차이·QA-15497). 진단: Course/_probe-worktask-gap.spec.ts.`,
           });
         }
       }

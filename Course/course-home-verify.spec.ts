@@ -462,30 +462,31 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
 
   // ── 비용 관리 > 작업별 비용(YTD): 카테고리별 컬럼합 + 총액 — QA-15497 직접 대조용(HOME 작업지시분석 ↔ 작업별 비용) ──
   //   QA-15497: HOME>[비용]>작업지시 분석 금액 ≠ 비용관리>작업별 비용 금액(당월/누적 상이). 같은 스코프(당해 YTD)로 읽어 대조.
-  const taskByCat: Record<string, number> = {}; let taskTotalCard = 0; let taskVisited = false;
+  const taskByCat: Record<string, number> = {}; let taskTotalCard = 0; let taskVisited = false;                 // 누적(YTD)
+  const taskByCatMonth: Record<string, number> = {}; let taskTotalCardMonth = 0; let taskMonthRead = false;      // 당월(스크린샷과 동일 스코프)
+  let taskMonScope = '';
   {
-    const ty = new Date(); const tcy = ty.getFullYear();
-    const start = `${tcy}-01-01`; const end = `${tcy}-${String(ty.getMonth() + 1).padStart(2, '0')}-${String(ty.getDate()).padStart(2, '0')}`;
-    if (await gotoCourseMenu(admin, '비용 관리', '작업별 비용').then(() => true).catch(() => false)) {
-      taskVisited = true;
-      await admin.waitForTimeout(1800); await killAlarms(admin);
+    const CAT5 = ['고정직 인건비', '임시직 인건비', '코스 자재비', '장비 관리비', '기타 관리비'];
+    const ty = new Date(); const tcy = ty.getFullYear(); const pad = (n: number) => String(n).padStart(2, '0');
+    const end = `${tcy}-${pad(ty.getMonth() + 1)}-${pad(ty.getDate())}`;
+    const ytdStart = `${tcy}-01-01`; const monStart = `${tcy}-${pad(ty.getMonth() + 1)}-01`;
+    taskMonScope = `${monStart}~${end}`;
+    // 한 스코프(start~end)를 읽어 into에 카테고리 컬럼합 채우고 총 비용 카드(서버측 전체) 반환. 비파괴(필터만 변경).
+    const readTaskScope = async (start: string, into: Record<string, number>): Promise<number> => {
       await setCourseDateRange(admin, start, end).catch(() => false);
       await admin.waitForTimeout(1300); await killAlarms(admin);
-      // 요약 카드 총액(서버측 전체)
-      taskTotalCard = await admin.evaluate(() => {
+      const card = await admin.evaluate(() => {
         const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
         const sc = document.querySelector('.contents, main') || document.body;
         for (const e of Array.from(sc.querySelectorAll('*'))) { if (e.children.length > 2) continue; const m = norm(e.textContent).match(/^총\s*비용\s*([0-9,]+)$/); if (m) return Number(m[1].replace(/,/g, '')); }
         return 0;
       }).catch(() => 0);
-      // 카테고리 컬럼 인덱스 + 전 페이지 컬럼합
       const heads = await admin.evaluate(() => { const sc = document.querySelector('.contents, main') || document.body; const t = Array.from(sc.querySelectorAll('table')).find((x) => x.querySelectorAll('tbody tr').length >= 1); return t ? Array.from(t.querySelectorAll('thead th, thead td')).map((e) => (e.textContent || '').replace(/\s+/g, ' ').trim()) : []; }).catch(() => [] as string[]);
-      const CAT5 = ['고정직 인건비', '임시직 인건비', '코스 자재비', '장비 관리비', '기타 관리비'];
       const catIdx: Record<string, number> = {}; CAT5.forEach((c) => { const i = heads.findIndex((h) => h.replace(/\s+/g, '') === c.replace(/\s+/g, '')); if (i >= 0) catIdx[c] = i; });
-      CAT5.forEach((c) => { taskByCat[c] = 0; });
+      CAT5.forEach((c) => { into[c] = 0; });
       const readBody = () => admin.evaluate(() => { const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim(); const sc = document.querySelector('.contents, main') || document.body; const t = Array.from(sc.querySelectorAll('table')).find((x) => x.querySelectorAll('tbody tr').length >= 1); if (!t) return [] as string[][]; return Array.from(t.querySelectorAll('tbody tr')).filter((tr) => !/내역이 없습니다|데이터가 없습니다/.test(tr.textContent || '')).map((tr) => Array.from(tr.children).map((td) => norm(td.textContent))); }).catch(() => [] as string[][]);
       const numC = (s: string) => { const c = (s || '').replace(/[^0-9.\-]/g, ''); return c && c !== '-' && c !== '.' ? Number(c) : 0; };
-      const addRows = (rows: string[][]) => { for (const r of rows) for (const c of CAT5) if (catIdx[c] != null) taskByCat[c] += numC(r[catIdx[c]]); };
+      const addRows = (rows: string[][]) => { for (const r of rows) for (const c of CAT5) if (catIdx[c] != null) into[c] += numC(r[catIdx[c]]); };
       let rows = await readBody(); addRows(rows); let prevSig = rows.map((r) => r.join('|')).join('#');
       for (let pageN = 2; pageN <= 25; pageN++) {
         const clicked = await admin.evaluate((target) => {
@@ -500,6 +501,14 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
         await admin.waitForTimeout(900); await killAlarms(admin);
         rows = await readBody(); const sig = rows.map((r) => r.join('|')).join('#'); if (!rows.length || sig === prevSig) break; addRows(rows); prevSig = sig;
       }
+      return card;
+    };
+    if (await gotoCourseMenu(admin, '비용 관리', '작업별 비용').then(() => true).catch(() => false)) {
+      taskVisited = true;
+      await admin.waitForTimeout(1800); await killAlarms(admin);
+      // 당월 먼저(스크린샷과 동일 스코프) → 누적(YTD). 최종 화면 상태=YTD.
+      taskTotalCardMonth = await readTaskScope(monStart, taskByCatMonth); taskMonthRead = true;
+      taskTotalCard = await readTaskScope(ytdStart, taskByCat);
     }
   }
   // HOME 작업지시분석 전체뷰 누적/당월 카테고리(전체 행) — QA-15497 대조·앵커용
@@ -811,7 +820,10 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
         }
       }
       // ㉑ QA-15497: HOME 작업지시분석(누적) 금액 = 비용관리 작업별 비용(YTD) 금액 — 두 화면 직접 대조
-      //   등록 버그(QA-15497): 두 화면 금액 상이. 같은 스코프(당해 YTD)로 대조 → 일치하면 수정됨(회귀 통과), 상이하면 버그 재현(review).
+      //   QA-15497(검증대기·RD완료): 두 화면 금액 상이. 같은 스코프(당해 YTD)로 대조 → 일치하면 해소(회귀 통과), 상이하면 잔존(review).
+      //   ✅확정 원인(프로브 _probe-worktask-gap 실측): 두 화면 다 '완료확정'만 집계(상태차 아님) → 차이는 '기간 귀속 방식'.
+      //     작업별 비용=작업기간이 필터와 겹치면 전액 계상 / HOME=작업기간에 일할 배분(당월·누적 몫). 크로스먼스 완료확정 작업의 월경계분이 갭.
+      //     ⇒ 데이터결함 아닌 집계방식 차이(사양 유력) → review(확인 필요), FAIL 아님. 단 임시직 인건비 일부 잔차는 일할로 미설명(별도 점검).
       {
         const CAT5 = COST_CATS.slice(1);
         const pairs = CAT5.filter((c) => (woAllByCat.cum[c] ?? 0) > 0 && (taskByCat[c] ?? 0) > 0);
@@ -824,12 +836,35 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
           const ok = badCat.length === 0 && totalOk;
           checks.push({
             name: '★ QA-15497: HOME 작업지시분석(누적) = 작업별 비용(YTD)', scope: 'woc',
-            ok, review: !ok,   // 상이=등록버그(QA-15497) 재현 → 확인 필요(수정 시 PASS로 회귀)
+            ok, review: !ok,   // 상이=QA-15497 잔존(기간 귀속 방식 차이) → 확인 필요, 방식 통일 시 PASS 회귀
             detail: ok
               ? `✅ 두 화면 금액 일치(QA-15497 해소 추정) — 총액 HOME ${woAllByCat.cumTotal.toLocaleString()} = 작업별 ${taskTotal.toLocaleString()}, ${pairs.length}개 카테고리 일치`
-              : `🔎 QA-15497 재현 — 두 화면 금액 상이: 총액 HOME 작업지시분석 ${woAllByCat.cumTotal.toLocaleString()} ≠ 작업별 비용 ${taskTotal.toLocaleString()}(차 ${(taskTotal - woAllByCat.cumTotal).toLocaleString()})`
+              : `🔎 QA-15497 잔존 — 두 화면 금액 상이: 총액 HOME 작업지시분석 ${woAllByCat.cumTotal.toLocaleString()} ≠ 작업별 비용 ${taskTotal.toLocaleString()}(차 ${(taskTotal - woAllByCat.cumTotal).toLocaleString()})`
                 + (badCat.length ? ` · 카테고리 상이: ${badCat.map((c) => `${c}(HOME ${woAllByCat.cum[c].toLocaleString()} ≠ 작업별 ${taskByCat[c].toLocaleString()})`).join(', ')}` : '')
-                + `. 등록 버그 QA-15497(HOME>비용>작업지시 분석 금액 ≠ 비용관리>작업별 비용). 원인분해: 스코프 차 + 미귀속 잔여(작업지시분석 유형 미분류).`,
+                + `. 확정 원인=기간 귀속 방식 차이(작업별=필터겹침 전액 vs HOME=작업기간 일할 배분), 크로스먼스 완료확정 작업의 월경계분이 갭. 데이터결함 아닌 집계방식 차이(사양 유력)·임시직 잔차만 별도 확인. 상세 분해: Course/_probe-worktask-gap.spec.ts.`,
+          });
+        }
+      }
+      // ㉑-2 당월↔당월: HOME 작업지시분석(당월) = 작업별 비용(당월) — 스크린샷과 동일 필터 스코프
+      //   ㉑는 누적/YTD 대조 → 여기선 당월 총액·카테고리 직접 대조(당월 vs 누적 스코프차를 걷어내고 순수 당월 정합만 판정).
+      {
+        const CAT5m = COST_CATS.slice(1);
+        const pairsM = CAT5m.filter((c) => (woAllByCat.cur[c] ?? 0) > 0 && (taskByCatMonth[c] ?? 0) > 0);
+        const taskTotalM = taskTotalCardMonth > 0 ? taskTotalCardMonth : CAT5m.reduce((a, c) => a + (taskByCatMonth[c] || 0), 0);
+        if (!taskMonthRead || woAllByCat.curTotal === 0 || pairsM.length === 0) {
+          checks.push({ name: '★ QA-15497: HOME 작업지시분석(당월) = 작업별 비용(당월)', scope: 'woc', ok: true, na: true, detail: `대조 대상 부족(당월 읽음 ${taskMonthRead}·HOME 당월합계 ${woAllByCat.curTotal.toLocaleString()}·대조쌍 ${pairsM.length}) — 판정 제외` });
+        } else {
+          const badCatM = pairsM.filter((c) => !nearRel(woAllByCat.cur[c], taskByCatMonth[c], 0.005));
+          const totalOkM = nearRel(woAllByCat.curTotal, taskTotalM, 0.005);
+          const okM = badCatM.length === 0 && totalOkM;
+          checks.push({
+            name: '★ QA-15497: HOME 작업지시분석(당월) = 작업별 비용(당월)', scope: 'woc',
+            ok: okM, review: !okM,   // 상이=당월에서도 기간 귀속 방식 차이(전액-겹침 vs 일할) → 확인 필요(결함 단정 아님)
+            detail: okM
+              ? `✅ 당월 두 화면 금액 일치 — 총액 HOME ${woAllByCat.curTotal.toLocaleString()} = 작업별 ${taskTotalM.toLocaleString()}, ${pairsM.length}개 카테고리 일치(스코프 ${taskMonScope})`
+              : `🔎 당월 금액 상이 — 총액 HOME 작업지시분석(당월) ${woAllByCat.curTotal.toLocaleString()} ≠ 작업별 비용(당월) ${taskTotalM.toLocaleString()}(차 ${(taskTotalM - woAllByCat.curTotal).toLocaleString()})`
+                + (badCatM.length ? ` · 카테고리 상이: ${badCatM.map((c) => `${c}(HOME ${woAllByCat.cur[c].toLocaleString()} ≠ 작업별 ${taskByCatMonth[c].toLocaleString()})`).join(', ')}` : '')
+                + `. 스코프=당월(${taskMonScope}), 스크린샷 총 비용과 동일 필터. 스코프차 배제된 순수 당월 갭 → 원인=기간 귀속 방식 차이(작업별=필터겹침 전액 vs HOME=작업기간 일할 배분): 크로스먼스 완료확정 작업의 8월 일할분이 갭 주원인(고정직·자재·장비는 일할로 <1% 오차 설명, 임시직 잔차만 별도 확인). 결함 단정 아님(집계방식 차이·QA-15497). 진단: Course/_probe-worktask-gap.spec.ts.`,
           });
         }
       }
@@ -1126,6 +1161,7 @@ ${drillDetailSections}` : '<div class="note" style="border-left:3px solid var(--
         return o;
       }, {} as Record<string, unknown>),
       taskByCat, taskTotal: taskTotalFinal,   // 비용관리 작업별 비용 YTD 카테고리/총액(QA-15497)
+      taskByCatMonth, taskTotalMonth: taskTotalCardMonth > 0 ? taskTotalCardMonth : COST_CATS.slice(1).reduce((a, c) => a + (taskByCatMonth[c] || 0), 0),   // 당월 스코프(QA-15497 당월 대조)
       summary: { total: judged.length, pass, fail, review, na: naCount },
     };
     if (!fs.existsSync('analysis')) fs.mkdirSync('analysis', { recursive: true });

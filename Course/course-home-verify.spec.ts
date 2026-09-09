@@ -1,6 +1,7 @@
 import { test, Page } from '@playwright/test';
 import { openCourseAdmin, gotoCourseMenu, killAlarms, COURSE_URL, setCourseDateRange } from '../lib/course/courseHelpers';
 import { num, near, nearRel } from '../lib/course/domain/budgetCost';
+import { drilldownInvariants, DrillGrid } from '../lib/course/domain/homeCostDrilldown';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -72,7 +73,7 @@ async function clickTab(admin: Page, name: string) {
 //   ✨ 2026-09-09 재설계 반영(라이브 실측): 상단 서브탭 = 전체·코스별·기간별 3종.
 //   과거 South/East/West는 상단 탭이었으나 → **코스별 뷰 안의 '코스 선택' 드롭다운 옵션**으로 이동(홀별 드릴다운 신규).
 //   → S/E/W를 여기서 탭으로 찾으면 항상 미검출 = 거짓 '미렌더/데이터없음' 오판정. 코스별 드릴다운(S/E/W)은
-//     전용 스펙 course-home-costtab-drilldown.spec.ts가 홀별 불변식으로 검증(중복 회피).
+//     코스별 뷰 진입 후 드롭다운 선택으로 ⑬-2에서 홀별 불변식 검증(homeCostDrilldown.ts, 이 스펙에 통합).
 const WO_VIEWS = ['전체', '코스별', '기간별'];
 interface WCell { t: string; cs: number; rs: number; }
 interface WoRow { label: string; nums: (number | null)[]; cellCount: number; }
@@ -125,6 +126,33 @@ async function readCourseTotals(admin: Page): Promise<{ cur: Record<string, numb
     const labels = groupLabelsOf(tables[0]);
     return { cur: readTotals(tables[0], labels), cum: readTotals(tables[1], groupLabelsOf(tables[1]) ), groupLabels: labels };
   }).catch(() => ({ cur: {} as Record<string, number>, cum: {} as Record<string, number>, groupLabels: [] as string[] }));
+}
+
+// 코스별 뷰 홀별 드릴다운(B-2) 지원: '코스 선택' vue-select에서 특정 코스 선택(비파괴 — 필터/드릴다운 전환만).
+const DRILL_COURSES = ['South', 'East', 'West'];
+async function selectDrillCourse(admin: Page, course: string): Promise<boolean> {
+  const vs = admin.locator('.contents, main').locator('.v-select, .vs__dropdown-toggle').first();
+  if (!(await vs.isVisible({ timeout: 1500 }).catch(() => false))) return false;
+  await vs.click({ timeout: 1500 }).catch(() => {});
+  await admin.waitForTimeout(700);
+  const opt = admin.locator('.vs__dropdown-menu li, .vs__dropdown-option').filter({ hasText: new RegExp('^\\s*' + course + '\\s*$') }).first();
+  if (!(await opt.isVisible({ timeout: 1200 }).catch(() => false))) { await admin.keyboard.press('Escape').catch(() => {}); return false; }
+  await opt.click({ timeout: 1500 }).catch(() => {});
+  await admin.waitForTimeout(1700); await killAlarms(admin);
+  return true;
+}
+// 현재 렌더된 표(첫 데이터 표, 행≥1)를 DrillGrid(head 2행 cs 포함 + tbody rows 문자열)로 캡처.
+async function readDrillGrid(admin: Page): Promise<DrillGrid> {
+  return admin.evaluate(() => {
+    const norm = (s: string | null) => (s || '').replace(/\s+/g, ' ').trim();
+    const cellOf = (c: Element) => ({ t: norm(c.textContent), cs: (c as HTMLTableCellElement).colSpan || 1 });
+    const sc = document.querySelector('.contents, main') || document.body;
+    const tbl = Array.from(sc.querySelectorAll('table')).find((t) => t.querySelectorAll('tbody tr').length >= 1);
+    if (!tbl) return { head: [], rows: [] };
+    const head = Array.from(tbl.querySelectorAll('thead tr')).map((tr) => Array.from(tr.children).map(cellOf));
+    const rows = Array.from(tbl.querySelectorAll('tbody tr')).map((tr) => Array.from(tr.children).map((td) => norm(td.textContent)));
+    return { head, rows };
+  }).catch(() => ({ head: [] as { t: string; cs: number }[][], rows: [] as string[][] }));
 }
 // 코스무관(코스 미귀속) 버킷 키 정규화 — 구현 '전체 골프장' / 기획 '작업장소 해당없음' 양쪽 수용.
 const COURSE_NONE_RE = /전체\s*골프장|작업장소\s*해당없음|코스무관|미지정/;
@@ -236,12 +264,15 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
   // ═══ [비용] 탭 → "작업지시에 근거한 비용 분석" 서브뷰(전체/코스별/기간별) ═══
   //  토글(.tab-group.tab-type-line): [예산 대비 실적 분석 | 작업지시에 근거한 비용 분석]
   //  서브탭(.tab-group.tab-type-box): 전체·코스별·기간별(3종). 각 뷰 표: '전체' 행 = Σ(하위 행) 롤업.
-  //   ✨ S/E/W는 코스별 뷰 '코스 선택' 드롭다운 옵션(홀별 드릴다운) — 전용 스펙 course-home-costtab-drilldown 위임.
+  //   ✨ S/E/W는 코스별 뷰 '코스 선택' 드롭다운 옵션(홀별 드릴다운) — ⑬-2에서 인라인 검증(homeCostDrilldown 불변식).
   //  ⚠ 전체 뷰(영역축)와 코스별 뷰(코스축)는 집계 축이 달라 상호 총합 일치 아님(코스 미지정 작업 존재) → 뷰별 자기 롤업만 검증. 비파괴.
   let woGuide = ''; let woToggleFound = false;
   const woViews: Record<string, WoView> = {};
   let homeCourseCur: Record<string, number> = {};   // 코스별 뷰 당월 전체행 합계(S/E/W[/전체 골프장])
   let homeCourseCum: Record<string, number> = {};   // 코스별 뷰 누적(YTD) 전체행 합계(S/E/W[/전체 골프장])
+  const drillChecks: { course: string; name: string; ok: boolean; na?: boolean; review?: boolean; detail: string }[] = [];  // B-2 홀별 드릴다운 불변식
+  const drillGrids: Record<string, DrillGrid> = {};   // 코스별 홀별 드릴다운 원본 표(리포트 렌더용)
+  let drillAttempted = false;
   {
     const toggle = admin.locator('.contents, main').getByText(/작업지시에\s*근거한\s*비용\s*분석/).first();
     woToggleFound = await toggle.isVisible({ timeout: 2500 }).catch(() => false);
@@ -260,7 +291,27 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
           await tab.click({ timeout: 1500 }).catch(() => {});
           await admin.waitForTimeout(1200); await killAlarms(admin);
           woViews[v] = await readWoView(admin);
-          if (v === '코스별') { const cc = await readCourseTotals(admin); homeCourseCur = cc.cur; homeCourseCum = cc.cum; }
+          if (v === '코스별') {
+            const cc = await readCourseTotals(admin); homeCourseCur = cc.cur; homeCourseCum = cc.cum;
+            // ── B-2 홀별 드릴다운(코스 선택 → 전체·1~9홀 × 예산분류5·작업분류13) 불변식 인라인 검증 ──
+            //   드롭다운 존재 시 S/E/W 각 코스 선택→그리드 캡처→불변식(I1 예산Σ=작업Σ·I2 전체=Σ1~9홀·I3 코스별뷰=드릴다운).
+            //   비파괴(드롭다운 선택만). 마지막에 '전체'로 복귀해 후속 뷰 캡처에 영향 없도록.
+            const vsExists = await admin.locator('.contents, main').locator('.v-select, .vs__dropdown-toggle').first().isVisible({ timeout: 1500 }).catch(() => false);
+            if (vsExists) {
+              drillAttempted = true;
+              for (const course of DRILL_COURSES) {
+                const picked = await selectDrillCourse(admin, course);
+                if (!picked) { drillChecks.push({ course, name: `${course} 코스 선택`, ok: true, na: true, detail: '옵션 미노출/선택 실패 — 판정 제외' }); continue; }
+                const grid = await readDrillGrid(admin);
+                drillGrids[course] = grid;
+                const holeRows = grid.rows.filter((r) => /^\s*\d+\s*홀\s*$/.test(r[0] || '')).length;
+                drillChecks.push({ course, name: `${course} 홀별 재구성`, ok: holeRows > 0, na: holeRows === 0, detail: holeRows > 0 ? `홀 ${holeRows}행 + 전체행 → [예산분류5·작업분류13] 2축` : '홀별 행 미검출 — 판정 제외' });
+                if (holeRows === 0) continue;
+                for (const c of drilldownInvariants(course, grid, homeCourseCur[course] ?? null)) drillChecks.push({ course, name: c.name.replace(`[${course}] `, ''), ok: c.ok, na: c.na, review: c.review, detail: c.detail });
+              }
+              await selectDrillCourse(admin, '전체').catch(() => false);   // 매트릭스 상태 복귀(비파괴)
+            }
+          }
         } else {
           woViews[v] = { ok: false, headRows: [], bodyRows: [] };
         }
@@ -598,16 +649,23 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
   // ── [비용] ⑫ 예산 실적(회계)≠작업지시 집계 안내 표기 확인(정보성) ──
   checks.push({ name: '비용 탭 = 예산 대비 실적(회계 비용) 안내', scope: 'cost', ok: !!costTab.guide, detail: costTab.guide ? `안내 노출: "${costTab.guide.slice(0, 60)}…" (작업지시 집계와 차이 가능 명시)` : '안내문구 미검출(구조 확인)' });
 
-  // ═══ [비용] 탭 → 작업지시에 근거한 비용 분석(전체/코스별/South/East/West/기간별) ═══
-  // ⑬ 서브뷰 구조 렌더(6종 진입·표·행) · ⑭ 뷰별 '전체=Σ하위' 롤업 정합 · ⑮ 비음수 · ⑯ 안내문구.
+  // ═══ [비용] 탭 → 작업지시에 근거한 비용 분석(전체/코스별/기간별 + 코스별 홀별 드릴다운) ═══
+  // ⑬ 서브뷰 구조 렌더(3종 진입·표·행) · ⑬-2 코스별 홀별 드릴다운(B-2) 불변식 · ⑭ 뷰별 '전체=Σ하위' 롤업 정합 · ⑮ 비음수 · ⑯ 안내문구.
   {
     if (!woToggleFound) {
       checks.push({ name: '★ 작업지시 기반 비용 분석 — 서브뷰 렌더(3종)', scope: 'woc', ok: true, na: true, detail: "'작업지시에 근거한 비용 분석' 토글 미노출 — 판정 제외(비용 탭 구조/데이터 확인)" });
     } else {
-      // ⑬ 구조: 서브탭 3종(전체·코스별·기간별) 진입·표·데이터 행. S/E/W는 코스별 드롭다운(전용 스펙 위임).
+      // ⑬ 구조: 서브탭 3종(전체·코스별·기간별) 진입·표·데이터 행. S/E/W는 코스별 드롭다운(⑬-2에서 홀별 드릴다운 검증).
       const rendered = WO_VIEWS.filter((v) => woViews[v]?.ok && woViews[v].bodyRows.length > 0);
       const missing = WO_VIEWS.filter((v) => !(woViews[v]?.ok && woViews[v].bodyRows.length > 0));
-      checks.push({ name: '★ 작업지시 기반 비용 분석 — 서브뷰 렌더(3종)', scope: 'woc', ok: missing.length === 0, detail: missing.length === 0 ? `전체·코스별·기간별 3종 모두 표·데이터 렌더(${rendered.map((v) => `${v} ${woViews[v].bodyRows.length}행`).join(' · ')}) · S/E/W=코스별 드롭다운(course-home-costtab-drilldown 위임)` : `미렌더/데이터없음: ${missing.join(', ')}` });
+      checks.push({ name: '★ 작업지시 기반 비용 분석 — 서브뷰 렌더(3종)', scope: 'woc', ok: missing.length === 0, detail: missing.length === 0 ? `전체·코스별·기간별 3종 모두 표·데이터 렌더(${rendered.map((v) => `${v} ${woViews[v].bodyRows.length}행`).join(' · ')}) · S/E/W=코스별 드롭다운(⑬-2 홀별 드릴다운)` : `미렌더/데이터없음: ${missing.join(', ')}` });
+
+      // ⑬-2 코스별 홀별 드릴다운(B-2): 코스 선택 → 전체·1~9홀 × [예산분류5·작업분류13]. 불변식 I1/I2/I3(homeCostDrilldown).
+      if (!drillAttempted) {
+        checks.push({ name: '★ 코스별 홀별 드릴다운(B-2) — 코스 선택 드롭다운', scope: 'woc', ok: true, na: true, detail: '코스 선택 드롭다운 미노출 — 판정 제외(B-2 미반영 또는 구조 확인)' });
+      } else {
+        for (const dc of drillChecks) checks.push({ name: `B-2 [${dc.course}] ${dc.name}`, scope: 'woc', ok: dc.ok, na: dc.na, review: dc.review, detail: dc.detail });
+      }
 
       // ⑭ 뷰별 '전체 = Σ(하위 행)' 롤업 정합(영역/홀/월 축)
       const rolls = WO_VIEWS.map((v) => ({ v, r: rollup(woViews[v] || { ok: false, headRows: [], bodyRows: [] }) }));
@@ -825,11 +883,22 @@ test('HOME 대시보드 데이터 연관 정합성 검증(비파괴)', async ({ 
   };
   const woViewNote: Record<string, string> = {
     '전체': '영역(그린·티박스·페어웨이…)별 <b>당월/누적</b> 비용. \'전체\' 행 = Σ(영역 행).',
-    '코스별': '코스(South·East·West·전체 골프장)별 카테고리 비용(당월/누적, 24열). \'전체\' 행 = Σ(영역 행). ⚠ 영역축이라 코스별 총합은 전체 뷰와 다를 수 있음(코스 미지정 작업). ✨ <b>코스 선택 드롭다운</b>에서 특정 코스 선택 시 <b>홀별(1~9홀) 드릴다운</b>(전용 스펙 course-home-costtab-drilldown 검증).',
+    '코스별': '<b>[캡처 상태: 코스 선택 = 전체]</b> — 코스(South·East·West·전체 골프장)별 카테고리 비용을 <b>24열 매트릭스</b>로 표시(행=작업분류 13종). \'전체\' 행 = Σ(영역 행). ⚠ 아래 <b>대표총액</b>은 매트릭스 첫 열(<b>합계-South</b>)일 뿐 뷰 전체 총액(=ΣS·E·W·전체골프장)이 아님. ✨ <b>드롭다운에서 특정 코스(S/E/W) 선택 시</b>엔 화면이 <b>홀별(전체·1~9홀) × [예산분류 5·작업분류 13]</b> 드릴다운으로 <b>완전히 다른 레이아웃</b>이 됨 → 그 상태는 <b>⑬-2 코스별 홀별 드릴다운</b> 체크가 불변식(전체=Σ1~9홀·예산분류Σ=작업분류Σ·코스별뷰=드릴다운)으로 검증(아래 요약 표). 즉 이 표(전체-매트릭스)와 코스 선택 후 화면(홀별)은 <b>같은 뷰의 다른 상태</b>로 서로 다름이 정상.',
     '기간별': '<b>월별(1~12월)</b> 비용 추이. \'전체\' 행 = Σ(월 행).',
   };
   const woDetailSections = woToggleFound
-    ? WO_VIEWS.map((v) => { const r = rollup(woViews[v] || { ok: false, headRows: [], bodyRows: [] }); const badge = r.na ? '<span class="badge">판정 제외</span>' : r.ok ? '<span class="badge" style="color:var(--ok);border-color:var(--ok)">✅ 롤업 성립</span>' : '<span class="badge" style="color:var(--ng);border-color:var(--ng)">❌ 롤업 불일치</span>'; return `<h3>${esc(v)} ${badge} ${r.grand != null ? `<span class="mut" style="font-size:12px;font-weight:400">대표총액 ${r.grand.toLocaleString()}원</span>` : ''}</h3><div class="note" style="margin:4px 0 6px">${woViewNote[v] || ''} ${!r.na ? `<span class="mut">— ${esc(r.detail)}</span>` : ''}</div>${woDetailTbl(v)}`; }).join('')
+    ? WO_VIEWS.map((v) => { const r = rollup(woViews[v] || { ok: false, headRows: [], bodyRows: [] }); const badge = r.na ? '<span class="badge">판정 제외</span>' : r.ok ? '<span class="badge" style="color:var(--ok);border-color:var(--ok)">✅ 롤업 성립</span>' : '<span class="badge" style="color:var(--ng);border-color:var(--ng)">❌ 롤업 불일치</span>'; const stateTag = v === '코스별' ? ' <span class="mut" style="font-size:12px;font-weight:400">(코스 선택=전체·24열 매트릭스)</span>' : ''; const grandLbl = v === '코스별' ? '합계-South 열' : '대표총액'; return `<h3>${esc(v)}${stateTag} ${badge} ${r.grand != null ? `<span class="mut" style="font-size:12px;font-weight:400">${grandLbl} ${r.grand.toLocaleString()}원</span>` : ''}</h3><div class="note" style="margin:4px 0 6px">${woViewNote[v] || ''} ${!r.na ? `<span class="mut">— ${esc(r.detail)}</span>` : ''}</div>${woDetailTbl(v)}`; }).join('')
+    : '';
+
+  // ── 코스별 홀별 드릴다운(B-2) 원본 표 재현: 코스 선택 → 전체·1~9홀 × [예산 분류별·작업 분류별] ──
+  const drillTblHtml = (course: string, g: DrillGrid): string => {
+    if (!g || !g.rows?.length) return `<h3>${esc(course)} 홀별 드릴다운</h3><div class="note">데이터 없음(미렌더/빈 표)</div>`;
+    const thead = (g.head || []).map((hr) => `<tr>${hr.map((c) => `<th${c.cs > 1 ? ` colspan="${c.cs}"` : ''} class="num">${esc(c.t)}</th>`).join('')}</tr>`).join('');
+    const tbody = (g.rows || []).map((r) => { const isTot = /^전체$/.test((r[0] || '').replace(/\s+/g, '')); return `<tr class="${isTot ? 'mt' : ''}">${r.map((c, i) => `<td class="${i === 0 ? '' : 'num'}">${esc(c)}</td>`).join('')}</tr>`; }).join('');
+    return `<h3>${esc(course)} 홀별 드릴다운 <span class="mut" style="font-size:12px;font-weight:400">(코스 선택=${esc(course)}·전체·1~9홀 × 예산분류5·작업분류13)</span></h3><div class="tblwrap"><table>${thead ? `<thead>${thead}</thead>` : ''}<tbody>${tbody}</tbody></table></div>`;
+  };
+  const drillDetailSections = (drillAttempted && DRILL_COURSES.some((c) => drillGrids[c]?.rows?.length))
+    ? `<h2 style="margin-top:26px">코스별 홀별 드릴다운(B-2) 상세 데이터</h2><div class="note">코스 선택 드롭다운에서 각 코스 선택 시 표시되는 <b>홀별(전체·1~9홀)</b> 표를 화면 그대로 재현. 좌측 <b>예산 분류별(5)</b> + 우측 <b>작업 분류별(13)</b> 2축, 각 행은 <b>예산분류 Σ = 작업분류 Σ</b>, <b>'전체' = Σ(1~9홀)</b>. <span class="mt-legend" style="background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1px 6px">진한 행</span> = \'전체\'.</div>${DRILL_COURSES.filter((c) => drillGrids[c]?.rows?.length).map((c) => drillTblHtml(c, drillGrids[c])).join('')}`
     : '';
 
   const html = `<style>
@@ -1008,14 +1077,15 @@ ${attn ? `<div class="note" style="border-left:3px solid ${fail ? 'var(--ng)' : 
 
 <div class="panel" id="p7">
 <h2>비용 탭 검증 — 작업지시에 근거한 비용 분석</h2>
-<div class="note big"><b>핵심</b>: [비용] 탭의 두 번째 분석 모드. <b>작업지시서로 집계된 비용</b>을 <b>전체·코스별·기간별</b> 3개 서브탭으로 제공(예산 대비 실적과 별개 축, 회계 비용과 차이 가능). ✨ 코스별 뷰의 <b>코스 선택 드롭다운</b>에서 특정 코스(South/East/West) 선택 시 <b>홀별(1~9홀) 드릴다운</b>(전용 스펙 course-home-costtab-drilldown 검증). 각 뷰의 <b>'전체' 행 = Σ(하위 행)</b> 롤업(영역/월 축)이 성립하는지 검증(위치기반 열합 — 컬럼 의미와 무관하게 성립해야 함).</div>
+<div class="note big"><b>핵심</b>: [비용] 탭의 두 번째 분석 모드. <b>작업지시서로 집계된 비용</b>을 <b>전체·코스별·기간별</b> 3개 서브탭으로 제공(예산 대비 실적과 별개 축, 회계 비용과 차이 가능). ✨ 코스별 뷰의 <b>코스 선택 드롭다운</b>에서 특정 코스(South/East/West) 선택 시 <b>홀별(1~9홀) 드릴다운</b>(⑬-2에서 홀별 불변식 검증). 각 뷰의 <b>'전체' 행 = Σ(하위 행)</b> 롤업(영역/월 축)이 성립하는지 검증(위치기반 열합 — 컬럼 의미와 무관하게 성립해야 함).</div>
 ${woToggleFound ? `<h3>서브뷰별 롤업 정합성</h3>
 <div class="tblwrap">${wocSummaryTbl}</div>
-<div class="note">'전체' 대표총액 = 각 뷰 '전체' 행의 첫 유효 수치 열(대개 합계). 롤업 = '전체' 행이 그 아래 하위 행(전체 뷰=영역 / 코스별=영역 / 기간별=월)의 열별 합과 일치하는지(반올림 off-by-1·상대 0.5% 허용). <b>⚠ 전체 뷰(영역축)와 코스별 뷰(코스축)는 집계 축이 달라</b> 서로의 총합이 일치하지 않는 것이 정상(코스 미지정·복수코스 작업 존재) → 뷰 간 총액 일치는 검증하지 않고 <b>각 뷰 자기 롤업</b>만 검증. 코스별 드롭다운의 홀별 드릴다운(전체=Σ1~9홀)은 course-home-costtab-drilldown 스펙에서 검증.</div>
+<div class="note">'전체' 대표총액 = 각 뷰 '전체' 행의 첫 유효 수치 열(대개 합계). 롤업 = '전체' 행이 그 아래 하위 행(전체 뷰=영역 / 코스별=영역 / 기간별=월)의 열별 합과 일치하는지(반올림 off-by-1·상대 0.5% 허용). <b>⚠ 전체 뷰(영역축)와 코스별 뷰(코스축)는 집계 축이 달라</b> 서로의 총합이 일치하지 않는 것이 정상(코스 미지정·복수코스 작업 존재) → 뷰 간 총액 일치는 검증하지 않고 <b>각 뷰 자기 롤업</b>만 검증. 코스별 드롭다운의 홀별 드릴다운(전체=Σ1~9홀·예산분류Σ=작업분류Σ)은 ⑬-2 체크에서 검증.</div>
 <div class="note">안내문구: <i>${esc(woGuide || '—')}</i></div>
 <h2 style="margin-top:26px">서브뷰별 상세 분석 데이터</h2>
 <div class="note">각 서브뷰의 <b>실제 집계표</b>를 화면 그대로 재현(당월/누적·카테고리·영역·홀·월 포함). <span class="mt-legend" style="background:var(--card);border:1px solid var(--line);border-radius:4px;padding:1px 6px">진한 행</span> = \'전체\' 롤업 행(하위 합계).</div>
-${woDetailSections}` : '<div class="note" style="border-left:3px solid var(--mut)">➖ \'작업지시에 근거한 비용 분석\' 토글이 노출되지 않아 판정에서 제외했습니다(비용 탭 구조/권한/데이터 확인 필요).</div>'}
+${woDetailSections}
+${drillDetailSections}` : '<div class="note" style="border-left:3px solid var(--mut)">➖ \'작업지시에 근거한 비용 분석\' 토글이 노출되지 않아 판정에서 제외했습니다(비용 탭 구조/권한/데이터 확인 필요).</div>'}
 </div>
 <details class="gloss"><summary>용어 풀이 (처음 보시는 분용)</summary>
 <dl>

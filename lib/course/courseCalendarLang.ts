@@ -42,6 +42,59 @@ export const ALLOWED_YEAR_OFFSETS: Record<string, number[]> = {
   'ภาษาไทย': [0],
 };
 const DEFAULT_OFFSETS = [0];   // 나머지 전 언어 = 그레고리력만
+//   ✔ 일본어 실측 확정(2026-09-14): 화레키(令和 연호) 아니라 서기(西暦 2026年) 사용 → {0} 가정 맞음(전건 PASS).
+//     다른 CJK/라틴계도 그레고리 관측. 향후 연호/현지 역법 쓰는 언어 발견 시 ALLOWED_YEAR_OFFSETS에 등록.
+
+// ── 로케일 날짜 순서(년 위치) 정합성 오라클 ─────────────────────────────
+//  이 앱은 언어별로 날짜 순서를 바꿈(실측): 한국어/일본어 YMD("2026年9月"=년 선두) vs 태국어 DMY("กันยายน 2026"=년 후미).
+//  캘린더 년도 소스(KO/FG raw)에서 **년(4자리)의 위치**로 YMD(선두=lead) / DMY·MDY(후미=trail)를 판정.
+//   ⚠ 세밀한 D↔M 순서는 월이 텍스트(ก.ย./9月/September)라 구분 불가 → **년 위치(lead/trail)** 수준으로 판정(오탐 회피).
+//   '?' = 실측 전 미확정(영어 en-US MDY/en-GB DMY 등) → 판정 보류(관찰). 실측 후 확정.
+const EXPECTED_DATE_ORDER: Record<string, 'YMD' | 'DMY' | '?'> = {
+  'English': '?',                 // 미확정 — 실측 후 확정(en-US MDY/en-GB DMY, 관찰)
+  'Tiếng Việt': 'DMY',            // 베트남 관습
+  'ภาษาไทย': 'DMY',              // 실측 확인(13 ก.ย. 2026)
+  '繁體中文': 'YMD',             // 중화권
+  '简体中文': 'YMD',
+  '日本語': 'YMD',               // 실측 확인(2026年9月13日)
+  'Bahasa Indonesia': 'DMY',      // 인니 관습
+};
+// 날짜 순서 판정 — 년(4자리)와 **일(4자리 아닌 1~2자리 숫자)**이 **둘 다** 있을 때만.
+//   일이 년보다 앞=DMY(일-월-년), 년이 앞=YMD. 년만/월+년만(일 없음)이면 순서 개념 없음 → null(관찰).
+//   ⚠ 1런 오탐 교훈: "2026" 단독을 위치만으로 'lead' 오판해 가짜 FAIL. 일 숫자 동반 조건으로 근본 차단.
+function dateOrderOf(raw: string): 'YMD' | 'DMY' | null {
+  const t = toAsciiDigits((raw || '').replace(/\s+/g, ' '));
+  const ym = t.match(/\d{4}/); if (!ym || ym.index == null) return null;   // 년(4자리) 필수
+  const dm = t.match(/(?<!\d)\d{1,2}(?!\d)/); if (!dm || dm.index == null) return null;   // 일(4자리 아닌 1~2자리) 필수
+  return dm.index < ym.index ? 'DMY' : 'YMD';
+}
+
+// 숫자/시간 포맷 관찰(프로브·FG 상태·판정 아님) — 앱이 로케일별 천단위/소수 구분자·시간제(12/24h)를 적용하는지 샘플 수집.
+//   판정으로 승격하려면 언어별 기대 포맷 오라클이 필요(실측 후). 지금은 '확인 필요·관찰'에 실제 표기를 남긴다.
+const seenFmt = new Set<string>();
+async function observeNumberTimeFormats(admin: Page, lang: CourseLang, screen: string): Promise<void> {
+  const key = `${screen}|fmt|${lang.ko}`;
+  if (seenFmt.has(key)) return; seenFmt.add(key);
+  const s = await admin.evaluate(() => {
+    const norm = (x: string | null) => (x || '').replace(/\s+/g, ' ').trim();
+    const scope = document.querySelector('.contents, main') || document.body;
+    const numRe = /\d{1,3}(?:[.,٫٬]\d{3})+(?:[.,]\d+)?/;    // 천단위 구분자 있는 숫자(1,234 / 1.234,5 등)
+    const timeRe = /\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM|am|pm|오전|오후)?/;   // HH:MM(:SS)(AM/PM)
+    const nums = new Set<string>(); const times = new Set<string>();
+    const w = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
+    let n: Node | null;
+    while ((n = w.nextNode())) {
+      const t = norm(n.nodeValue);
+      if (!t) continue;
+      const mn = t.match(numRe); if (mn && nums.size < 6) nums.add(mn[0]);
+      const mt = t.match(timeRe); if (mt && /\d{1,2}:\d{2}/.test(mt[0]) && times.size < 6) times.add(mt[0]);
+      if (nums.size >= 6 && times.size >= 6) break;
+    }
+    return { nums: [...nums], times: [...times] };
+  }).catch(() => ({ nums: [] as string[], times: [] as string[] }));
+  if (s.nums.length) review({ lang: lang.ko, screen, kind: '숫자 포맷 관찰(로케일)', item: `${lang.label} 숫자 샘플 ${s.nums.length}`, value: s.nums.join('  |  ') });
+  if (s.times.length) review({ lang: lang.ko, screen, kind: '시간 포맷 관찰(로케일)', item: `${lang.label} 시간 샘플 ${s.times.length}`, value: s.times.join('  |  ') });
+}
 
 // QA-15543 캘린더 노출 화면(코스관리_PC). Home은 작업/비용 대시보드 탭 안에 캘린더가 있어 탭 순회로 도달.
 type CalScreen = { menu: string; sub?: string; label: string };
@@ -164,6 +217,9 @@ async function checkScreenCalendar(admin: Page, lang: CourseLang, screen: CalScr
   if (!(await switchCourseLang(admin, lang.clickLabel))) { skip(base, `${lang.clickLabel} 전환 실패(드롭다운/항목 미발견)`); await ensureCourseKorean(admin); return; }
   await settle(admin, 700);
   const fg = await collectAcrossTabs(admin);
+  // ── 숫자/시간 포맷 관찰(프로브, FG 상태) — 앱이 로케일별 숫자 구분자·시간제를 적용하는지 데이터 수집(판정 아님).
+  //   QA-15543 방식(프로브→오라클→판정)과 동일: 샘플을 '확인 필요·관찰'에 남겨, 언어별 실제 포맷 확인 후 판정 확장.
+  await observeNumberTimeFormats(admin, lang, screen.label);
   await ensureCourseKorean(admin);
 
   const nowY = new Date().getFullYear();
@@ -199,15 +255,38 @@ async function checkScreenCalendar(admin: Page, lang: CourseLang, screen: CalScr
         detail: `KO raw="${kv.raw}" / ${lang.ko} raw="${fv.raw}"`,
       });
     }
+    // ── 로케일 날짜 순서(YMD/DMY) 정합성 — 년+일 모두 있는 raw만 판정. 화면당 순서별 1건 dedup(중복 방지).
+    const expOrder = EXPECTED_DATE_ORDER[lang.label] ?? '?';
+    const fgOrder = dateOrderOf(fv.raw);
+    const doKey = `${screen.label}|dateord|${fgOrder || 'x'}`;
+    if (!seen.has(doKey)) {
+      seen.add(doKey);
+      const dmeta: CheckMeta = {
+        path: `${screen.label} > 날짜 순서(로케일)`, tcRef, tcId: `DATEORD-${lang.ko}`,
+        desc: `${lang.ko} 날짜 표시 순서가 로케일 관습과 정합`,
+        expected: expOrder === '?' ? '실측 후 확정(현재 관찰)' : expOrder,
+      };
+      if (expOrder !== '?' && fgOrder) {
+        record(dmeta, fgOrder === expOrder ? 'PASS' : 'FAIL', fgOrder === expOrder
+          ? { actual: `${lang.label}: ${fgOrder} — raw="${fv.raw}"` }
+          : { actual: `${lang.label}: ${fgOrder}(기대 ${expOrder}) — raw="${fv.raw}"`, error: '날짜 순서(로케일) 불일치', detail: `KO(YMD) raw="${kv.raw}" / ${lang.ko} raw="${fv.raw}"` });
+      } else if (fgOrder || expOrder === '?') {
+        // 년+일 있으나 언어 오라클 미확정(영어) → 관찰. 년만/월+년만(fgOrder=null)이면 순서 개념 없어 제외(관찰도 생략).
+        if (fgOrder) review({ lang: lang.ko, screen: screen.label, kind: '날짜 순서 관찰(로케일)', zone: key, item: `FG ${fgOrder} · 기대 미확정(실측 대기)`, value: `KO raw="${kv.raw}" / FG raw="${fv.raw}"` });
+      }
+    }
   }
 }
 
 // 캘린더 노출 화면 × 단일 언어 순회. 세션 1런/로그인 제약 → 스펙에서 언어 선택(LANGS env).
 export async function runCourseCalendarLang(admin: Page, lang: CourseLang): Promise<void> {
   const seen = new Set<string>();
+  seenFmt.clear();   // 언어별 리포트마다 포맷 관찰 재방출(review는 언어별 reset)
   // 오라클 가정 명시(정직성) — 태국어 이중역법 허용을 리포트에 남겨 QA가 정본 확정 시 좁힐 수 있게.
   const off = (ALLOWED_YEAR_OFFSETS[lang.label] ?? DEFAULT_OFFSETS);
+  const ordExp = EXPECTED_DATE_ORDER[lang.label] ?? '?';
   review({ lang: lang.ko, screen: '(오라클)', kind: '판정 기준', item: `허용 년도 오프셋 ${off.join('/')}`, value: `그레고리 기준 ± 오프셋만 정상, 그 외 값=결함(QA-15543 계열). ${lang.ko}=${off.includes(543) ? '불교력(+543)/그레고리 허용' : '그레고리력만(실측 확정)'}` });
+  review({ lang: lang.ko, screen: '(오라클)', kind: '판정 기준', item: `날짜 순서(로케일) — ${lang.ko} 기대 ${ordExp === '?' ? '미확정(실측 대기)' : ordExp}`, value: '년+일 함께 있는 표기만 판정(일<년=DMY). 년만/월+년만은 순서 개념 없어 제외. 숫자·시간 포맷은 관찰(프로브)만 — 실측 후 판정 확장.' });
   let done = 0;
   for (const screen of CALENDAR_SCREENS) {
     const tcRef = `코스관리_다국어_캘린더년도_${screen.menu}`;

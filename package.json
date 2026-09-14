@@ -70,6 +70,7 @@
     "course:probe-calendar": "playwright test --config=Course/playwright.config.ts --project=course Course/_probe-calendar-dom.spec.ts --no-deps",
     "course:lang-ui": "playwright test --config=Course/playwright.config.ts --project=course Course/course-lang-ui.spec.ts --no-deps",
     "course:lang-all": "playwright test --config=Course/playwright.config.ts --project=course Course/course-lang-suite.spec.ts --no-deps",
+    "course:lang-defects": "playwright test --config=Course/playwright.config.ts --project=course Course/course-lang-defects.spec.ts --no-deps",
     "course:section-probe": "playwright test --config=Course/playwright.config.ts --project=course Course/_probe-section-titles.spec.ts --no-deps",
     "course:tabs-probe": "playwright test --config=Course/playwright.config.ts --project=course Course/_probe-tabs.spec.ts --no-deps",
     "course:budget-p1": "playwright test --config=Course/playwright.config.ts --project=course Course/course-budget-cost-p1.spec.ts --no-deps",

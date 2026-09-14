@@ -18,6 +18,15 @@ export const COURSE_ORIGIN = `https://${COURSE_SUBDOMAIN}.smartscore.kr`;
 export const COURSE_URL = `${COURSE_ORIGIN}/?langCode=ko`;
 export const DASHBOARD_URL = 'https://sv1td4.smartscore.kr/ko/dashboard';
 export const COURSE_STORAGE = 'auth/.auth/course.json';
+// ── 모바일 웹(별도 앱, 2026-09-11 실측) ─────────────────────────────
+//  `/mobile/`은 데스크톱 어드민과 **별개로 빌드된 Vue SPA**(`/mobile/assets/index.js`, title "Course Mobile").
+//  진입: `/mobile/` → `/mobile/Login`(전용 폼: 골프장 검색+아이디+비밀번호) 리다이렉트 — 클라우드 브리지(sv1td4) 없음.
+//  DOM: SNB(.side-navbar-container)·.depth-1/2·.contents-box·.select-btn **전무** → 데스크톱 진입/네비/캡처 셀렉터 재사용 불가.
+//  세션도 course.json(데스크톱)과 별개 → 모바일 전용 storageState 필요(course:auth-mobile).
+export const COURSE_MOBILE_ORIGIN = COURSE_ORIGIN;
+export const COURSE_MOBILE_URL = `${COURSE_ORIGIN}/mobile/`;
+export const COURSE_MOBILE_LOGIN_URL = `${COURSE_ORIGIN}/mobile/Login`;
+export const COURSE_MOBILE_STORAGE = 'auth/.auth/course-mobile.json';
 
 // ── IA (실측 SNB, 2026-08-05) — 대메뉴 → 소메뉴(라우트) ───────────────────
 export interface CourseSub { name: string; route: string; }
@@ -95,6 +104,14 @@ export async function killAlarms(page: Page): Promise<number> {
   return dismissBlockingOverlays(page);
 }
 
+// 런 도중 세션 만료(로그인 페이지 이탈) 감지 — 공유 유틸.
+//   ⚠ openCourseAdmin은 '진입 시점'만 fail-fast → 긴 런(전 메뉴 다국어 등)은 도중 세션이 죽어도 감지 못 함.
+//     그 경우 진입/전환 실패가 "진입 실패/전환 실패"로 오분류되고 cascade 복구가 헛돎 → 이 유틸로 정확히 구분.
+//   공유 QA 계정 "재로그인 1회당 1런" 제약([[session-one-run-per-login]])상 런 도중 만료가 흔함.
+export function isCourseLoggedOut(page: Page): boolean {
+  return /\/login/i.test(page.url());
+}
+
 // 코스관리 어드민 진입(세션 재사용) — course.json 쿠키로 course-mng-td 직접 로드.
 //   로그인 페이지로 빠지면 세션 만료로 판단하고 fail-fast(명확한 재인증 안내).
 export async function openCourseAdmin(page: Page, _context?: BrowserContext): Promise<Page> {
@@ -129,6 +146,49 @@ export async function openCourseAdmin(page: Page, _context?: BrowserContext): Pr
   await dismissBlockingOverlays(page);
   await settle(page, 800);
   return page;
+}
+
+export interface CloudLangResult { ok: boolean; before: string; after: string; localeSeg: string; url: string; triedClick: boolean }
+
+// 클라우드 대시보드(sv1td4) 언어 설정 — 정책 8-1 실경로(클라우드에서 언어 선택 → 어드민 진입 시 상속).
+//   새 탭에서 클라우드 열기 → 헤더 `.select-btn` 드롭다운 → 후보 라벨 중 하나 클릭 → 지속(서버/쿠키 선호) → 닫기.
+//   candidates: 드롭다운에 노출될 수 있는 표시명 후보(예: ['English','English','영어']). 순서대로 시도.
+//   ⚠ 이후 openCourseAdmin(page)가 저장된 선호를 상속. 클라우드 라벨 텍스트가 불확실 → 다중 후보 + 검증 반환(false 시 호출부가 in-admin 폴백).
+export async function setCloudLang(context: BrowserContext, candidates: string[]): Promise<CloudLangResult> {
+  const cloud: Page = await context.newPage();
+  const res: CloudLangResult = { ok: false, before: '', after: '', localeSeg: '', url: '', triedClick: false };
+  const readBtn = async () => (await cloud.locator('.select-btn').first().innerText().catch(() => '')).replace(/\s+/g, ' ').trim();
+  try {
+    await cloud.goto(DASHBOARD_URL, { waitUntil: 'domcontentloaded', timeout: 30_000 }).catch(() => {});
+    await cloud.waitForTimeout(1_800);
+    res.before = await readBtn();
+    const wanted = candidates.filter(Boolean);
+    // 이미 목표면 no-op 성공
+    if (wanted.some((w) => res.before.includes(w))) { res.ok = true; res.after = res.before; }
+    else {
+      for (let attempt = 0; attempt < 3 && !res.ok; attempt++) {
+        await cloud.keyboard.press('Escape').catch(() => {});
+        await cloud.locator('.select-btn, .select-btnWrap').first().click({ force: true }).catch(() => {});
+        await cloud.waitForTimeout(500);
+        res.triedClick = true;
+        for (const w of wanted) {
+          const opt = cloud.getByText(w, { exact: true }).filter({ visible: true }).last();
+          if (await opt.isVisible().catch(() => false)) {
+            await opt.click({ force: true }).catch(() => opt.evaluate((el: HTMLElement) => el.click()).catch(() => {}));
+            await cloud.waitForTimeout(1_400);
+            const now = await readBtn();
+            if (wanted.some((x) => now.includes(x))) { res.ok = true; res.after = now; break; }
+          }
+        }
+      }
+    }
+    res.url = cloud.url();
+    res.localeSeg = (() => { try { return new URL(cloud.url()).pathname.split('/').filter(Boolean)[0] || ''; } catch { return ''; } })();
+    if (!res.after) res.after = await readBtn();
+    await cloud.waitForTimeout(600);   // 선호 지속(서버/쿠키 반영) 여유
+  } catch { /* 실패 → ok=false, 호출부 폴백 */ }
+  await cloud.close().catch(() => {});
+  return res;
 }
 
 // 코스관리 datepicker에 특정 날짜(ISO 'YYYY-MM-DD') 입력(비파괴).

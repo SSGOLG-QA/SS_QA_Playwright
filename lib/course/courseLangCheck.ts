@@ -1,6 +1,7 @@
 import { Page } from '@playwright/test';
 import { captureSlots, applySlotComparison, Lang } from '../langCheck';
-import { gotoCourseMenu, killAlarms, COURSE_IA } from './courseHelpers';
+import { gotoCourseMenu, killAlarms, COURSE_IA, openCourseAdmin, setCloudLang, isCourseLoggedOut } from './courseHelpers';
+import type { BrowserContext } from '@playwright/test';
 import { closeForm } from './formE2E';
 import { settle } from '../adminHelpers';
 import { skip, review, CheckMeta } from '../reporter';
@@ -50,7 +51,11 @@ const USER_ITEM_MARK = /\[[가-힣]\]/;
 //   데이터(인명·거래처명)와 구분하려 **허용목록 매칭 행만** 검증 슬롯으로 승격(인명 '석석' 등은 미매칭→제외=false positive 0).
 //   구조 셀렉터(첫 컬럼)로 캡처해 KO/FG index 정합 유지 + 이 목록으로 enum만 남김(prepCourseSlots).
 const COURSE_ENUM_SET = new Set(['전체', '그린', '그린칼라', '그린 칼라', '티박스', '티 박스', '페어웨이', '러프', '벙커', '에이프런', '카트도로', '카트 도로', '코스', '홀', '헤저드', '워터해저드', '해저드', '기타']);
-const isCourseEnum = (t: string) => { const n = (t || '').replace(/\s+/g, ' ').trim(); return COURSE_ENUM_SET.has(n) || /^(\d+\s*홀|홀\s*\d+)$/.test(n); };
+// 비용 집계(비교표)의 고정 행 라벨(작업지시 비용 합계/실제 발생 비용 합계/차액) — 코스 area enum은 아니나 사용자 데이터도 아닌
+//   **고정 시스템 라벨**. 표 첫 컬럼(td)이라 분류enum zone으로 캡처되는데 COURSE_ENUM_SET 미포함이면 enumBad로 탈락 → 미검증.
+//   이 행 라벨은 차트 범례(작업지시/실제발생/차액)와 동일 문자열이라 여기서 유지하면 범례 검증도 겸함(2026-09-11, 사용자 지적).
+const COURSE_FIXED_ROW_LABELS = new Set(['작업지시 비용 합계', '실제 발생 비용 합계', '차액']);
+const isCourseEnum = (t: string) => { const n = (t || '').replace(/\s+/g, ' ').trim(); return COURSE_ENUM_SET.has(n) || COURSE_FIXED_ROW_LABELS.has(n) || /^(\d+\s*홀|홀\s*\d+)$/.test(n); };
 
 // 물리적 코스 구역명 집합(2026-09-01, 사용자 지적 "코스 기본 정보 폼라벨 벙커/페어웨이/항목추가1 = 사용자 추가 항목 제외"):
 //   ⚠ 코스 기본 정보의 `.info-list` dt 라벨은 **사용자가 등록한 구역 목록**(벙커/페어웨이 + '항목추가N'으로 추가) → 고정 i18n 라벨 아님·데이터.
@@ -75,6 +80,27 @@ const SCREEN_SCOPED_ZONES = new Set(['드롭다운값']);
 //   통합런 후반 재진입 레이스로 코스 현황 관리 팝업 4건 진입실패·장비 관제 외국어 백지 발생 → heavy 화면만 대기·재시도 강화.
 const HEAVY_SCREENS = ['코스 모니터', '식생 분석', '코스 영역 설정', '드론사진', '장비 관제', '시설 관제', '그린 분석', '3D'];
 const isHeavyScreen = (s: string) => HEAVY_SCREENS.some((h) => s.includes(h));
+
+// 분석 화면(식생/그린 분석)의 색상 스케일 native <select> 옵션(투명/파랑/회색·식생지수 등)은 분석 데이터/뷰가
+//   로드돼야 나타나는 **조건부 렌더** — 프로브 확정(2026-09-11: 미로드 상태선 4s까지 select 0). 캡처 전 bounded
+//   대기(최대 6s)로 select 출현을 기다려 '느린 로드'로 인한 언어별 캡처 누락(예: 인니 식생 17건)을 줄인다.
+//   있으면 즉시 진행, 끝내 없으면(데이터 empty) 그대로 진행 → 해당 select옵션은 정직하게 미검증으로 남음(대기로
+//   데이터 empty 상태를 만들 수는 없음). 인터랙션(이미지 선택) 구동은 비파괴 정적 스캔 범위 밖이라 하지 않는다.
+const ANALYSIS_SELECT_SCREENS = ['식생 분석', '그린 분석'];
+// 캡처 직전, 늦게/조건부로 렌더되는 컨트롤을 bounded 대기(비파괴, 없으면만 대기·있으면 즉시 진행).
+async function waitLateControls(admin: Page, screen: string): Promise<void> {
+  // ① 분석 화면 색상 스케일 native <select> — 분석 데이터/뷰 로드 시 조건부 렌더(프로브 2026-09-11 확정).
+  if (ANALYSIS_SELECT_SCREENS.some((s) => screen.includes(s))) {
+    for (let i = 0; i < 6; i++) { if (await admin.locator('select').count().catch(() => 0)) break; await admin.waitForTimeout(1000); }
+  }
+  // ② 인라인 datepicker 요일 헤더(span.day-of-week/datepicker-weekday) — 정적 스캔은 datepicker를 열지 않으므로
+  //   캡처되는 요일은 항상 인라인(항상 노출)형. 달력이 있는데 요일이 아직 미렌더면 느린 렌더로 언어별 누락(예: 예측
+  //   정보 EN/VN 7건). 달력 요소가 있을 때만, 요일 출현까지 최대 ~3s 대기. 없으면 스킵(무해).
+  const hasCal = await admin.locator('.datepicker-input, .datepicker-layer, [class*="datepicker"], .calendar-header').count().catch(() => 0);
+  if (hasCal) {
+    for (let i = 0; i < 4; i++) { if (await admin.locator('span.day-of-week, span.datepicker-weekday').count().catch(() => 0)) break; await admin.waitForTimeout(800); }
+  }
+}
 // 정적 패스(runCourseLangCheck)가 화면별 열기형 트리거 수를 기록 → 모달 패스가 heavy 무트리거 화면 재진입을 생략(2026-09-01).
 //   맵/canvas heavy 화면은 통합런 후반 재진입이 flake 표면인데, 폼 트리거가 없으면 재진입해도 '트리거 없음'으로 끝남 → 재진입 자체를 생략.
 //   키(screen)는 정적/모달 패스 동일 산식. 값 0=트리거 없음(생략), ≥1=있음(진입), -1/미기록=미확인(정상 진입 폴백=현행 유지).
@@ -160,6 +186,10 @@ function computeUncovered(leaves: Leaf[], slots: { text: string }[]): { covered:
     return T.some((x) => {
       if (x === nt) return true;
       if (!(x.includes(nt) || nt.includes(x))) return false;
+      // ✎ 2026-09-10: 슬롯이 leaf를 포함하고 나머지가 비한글(숫자·기호·공백=데이터)이면 커버.
+      //   시스템 라벨 + 데이터 값 패턴("초과 105,490,000"의 leaf "초과") — 이미 슬롯으로 검증됨 → 감사 이중표기 제거.
+      //   ⚠ "예산 관리".replace("예산")=" 관리"엔 한글 잔존 → 미커버 유지(다른 요소 오커버 방지). 길이비 게이트는 그대로.
+      if (x.includes(nt) && nt.length > 0 && !/[가-힣]/.test(x.replace(nt, ''))) return true;
       const s = Math.min(x.length, nt.length), l = Math.max(x.length, nt.length);
       return l > 0 && s / l >= 0.6;
     });
@@ -235,14 +265,14 @@ function emitInteractionAudit(screen: string, controls: Control[]) {
 }
 
 // 현재 노출 언어(헤더 .select-btn 텍스트에서 표시명 추출).
-async function currentCourseLang(admin: Page): Promise<string> {
+export async function currentCourseLang(admin: Page): Promise<string> {
   const t = norm(await admin.locator('.select-btn').first().innerText().catch(() => ''));
   return DISPLAY_LABELS.find((l) => t.includes(l)) || t;
 }
 
 // 언어 전환: .select-btn 트리거 클릭 → 드롭다운에서 표시명(정확 텍스트) 클릭 → 안정화.
 //   성공 판정 = currentCourseLang === 대상 표시명. 2회 재시도.
-async function switchCourseLang(admin: Page, displayLabel: string): Promise<boolean> {
+export async function switchCourseLang(admin: Page, displayLabel: string): Promise<boolean> {
   if ((await currentCourseLang(admin)) === displayLabel) return true;
   for (let attempt = 0; attempt < 3; attempt++) {
     await admin.keyboard.press('Escape').catch(() => {});
@@ -264,9 +294,36 @@ async function switchCourseLang(admin: Page, displayLabel: string): Promise<bool
   return (await currentCourseLang(admin)) === displayLabel;
 }
 
+// 정책 8-1 실경로 진입 — 클라우드에서 목표 언어 선설정 → 어드민 진입(상속). 상속 실패 시 in-admin 드롭다운 폴백(안전).
+//   반환 via: 'cloud'(클라우드 선설정으로 상속) / 'admin-fallback'(상속 실패→어드민 전환) / 'already'(이미 목표).
+//   비고: 클라우드 라벨 텍스트 불확실 → setCloudLang 다중후보 + 폴백으로, cloud 미작동해도 기존(어드민 전환) 동작 보장(회귀 0).
+export async function enterCourseAdminInLang(
+  page: Page, context: BrowserContext, lang: { clickLabel: string; label?: string; ko?: string },
+): Promise<{ admin: Page; via: 'cloud' | 'admin-fallback' | 'already'; entryLang: string; cloud: any }> {
+  const target = lang.clickLabel;
+  // ① 클라우드에서 목표 언어 선설정(한국어 기준이면 한국어로)
+  const cloud = await setCloudLang(context, [target, lang.label || '', lang.ko || '']).catch(() => ({ ok: false }));
+  // ② 어드민 진입(저장된 클라우드 선호 상속)
+  const admin = await openCourseAdmin(page, context);
+  await admin.waitForTimeout(1_200); await killAlarms(admin);
+  const entryLang = await currentCourseLang(admin).catch(() => '');   // 8-1 상속 증거 = 부팅 시점 언어(원복 전에 채취)
+  const via: 'cloud' | 'admin-fallback' | 'already' =
+    entryLang === target ? (cloud && (cloud as any).triedClick ? 'cloud' : 'already') : 'admin-fallback';
+  // ⚠ 검출 스캔은 반드시 all-Korean 상태에서 — ① 메뉴 네비게이션은 한국어 SNB 이름으로 동작 ② scanCourseScreen이
+  //   진입 화면을 그대로 KO 기준(koCaps)으로 캡처. 클라우드→목표 상속(8-1)은 위 entryLang로 이미 확증했으므로,
+  //   스캔 루프 전 상태를 한국어로 원복한다.
+  //   ★ 클라우드 선호까지 원복해야 함(2026-09-10 회귀): 어드민만 한국어로 바꾸고 클라우드=목표언어를 남기면,
+  //     홈 다음 첫 메뉴 이동(route 로드)에서 규칙 8-1이 재발동해 목표언어를 재상속 → SNB가 목표언어로 뒤집혀
+  //     한국어 서브메뉴 매칭 실패 → 홈 직후 조기 중단. 홈은 랜딩(제자리 정규화)이라 통과, 첫 네비에서 사망하던 패턴.
+  //   (COURSE_LANGS는 한국어=baseline 제외라 target은 항상 비한국어 → 클라우드 한국어 원복은 항상 유효.)
+  await setCloudLang(context, [KOREAN_LABEL]).catch(() => {});
+  await ensureCourseKorean(admin);
+  return { admin, via, entryLang, cloud };
+}
+
 // 비파괴 오버레이 닫기 — 헤더 언어 트리거를 가리는 모달/드롭다운/달력 제거(cascade 방지 핵심).
 //   Escape 우선 → 잔존 모달은 취소/닫기(파괴 confirm 회피, formE2E closeForm 재사용).
-async function closeCourseOverlays(admin: Page): Promise<void> {
+export async function closeCourseOverlays(admin: Page): Promise<void> {
   for (let i = 0; i < 4; i++) {
     const open = await admin.locator('.modal-group, .modal-box, .vs__dropdown-menu, .datepicker-layer, .slot-list')
       .filter({ visible: true }).count().catch(() => 0);
@@ -281,7 +338,7 @@ async function closeCourseOverlays(admin: Page): Promise<void> {
 }
 
 // 한국어 원복(cascade 차단). 3단: ①오버레이 닫고 전환 ②DOM클릭 ③홈 리셋 후 재시도.
-async function ensureCourseKorean(admin: Page): Promise<boolean> {
+export async function ensureCourseKorean(admin: Page): Promise<boolean> {
   if ((await currentCourseLang(admin)) === KOREAN_LABEL) return true;
   for (let i = 0; i < 3; i++) {
     await closeCourseOverlays(admin);
@@ -307,7 +364,7 @@ async function isForeignBlank(admin: Page, heavy = false): Promise<boolean> {
 
 // 메뉴 진입(cascade 복구 내장): 실패 시 오버레이 닫고 한국어 원복 후 재시도.
 //   heavy 화면(맵/3D/canvas)은 통합런 후반 재진입 레이스로 flake → 대기 상향 + 2차 재시도(2026-09-01 진입실패 개선).
-async function enterCourseMenu(admin: Page, menu: string, sub: string | undefined): Promise<boolean> {
+export async function enterCourseMenu(admin: Page, menu: string, sub: string | undefined): Promise<boolean> {
   const heavy = isHeavyScreen(`${menu} ${sub || ''}`);
   const go = () => gotoCourseMenu(admin, menu, sub).then((r) => r !== false).catch(() => false);
   if (await go()) { if (heavy) await settle(admin, 1500); return true; }   // heavy: 진입 후 맵/canvas 로드 안정화
@@ -407,7 +464,18 @@ function mergeTabLabels(base: TabSlots[], labels: TabSlots[]): TabSlots[] {
 //   ⚠ .tab-contents-box + div 은 안내문구 문단 + 하위 대시보드 전체를 품는 컨테이너 → innerText가 문단+숫자 blob(200자)로 지저분·
 //     감사기가 순수 문단 leaf(106자)와 매칭 실패(길이비 0.53). 문단 문장은 컨테이너 **첫 자식**(프로브 확정: fs-14 fc-grey500 grey 설명행) →
 //     `> div:first-child`로 정밀 캡처(문단만, 깔끔 검증 + 감사 이중표기 해소).
-const COURSE_EXTRA_SEL = '.progress-budget-title, .progress-mini-text, strong.fs-24, strong.fs-20, .fc-ffffff, .tab-contents-box + div > div:first-child, .chart-section strong.fc-grey400, .chart-section span.fs-14, .chart-section span.fc-14, .highcharts-plot-line-label, .calendar-header span';
+//   ── 추가(2026-09-10, 사용자 지적 "홈>비용 초과 라벨 다국어 누락"): 예산 초과 배지 `.progress-budget-over`(text="초과 105,490,000") ──
+//     ⚠ 예산 초과(실적>예산) 카테고리에만 뜨는 **조건부 배지**라 언어앵커 프로브(초과 부재 상태) 시점에 미포착 → 셀렉터 누락됐음.
+//     전용 클래스·table 밖이라 데이터 오탐 없음. 카테고리 제목(.progress-budget-title)은 기존 캡처, 형제 초과 배지만 신규. 숫자 혼입은 무해(한글 '초과'만 판정).
+//     프로브: Course/_probe-over-badge.spec.ts → analysis/코스관리_초과배지_프로브.json.
+//   ── 추가(2026-09-10, "확인 필요·관찰" 존추가 후보 검토 Tier 1): 요일 라벨 `span.day-of-week`(일~토요일)·
+//     `span.datepicker-weekday`(화/목/수 축약). 요일은 절대 사용자 데이터가 아님 → 오탐 0. 영어 모드 한글 요일 노출=실제 미번역.
+//     기존 selector 미커버였던 datepicker/캘린더 요일을 편입해 검출 일관성 완성(정보 관리 요일 FAIL과 동일 성격).
+//   ── 추가(2026-09-11, 사용자 지적 "비용 집계 연간/월간 탭명 누락"): 상단 탭 라벨 `.tab-contents-box > .tab-group > div`(연간/월간). ──
+//     프로브 확정: 이 탭은 `div.contents-box.tab-contents-box` > `div.tab-group` > `div.ps-r`(연간/월간). captureTabLabels(.tab-group 순회)가
+//     계통적으로 누락(파일 전체 |||연간/|||월간 1건뿐) → 검증된 captureCourseExtras 경로로 직접 캡처. 탭 라벨은 시스템 UI라 오탐 0.
+//     `.tab-contents-box` 스코프라 DFS 그룹0로 순회되는 상단 탭만 매칭(5뷰 서브네비·데이터 무관).
+const COURSE_EXTRA_SEL = '.progress-budget-title, .progress-budget-over, .progress-mini-text, strong.fs-24, strong.fs-20, .fc-ffffff, .tab-contents-box + div > div:first-child, .chart-section strong.fc-grey400, .chart-section span.fs-14, .chart-section span.fc-14, .highcharts-plot-line-label, .calendar-header span, span.day-of-week, span.datepicker-weekday, .tab-contents-box > .tab-group > div';
 // 표 첫 컬럼(라벨=분류enum, 허용목록 필터) vs 표 헤더 th(표헤더, 무필터·항상 검증).
 //   ⚠ 배치2 수정: 기존엔 `tbody tr > th`를 분류enum으로 묶어 컬럼헤더(구분/정규 작업/고정직 등)가 허용목록 미매칭→탈락(작업 탭 '표내부 13' 근본원인).
 //     th=헤더(항상 검증) / td:first-child=행 라벨(enum 필터)로 분리. thead th는 admin이 이미 잡으나 tbody th(thead 없는 표)를 여기서 보강.
@@ -463,11 +531,25 @@ async function expandDynamic(admin: Page): Promise<void> {
   }
 }
 
+// async 데이터 표/차트 렌더 대기(비파괴, 2026-09-11 사용자 지적 "비용 집계 헤더·행·범례·내보내기 누락"):
+//   비용 집계 등 비교표 화면은 진입/탭클릭 직후 표 컨테이너만 있고 tbody(헤더 세부·행 라벨·범례·내보내기 포함 패널)가 async 미렌더 →
+//   캡처 시 첫칸(항목)만 잡히고 나머지 전멸(식생 분석과 동일 타이밍 갭). DFS capture는 waitLateControls를 안 거치므로 탭별로 여기서 대기.
+//   표 컨테이너가 있는데 행 0이면 최대 3.5s 폴링(있으면 즉시). 진짜 빈 표(무데이터)는 그대로 진행 → 정직하게 미검증(대기로 데이터 못 만듦).
+async function waitCourseDataPanel(admin: Page): Promise<void> {
+  const tblSel = '.table-group table, .table-overflow-item table';
+  const has = await admin.locator(tblSel).count().catch(() => 0);
+  if (!has) return;
+  for (let i = 0; i < 5; i++) {
+    if (await admin.locator(`${tblSel} tbody tr`).count().catch(() => 0)) return;
+    await admin.waitForTimeout(700);
+  }
+}
 // 계층 탭 순회 캡처(DFS). 각 도달 상태에서 [본문 슬롯 + 탭 라벨] 캡처. label=탭 경로(KO 순회 시 한국어, 리포트 표기).
 //   무탭 화면 → 1회 캡처(label=''). 2단 탭 → 상위탭 클릭 후 하위 그룹 재귀.
 async function captureTabbedH(admin: Page, screen: string, audit = false): Promise<{ label: string; slots: TabSlots[]; leaves?: Leaf[] }[]> {
   const out: { label: string; slots: TabSlots[]; leaves?: Leaf[] }[] = [];
   const capture = async (path: string[]) => {
+    await waitCourseDataPanel(admin);   // async 표/차트 패널 렌더 대기(헤더 세부·행 라벨·범례·내보내기 누락 방지) — expandDynamic 전(트리토글 탐색 정확도)
     await expandDynamic(admin);
     // 본문 슬롯 + 탭 라벨 + 코스 전용 추가 UI(카드 제목·예산 카테고리·상태) 병합.
     const merged = mergeTabLabels(mergeTabLabels(await captureSlots(admin), await captureTabLabels(admin, screen)), await captureCourseExtras(admin, screen));
@@ -496,6 +578,7 @@ async function scanCourseScreen(admin: Page, lang: CourseLang, screen: string, t
   const base: CheckMeta = { path: `${screen} > 언어검증`, tcRef, tcId: `LANG-${lang.ko}`, desc: `${lang.ko}(${lang.label}) 모드 — UI 표기 검증` };
   // 인터랙션 인벤토리(클래스 B) — 전환 전 KO 기본 뷰에서 1회(홀 드롭박스 등 종속 컨트롤 신호).
   emitInteractionAudit(screen, await auditInteractions(admin));
+  await waitLateControls(admin, screen);   // 늦게 렌더되는 컨트롤(분석 select·인라인 datepicker 요일) 출현 대기(비파괴)
   const koCaps = await captureTabbedH(admin, screen, true);   // audit=true → 탭별 leaf 동반 캡처(커버리지 감사용)
   if (!(await switchCourseLang(admin, lang.clickLabel))) { skip(base, `${lang.clickLabel} 전환 실패(드롭다운/항목 미발견)`); await ensureCourseKorean(admin); return; }
   if (await isForeignBlank(admin, isHeavyScreen(screen))) { skip(base, `${lang.clickLabel} 전환 후 본문 백지(${isHeavyScreen(screen) ? '12' : '6'}s+ 미렌더) — 데이터의존/렌더 확인 필요`); await ensureCourseKorean(admin); return; }
@@ -617,23 +700,39 @@ export async function runCourseLangModal(admin: Page, lang: CourseLang) {
   const filt = (process.env.LANG_MENUS || '').split(',').map((s) => n(s)).filter(Boolean);
   const seen = new Set<string>();
   let done = 0;
+  let sessionDead = false;   // 런 도중 세션 만료(로그인 페이지) 감지 → 이후 화면 일괄 처리(cascade 복구 헛시도 방지)
   for (const grp of COURSE_IA) {
     for (const sub of grp.subs) {
       const screen = grp.menu === sub.name ? grp.menu : `${grp.menu} > ${sub.name}`;
       if (filt.length && !filt.some((f) => n(screen).includes(f))) continue;
       const tcRef = `코스관리_언어검증_팝업_${grp.menu}`;
+      const pmeta = { path: `${screen} > 팝업 언어검증`, tcRef, tcId: `LANGPOP-${lang.ko}`, desc: `${lang.ko} 팝업 i18n` };
+      // 세션 만료 감지(진입 실패/전환 실패로 오분류 방지) — 죽으면 나머지 일괄 skip(재시도 낭비 제거).
+      if (sessionDead || isCourseLoggedOut(admin)) { sessionDead = true; skip(pmeta, '세션 만료(로그인 페이지) — 공유 QA 계정 1런/로그인 한계, 재인증 필요(course:auth)'); continue; }
       // heavy 화면이 정적 패스에서 '트리거 0'으로 확인됐으면 재진입 생략 — 재진입해도 '트리거 없음'으로 끝나므로
       //   flake 표면만 제거(동일 결과·정직 사유). 미확인(-1/미기록)이나 트리거≥1은 정상 진입(현행 유지).
       if (isHeavyScreen(screen) && screenTriggerCount.get(screen) === 0) {
-        skip({ path: `${screen} > 팝업 언어검증`, tcRef, tcId: `LANGPOP-${lang.ko}`, desc: `${lang.ko} 팝업 i18n` }, '열기형 트리거 없음(정적 패스 확인) — heavy 재진입 생략');
+        skip(pmeta, '열기형 트리거 없음(정적 패스 확인) — heavy 재진입 생략');
         continue;
       }
-      const ok = await enterCourseMenu(admin, grp.menu, grp.menu === sub.name ? undefined : sub.name);
-      if (!ok) { skip({ path: `${screen} > 팝업 언어검증`, tcRef, tcId: `LANGPOP-${lang.ko}`, desc: `${lang.ko} 팝업 i18n` }, '진입 실패'); continue; }
-      await killAlarms(admin); await settle(admin, 600);
-      await scanCourseForms(admin, lang, screen, tcRef, seen, grp.menu, grp.menu === sub.name ? undefined : sub.name);
-      done++;
-      console.log(`  [langpop ${lang.ko}] ${screen} 완료 (${done})`);
+      // 화면 단위 예외 격리(2026-09-10) — enterCourseMenu·scanCourseForms 등 iteration throw가 팝업 순회 전체를 중단시키지 않도록.
+      try {
+        const ok = await enterCourseMenu(admin, grp.menu, grp.menu === sub.name ? undefined : sub.name);
+        if (!ok) {
+          if (isCourseLoggedOut(admin)) { sessionDead = true; skip(pmeta, '세션 만료(로그인 페이지) — 재인증 필요(course:auth)'); continue; }
+          skip(pmeta, '진입 실패'); continue;
+        }
+        await killAlarms(admin); await settle(admin, 600);
+        await scanCourseForms(admin, lang, screen, tcRef, seen, grp.menu, grp.menu === sub.name ? undefined : sub.name);
+        done++;
+        console.log(`  [langpop ${lang.ko}] ${screen} 완료 (${done})`);
+      } catch (e: any) {
+        const msg = (e?.message || String(e)).replace(/\s+/g, ' ').slice(0, 300);
+        console.warn(`  [langpop ${lang.ko}] ${screen} 예외(격리·계속): ${msg}`);
+        skip({ path: `${screen} > 팝업 언어검증`, tcRef, tcId: `LANGPOP-${lang.ko}`, desc: `${lang.ko} 팝업 i18n` }, `화면 처리 예외(격리·계속): ${msg}`);
+        await ensureCourseKorean(admin).catch(() => {});
+        await killAlarms(admin).catch(() => {});
+      }
     }
   }
   console.log(`\n[courseLangModal] ${lang.ko}(${lang.label}) — ${done}화면 팝업 검증`);
@@ -648,21 +747,39 @@ export async function runCourseLangCheck(admin: Page, lang: CourseLang) {
   seenCoverage.clear(); seenControl.clear();   // 언어별 리포트마다 커버리지 감사 재방출(review는 언어별 reset되므로 dedup도 리셋)
   screenTriggerCount.clear();   // 언어별 정적→모달 재진입 생략 판단 초기화(정적 패스가 이번 언어분으로 재채움)
   let done = 0;
+  let sessionDead = false;   // 런 도중 세션 만료(로그인 페이지) 감지 → 이후 화면 일괄 처리(cascade 복구 헛시도 방지)
   for (const grp of COURSE_IA) {
     for (const sub of grp.subs) {
       const screen = grp.menu === sub.name ? grp.menu : `${grp.menu} > ${sub.name}`;
       if (filt.length && !filt.some((f) => n(screen).includes(f))) continue;
       const tcRef = `코스관리_언어검증_${grp.menu}`;
-      const ok = await enterCourseMenu(admin, grp.menu, grp.menu === sub.name ? undefined : sub.name);
-      if (!ok) { skip({ path: `${screen} > 언어검증`, tcRef, tcId: `LANG-${lang.ko}`, desc: `${lang.ko} 언어검증` }, '진입 실패(하위메뉴 미노출/degraded)'); continue; }
-      await killAlarms(admin); await settle(admin, 600);
-      await scanCourseScreen(admin, lang, screen, tcRef, seen);
-      // 모달 패스 재진입 생략 판단용: 정적 패스는 첫(신선) 방문이라 트리거 탐지가 재진입보다 신뢰도 높음.
-      //   scanCourseScreen 종료 시 ensureCourseKorean로 KO·동일화면 상태 → findModalTriggers(KO 라벨 매칭) 유효.
-      try { await settle(admin, 200); screenTriggerCount.set(screen, (await findModalTriggers(admin)).length); }
-      catch { screenTriggerCount.set(screen, -1); }   // 탐지 실패=미확인 → 모달 패스 정상 진입 폴백
-      done++;
-      console.log(`  [lang ${lang.ko}] ${screen} 완료 (${done}, 트리거 ${screenTriggerCount.get(screen)})`);
+      const lmeta = { path: `${screen} > 언어검증`, tcRef, tcId: `LANG-${lang.ko}`, desc: `${lang.ko} 언어검증` };
+      // 세션 만료 감지(진입/전환 실패로 오분류·cascade 복구 헛시도 방지) — 죽으면 나머지 일괄 skip.
+      //   openCourseAdmin은 '진입 시점'만 fail-fast → 긴 전메뉴 순회는 도중 만료가 흔함([[session-one-run-per-login]]).
+      if (sessionDead || isCourseLoggedOut(admin)) { sessionDead = true; skip(lmeta, '세션 만료(로그인 페이지) — 공유 QA 계정 1런/로그인 한계, 재인증 필요(course:auth)'); continue; }
+      // ⚠ 화면 단위 예외 격리(2026-09-10): enterCourseMenu·scanCourseScreen 등 iteration 전 구간의 throw가
+      //   순회 전체를 중단시키던 취약점 수정 — 던지는 메뉴명+에러를 **콘솔·리포트(skip) 양쪽에 기록**(근본원인 진단)
+      //   하고 KO 상태 복구 후 다음 화면 계속. heavy 맵 화면(코스 모니터 등)이 한 곳에서 던져도 나머지 40+ 화면 진행.
+      try {
+        const ok = await enterCourseMenu(admin, grp.menu, grp.menu === sub.name ? undefined : sub.name);
+        if (!ok) {
+          if (isCourseLoggedOut(admin)) { sessionDead = true; skip(lmeta, '세션 만료(로그인 페이지) — 재인증 필요(course:auth)'); continue; }
+          skip(lmeta, '진입 실패(하위메뉴 미노출/degraded)'); continue;
+        }
+        await killAlarms(admin); await settle(admin, 600);
+        await scanCourseScreen(admin, lang, screen, tcRef, seen);
+        // 모달 패스 재진입 생략 판단용: 정적 패스는 첫(신선) 방문이라 트리거 탐지가 재진입보다 신뢰도 높음.
+        try { await settle(admin, 200); screenTriggerCount.set(screen, (await findModalTriggers(admin)).length); }
+        catch { screenTriggerCount.set(screen, -1); }   // 탐지 실패=미확인 → 모달 패스 정상 진입 폴백
+        done++;
+        console.log(`  [lang ${lang.ko}] ${screen} 완료 (${done}, 트리거 ${screenTriggerCount.get(screen)})`);
+      } catch (e: any) {
+        const msg = (e?.message || String(e)).replace(/\s+/g, ' ').slice(0, 300);
+        console.warn(`  [lang ${lang.ko}] ${screen} 예외(격리·계속): ${msg}`);
+        skip({ path: `${screen} > 언어검증`, tcRef, tcId: `LANG-${lang.ko}`, desc: `${lang.ko} 언어검증` }, `화면 처리 예외(격리·계속): ${msg}`);
+        await ensureCourseKorean(admin).catch(() => {});
+        await killAlarms(admin).catch(() => {});
+      }
     }
   }
   console.log(`\n[courseLangCheck] ${lang.ko}(${lang.label}) — ${done}화면 검증`);

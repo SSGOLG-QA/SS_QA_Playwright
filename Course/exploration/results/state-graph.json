@@ -1,0 +1,183 @@
+{
+  "generatedAt": "2026-09-16T06:21:20.548Z",
+  "nodeCount": 15,
+  "edgeCount": 9,
+  "nodes": [
+    {
+      "key": "작업 관리|작업 지시|조회|aeb3035e",
+      "feature": "작업 관리",
+      "sub": "작업 지시",
+      "businessState": "조회",
+      "url": "https://course-mng-td.smartscore.kr/task/orders",
+      "visits": 1
+    },
+    {
+      "key": "작업 관리|작업 지시|작성중|e2be0f53",
+      "feature": "작업 관리",
+      "sub": "작업 지시",
+      "businessState": "작성중",
+      "url": "https://course-mng-td.smartscore.kr/task/orders",
+      "visits": 1
+    },
+    {
+      "key": "작업 관리|작업 지시|조회|cdc17160",
+      "feature": "작업 관리",
+      "sub": "작업 지시",
+      "businessState": "조회",
+      "url": "https://course-mng-td.smartscore.kr/task/orders",
+      "visits": 1
+    },
+    {
+      "key": "작업 관리|이슈 관리|조회|a662d7f8",
+      "feature": "작업 관리",
+      "sub": "이슈 관리",
+      "businessState": "조회",
+      "url": "https://course-mng-td.smartscore.kr/task/issue",
+      "visits": 1
+    },
+    {
+      "key": "작업 관리|이슈 관리|작성중|d99f11e9",
+      "feature": "작업 관리",
+      "sub": "이슈 관리",
+      "businessState": "작성중",
+      "url": "https://course-mng-td.smartscore.kr/task/issue",
+      "visits": 1
+    },
+    {
+      "key": "정보 관리|코스 기본 정보|조회|3964a8e9",
+      "feature": "정보 관리",
+      "sub": "코스 기본 정보",
+      "businessState": "조회",
+      "url": "https://course-mng-td.smartscore.kr/info/course",
+      "visits": 1
+    },
+    {
+      "key": "정보 관리|발병 정보|조회|b66e0b4b",
+      "feature": "정보 관리",
+      "sub": "발병 정보",
+      "businessState": "조회",
+      "url": "https://course-mng-td.smartscore.kr/info/disease",
+      "visits": 1
+    },
+    {
+      "key": "정보 관리|발병 정보|작성중|a38c0839",
+      "feature": "정보 관리",
+      "sub": "발병 정보",
+      "businessState": "작성중",
+      "url": "https://course-mng-td.smartscore.kr/info/disease",
+      "visits": 1
+    },
+    {
+      "key": "장비 관리|장비 총괄|조회|111ef6d1",
+      "feature": "장비 관리",
+      "sub": "장비 총괄",
+      "businessState": "조회",
+      "url": "https://course-mng-td.smartscore.kr/equipment/summary",
+      "visits": 1
+    },
+    {
+      "key": "장비 관리|장비 총괄|작성중|33c0159b",
+      "feature": "장비 관리",
+      "sub": "장비 총괄",
+      "businessState": "작성중",
+      "url": "https://course-mng-td.smartscore.kr/equipment/summary",
+      "visits": 1
+    },
+    {
+      "key": "장비 관리|장비 총괄|조회|4211a47f",
+      "feature": "장비 관리",
+      "sub": "장비 총괄",
+      "businessState": "조회",
+      "url": "https://course-mng-td.smartscore.kr/equipment/summary",
+      "visits": 1
+    },
+    {
+      "key": "장비 관리|장비 총괄|조회|c15f0355",
+      "feature": "장비 관리",
+      "sub": "장비 총괄",
+      "businessState": "조회",
+      "url": "https://course-mng-td.smartscore.kr/equipment/detail?equipmentIdx=250",
+      "visits": 1
+    },
+    {
+      "key": "자재 관리|자재 총괄|조회|70909c8",
+      "feature": "자재 관리",
+      "sub": "자재 총괄",
+      "businessState": "조회",
+      "url": "https://course-mng-td.smartscore.kr/material/summary",
+      "visits": 1
+    },
+    {
+      "key": "자재 관리|자재 총괄|조회|e96d53bb",
+      "feature": "자재 관리",
+      "sub": "자재 총괄",
+      "businessState": "조회",
+      "url": "https://course-mng-td.smartscore.kr/material/summary",
+      "visits": 1
+    },
+    {
+      "key": "자재 관리|자재 총괄|조회|c2b44fcf",
+      "feature": "자재 관리",
+      "sub": "자재 총괄",
+      "businessState": "조회",
+      "url": "https://course-mng-td.smartscore.kr/material/summary",
+      "visits": 1
+    }
+  ],
+  "edges": [
+    {
+      "from": "작업 관리|작업 지시|조회|aeb3035e",
+      "action": "신규 작업 지시 등록[modal]",
+      "to": "작업 관리|작업 지시|작성중|e2be0f53",
+      "ts": "2026-09-16T06:18:46.255Z"
+    },
+    {
+      "from": "작업 관리|작업 지시|조회|aeb3035e",
+      "action": "보기[modal]",
+      "to": "작업 관리|작업 지시|조회|cdc17160",
+      "ts": "2026-09-16T06:19:08.264Z"
+    },
+    {
+      "from": "작업 관리|이슈 관리|조회|a662d7f8",
+      "action": "신규 이슈 등록[modal]",
+      "to": "작업 관리|이슈 관리|작성중|d99f11e9",
+      "ts": "2026-09-16T06:19:14.161Z"
+    },
+    {
+      "from": "정보 관리|발병 정보|조회|b66e0b4b",
+      "action": "신규 등록[modal]",
+      "to": "정보 관리|발병 정보|작성중|a38c0839",
+      "ts": "2026-09-16T06:19:41.404Z"
+    },
+    {
+      "from": "장비 관리|장비 총괄|조회|111ef6d1",
+      "action": "표준 유류비 설정[modal]",
+      "to": "장비 관리|장비 총괄|작성중|33c0159b",
+      "ts": "2026-09-16T06:20:20.032Z"
+    },
+    {
+      "from": "장비 관리|장비 총괄|조회|111ef6d1",
+      "action": "장비등록[modal]",
+      "to": "장비 관리|장비 총괄|조회|4211a47f",
+      "ts": "2026-09-16T06:20:41.517Z"
+    },
+    {
+      "from": "장비 관리|장비 총괄|조회|111ef6d1",
+      "action": "보기[pagenav]",
+      "to": "장비 관리|장비 총괄|조회|c15f0355",
+      "ts": "2026-09-16T06:20:52.184Z"
+    },
+    {
+      "from": "자재 관리|자재 총괄|조회|70909c8",
+      "action": "자재 등록[modal]",
+      "to": "자재 관리|자재 총괄|조회|e96d53bb",
+      "ts": "2026-09-16T06:20:58.606Z"
+    },
+    {
+      "from": "자재 관리|자재 총괄|조회|70909c8",
+      "action": "보기[modal]",
+      "to": "자재 관리|자재 총괄|조회|c2b44fcf",
+      "ts": "2026-09-16T06:21:20.112Z"
+    }
+  ]
+}

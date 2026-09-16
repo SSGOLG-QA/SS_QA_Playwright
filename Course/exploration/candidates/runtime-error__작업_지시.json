@@ -1,0 +1,23 @@
+{
+  "generatedAt": "2026-09-16T06:58:07.135Z",
+  "autoMergeForbidden": true,
+  "title": "작업 관리 > 작업 지시 [보기] JS 런타임 예외",
+  "feature": "작업 관리 > 작업 지시",
+  "rule": "runtime-error",
+  "severity": "높음(ANOMALY)",
+  "reproCount": "2/2",
+  "reproDetail": "1회: 재현(런타임 console 0·pageerr 1·4xx 0·5xx 0·reqfail 0·dialog 0 · JS예외: Cannot set properties of undefined (setting 'isError')) · 2회: 재현(런타임 console 0·pageerr 1·4xx 0·5xx 0·reqfail 0·dialog 0 · JS예외: Cannot set properties of undefined (setting 'isError'))",
+  "jiraKeys": [],
+  "precondition": "코스관리 PC(course-mng-td·킹즈락) 세션 유효 + 작업 관리 > 작업 지시 진입",
+  "sequence": [
+    "작업 관리 > 작업 지시 진입",
+    "[보기] (modal)"
+  ],
+  "expected": "트리거 실행 시 콘솔/페이지 JS 예외 없이 대상(모달/상세)이 정상 렌더되어야 한다.",
+  "actual": "전이 중 JS예외/5xx 발생 — [보기]",
+  "evidence": "JS예외: Cannot set properties of undefined (setting 'isError')",
+  "console": "JS예외: Cannot set properties of undefined (setting 'isError')",
+  "screenshot": "",
+  "recommendedRegression": "작업 관리 > 작업 지시 진입 → [보기] 클릭 → page.on('pageerror') 및 console error 수집이 0건임을 assert.",
+  "sourceFindingId": "F001"
+}

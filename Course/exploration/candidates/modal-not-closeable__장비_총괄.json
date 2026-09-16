@@ -1,0 +1,28 @@
+{
+  "generatedAt": "2026-09-16T06:58:07.136Z",
+  "autoMergeForbidden": true,
+  "title": "장비 관리 > 장비 총괄 [장비등록] 모달 표준 닫기 불가(하드내비 필요)",
+  "feature": "장비 관리 > 장비 총괄",
+  "rule": "modal-not-closeable",
+  "severity": "중간(NEEDS_REVIEW)",
+  "reproCount": "2/2",
+  "reproDetail": "1회: 재현(kind=modal · 표준닫기후 모달잔존=true) · 2회: 재현(kind=modal · 표준닫기후 모달잔존=true)",
+  "jiraKeys": [
+    "QA-15338",
+    "QA-15491",
+    "QA-15507"
+  ],
+  "precondition": "코스관리 PC(course-mng-td·킹즈락) 세션 유효 + 장비 관리 > 장비 총괄 진입",
+  "sequence": [
+    "장비 관리 > 장비 총괄 진입",
+    "[장비등록] 열기",
+    "닫기 시도(취소/X/Escape) 실패"
+  ],
+  "expected": "모달은 표준 닫기(취소/닫기/X/Escape)로 닫혀야 하며 하드내비 없이 원 화면으로 복귀해야 한다.",
+  "actual": "[장비등록] 모달이 표준 닫기(취소/닫기/X/Escape/확인)로 안 닫힘 — 하드내비로만 복구",
+  "evidence": "표준 닫기(취소/X/Escape/확인) 실패 → page.goto 하드내비로만 복구",
+  "console": "",
+  "screenshot": "",
+  "recommendedRegression": "장비 관리 > 장비 총괄 진입 → [장비등록] 모달 열기 → 취소/Escape → expect(모달 미노출) & 하드내비 불필요 assert.",
+  "sourceFindingId": "F002"
+}

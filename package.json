@@ -154,7 +154,8 @@
     "course:e2e": "playwright test --config=Course/playwright.config.ts --project=course Course/course-e2e-suite.spec.ts",
     "course:locfilter": "playwright test --config=Course/playwright.config.ts --project=course Course/course-location-filter.spec.ts --no-deps",
     "course:notif": "playwright test --config=Course/playwright.config.ts --project=course Course/course-notification-format.spec.ts --no-deps",
-    "course:restock": "playwright test --config=Course/playwright.config.ts --project=course Course/course-material-restock.spec.ts --no-deps"
+    "course:restock": "playwright test --config=Course/playwright.config.ts --project=course Course/course-material-restock.spec.ts --no-deps",
+    "course:explore": "playwright test --config=Course/playwright.config.ts --project=course Course/exploration/course-explore.spec.ts --no-deps"
   },
   "keywords": [],
   "author": "",

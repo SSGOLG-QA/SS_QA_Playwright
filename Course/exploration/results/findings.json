@@ -1,0 +1,59 @@
+{
+  "generatedAt": "2026-09-16T06:21:53.310Z",
+  "count": 2,
+  "byStatus": {
+    "ANOMALY": 1,
+    "NEEDS_REVIEW": 1
+  },
+  "findings": [
+    {
+      "id": "F001",
+      "screen": "작업 관리 > 작업 지시",
+      "sequence": [
+        "작업 관리 > 작업 지시 진입",
+        "[보기] (modal)"
+      ],
+      "status": "ANOMALY",
+      "rule": "runtime-error",
+      "reason": "전이 중 JS예외/5xx 발생 — [보기]",
+      "evidence": "JS예외: Cannot set properties of undefined (setting 'isError')",
+      "jiraKeys": [],
+      "repro": "REPRODUCIBLE_ANOMALY",
+      "replay": {
+        "feature": "작업 관리",
+        "sub": "작업 지시",
+        "trigger": "보기",
+        "kind": "modal",
+        "rule": "runtime-error"
+      },
+      "reproDetail": "1회: 재현(런타임 console 0·pageerr 1·4xx 0·5xx 0·reqfail 0·dialog 0 · JS예외: Cannot set properties of undefined (setting 'isError')) · 2회: 재현(런타임 console 0·pageerr 1·4xx 0·5xx 0·reqfail 0·dialog 0 · JS예외: Cannot set properties of undefined (setting 'isError'))"
+    },
+    {
+      "id": "F002",
+      "screen": "장비 관리 > 장비 총괄",
+      "sequence": [
+        "장비 관리 > 장비 총괄 진입",
+        "[장비등록] 열기",
+        "닫기 시도(취소/X/Escape) 실패"
+      ],
+      "status": "NEEDS_REVIEW",
+      "rule": "modal-not-closeable",
+      "reason": "[장비등록] 모달이 표준 닫기(취소/닫기/X/Escape/확인)로 안 닫힘 — 하드내비로만 복구",
+      "evidence": "표준 닫기(취소/X/Escape/확인) 실패 → page.goto 하드내비로만 복구",
+      "jiraKeys": [
+        "QA-15338",
+        "QA-15491",
+        "QA-15507"
+      ],
+      "repro": "REPRODUCIBLE_ANOMALY",
+      "replay": {
+        "feature": "장비 관리",
+        "sub": "장비 총괄",
+        "trigger": "장비등록",
+        "kind": "modal",
+        "rule": "modal-not-closeable"
+      },
+      "reproDetail": "1회: 재현(kind=modal · 표준닫기후 모달잔존=true) · 2회: 재현(kind=modal · 표준닫기후 모달잔존=true)"
+    }
+  ]
+}

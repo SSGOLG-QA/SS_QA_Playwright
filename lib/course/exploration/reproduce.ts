@@ -4,9 +4,10 @@
 //   비파괴: 재생도 열기형 트리거만(openTrigger). 커밋(저장/삭제/제출)은 안 함. FAIL(결정론)은 재현 대상 아님.
 import type { Page, BrowserContext } from '@playwright/test';
 import { settle } from '../courseHelpers';
-import { openTrigger, closeTarget, forceDismiss, isBlockingModalOpen } from './transitions';
+import { openTrigger, closeTarget, forceDismiss, isBlockingModalOpen, selectFirstRow, VIEW_TRIGGER } from './transitions';
 import { snapshotState } from './observe';
 import { RuntimeObservers, detailSignals, fmtSignals } from './observers';
+import { observeFaultReaction } from './netfault';
 import type { Finding, ReplayInfo } from './anomaly';
 
 const pathOf = (u: string): string => { try { return new URL(u).pathname; } catch { return u.replace(/^https?:\/\/[^/]+/, ''); } };
@@ -31,6 +32,13 @@ async function captureShot(page: Page, shotPath: string): Promise<string | undef
 async function replayOnce(r: ReplayInfo, d: ReproDeps, shotPath?: string): Promise<OnceResult> {
   const cb = await d.reset(r.feature, r.sub);
   if (!cb.clean) return { anomaly: false, note: '리셋 실패(모달 교착) — 재관측 불가' };
+  // netfault 규칙 — 트리거 클릭이 아니라 API 장애 재주입으로 재현. 관측 후 클린 원복돼 스크린샷은 생략(증거=note).
+  if (r.rule.startsWith('netfault')) {
+    const reaction = await observeFaultReaction(d.admin, d.obs, r.status || 500);
+    return { anomaly: reaction.anomaly && reaction.rule === r.rule, note: reaction.note };
+  }
+  // B1: 뷰형 트리거는 재현 시에도 행 선택 선행조건을 동일 적용(재현 충실도).
+  if (VIEW_TRIGGER.test(r.trigger)) await selectFirstRow(d.admin);
   d.obs.clear();
   const res = await openTrigger(d.admin, d.context, r.trigger);
   if (res.kind === 'noop') { const s = d.obs.drain(); return { anomaly: false, note: `무동작(런타임 ${fmtSignals(s)})` }; }

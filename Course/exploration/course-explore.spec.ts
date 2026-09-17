@@ -11,6 +11,9 @@ import { loadBudget } from '../../lib/course/exploration/types';
 //   ⚠ 데이터 변경 0(파괴 가드 미사용). Risk 전체·시퀀스·netfault·재현·후보는 Phase 5~10.
 //   실행(세션 1런/로그인): npm run course:explore  →  reports/코스관리_탐색_*.xlsx + results/state-graph.json
 //   예산 오버라이드: $env:EXPLORE_MAX_ACTIONS / EXPLORE_MAX_DEPTH / EXPLORE_MAX_MIN …
+//   ⚙ opt-in 확장(디폴트 미실행):
+//     · netfault(비파괴 API 장애주입): $env:EXPLORE_NETFAULT="1" [; $env:EXPLORE_NETFAULT_STATUS="503"]
+//     · 파괴 커밋(가드: 킹즈락+마커 teardown): $env:ALLOW_DESTRUCTIVE="1" [; $env:EXPLORE_COMMIT_MAX="3"]
 // ──────────────────────────────────────────────────────────────
 
 // 시드 — 과거결함(QA-15289 PC) **hotspot** 중 폼/리스트 화면(열기형 트리거 풍부).
@@ -32,10 +35,10 @@ test('코스관리 PC 탐색 (관측·전이·서브상태 확장, 비파괴)', 
   await runExplorer(admin, { budget: loadBudget(), seeds: SEEDS, context });
   const name = '코스관리_탐색';
   setReportHtmlOpts(name, {
-    subtitle: 'AI Exploratory Agent · 비파괴 · 관측 + Risk 선택 + 이상 탐지 + 재현(세션내 2회)',
-    lead: '시드 화면을 진입해 <b>구조(dumpScreen)+텍스트지문(captureSlots)+businessState</b>를 관측하고, <b>열기형 트리거</b>(상세·등록·설정)를 클릭해 모달/페이지/새탭 서브상태로 진입한 뒤 그 상태의 구성요소를 관측·기록합니다. 이상 Finding은 <b>재로그인 없이 세션 내 2회 재실행</b>해 <b>REPRODUCIBLE / FLAKY</b>로 분류합니다. 저장/삭제/제출 등 <b>커밋은 실행하지 않습니다</b>(모달=취소·페이지=뒤로·새탭=닫기 복귀).',
-    catch: ['상태 전이(조회→작성중 등) 및 서브상태 구성요소', '전이 중 <b>런타임 이상</b>(JS예외·4xx/5xx·요청실패·dialog)·예상외 nav·모달 교착·반복 비멱등', '이상 Finding <b>재현성 분류</b>(2회 모두 재현=REPRODUCIBLE)'],
-    miss: ['커밋(저장/삭제/제출) 미실행 — netfault/파괴 시퀀스는 후속', '후보 산출(candidates)은 Phase 10', '세션 만료 시 정직 SKIP(1런/로그인)'],
+    subtitle: 'AI Exploratory Agent · 관측 + Risk 선택 + 이상 탐지 + 재현 + 후보 + (opt-in) netfault·파괴 커밋',
+    lead: '시드 화면을 진입해 <b>구조+텍스트지문+businessState</b>를 관측하고 <b>열기형 트리거</b>로 서브상태에 진입해 이상을 탐지, <b>세션 내 2회 재실행</b>으로 REPRODUCIBLE/FLAKY 분류 후 재현확정분을 <b>결함 후보</b>로 산출합니다. opt-in 시 <b>API 장애 주입(netfault·비파괴)</b>과 <b>가드 하 파괴 커밋(마커+teardown)</b>도 수행합니다.',
+    catch: ['상태 전이·서브상태 · 런타임 이상(JS예외·4xx/5xx·dialog)·예상외 nav·모달 교착·반복 비멱등', 'API 장애(4xx/5xx) 시 <b>uncaught 예외/무음 백지</b>(netfault, EXPLORE_NETFAULT=1)', '저장 <b>미반영/무동작/런타임예외</b>(파괴 커밋, ALLOW_DESTRUCTIVE=1)', '이상 <b>재현성 분류</b> + REPRODUCIBLE → 후보 산출'],
+    miss: ['netfault/파괴 커밋은 <b>opt-in</b>(미설정 시 미실행) — 파괴는 3중 가드(킹즈락) + 마커 teardown 잔여0', '미완성 폼(vue-select/datepicker 필수)은 제출 비활성 → 무커밋 SKIP', '세션 만료 시 정직 SKIP(1런/로그인)'],
   });
   await writeReport(name);
 });

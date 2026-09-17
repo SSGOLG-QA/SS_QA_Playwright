@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-16T06:58:07.136Z",
+  "generatedAt": "2026-09-17T00:40:12.229Z",
   "autoMergeForbidden": true,
   "title": "장비 관리 > 장비 총괄 [장비등록] 모달 표준 닫기 불가(하드내비 필요)",
   "feature": "장비 관리 > 장비 총괄",
@@ -22,7 +22,7 @@
   "actual": "[장비등록] 모달이 표준 닫기(취소/닫기/X/Escape/확인)로 안 닫힘 — 하드내비로만 복구",
   "evidence": "표준 닫기(취소/X/Escape/확인) 실패 → page.goto 하드내비로만 복구",
   "console": "",
-  "screenshot": "",
+  "screenshot": "Course/exploration/candidates/F001.png",
   "recommendedRegression": "장비 관리 > 장비 총괄 진입 → [장비등록] 모달 열기 → 취소/Escape → expect(모달 미노출) & 하드내비 불필요 assert.",
-  "sourceFindingId": "F002"
+  "sourceFindingId": "F001"
 }

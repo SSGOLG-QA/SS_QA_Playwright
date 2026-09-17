@@ -7,12 +7,14 @@ import { gotoCourseMenu, killAlarms, isCourseLoggedOut, settle, COURSE_URL } fro
 import { record, review, skip, type CheckMeta } from '../../reporter';
 import { snapshotState, stateKey } from './observe';
 import { StateGraph } from './graph';
-import { collectOpenTriggers, openTrigger, closeTarget, forceDismiss, isBlockingModalOpen, probeTopModal } from './transitions';
+import { collectOpenTriggers, openTrigger, closeTarget, forceDismiss, isBlockingModalOpen, probeTopModal, selectFirstRow, VIEW_TRIGGER } from './transitions';
 import { RuntimeObservers, fmtSignals, detailSignals, hasErrorSignal } from './observers';
 import { loadPastDefects, scoreTrigger } from './risk';
-import { FindingSink, evalTransition, findingModalDeadlock, findingRepeatNonIdempotent } from './anomaly';
+import { FindingSink, evalTransition, findingModalDeadlock, findingRepeatNonIdempotent, findingNetfault, findingCommit } from './anomaly';
 import { reproduceFinding, type ReproDeps } from './reproduce';
 import { writeCandidates } from './candidate';
+import { observeFaultReaction, netfaultEnabled, netfaultStatus } from './netfault';
+import { runCommitSequence } from './commit';
 import type { Budget, ExplorerState } from './types';
 
 export interface Seed { feature: string; sub: string; }
@@ -54,6 +56,8 @@ export async function runExplorer(admin: Page, opts: ExploreOpts): Promise<void>
   const sink = new FindingSink();    // 이상 Finding 수집(비파괴)
   const t0 = Date.now();
   let actions = 0;
+  let commitsDone = 0;   // 파괴 커밋 실행 수(세션 상한)
+  const commitMax = Number(process.env.EXPLORE_COMMIT_MAX) > 0 ? Number(process.env.EXPLORE_COMMIT_MAX) : 3;
   const overBudget = (): boolean => actions >= opts.budget.maxActionsPerSession || (Date.now() - t0) / 60_000 >= opts.budget.maxExecutionMinutes;
 
   for (const seed of opts.seeds) {
@@ -88,6 +92,7 @@ export async function runExplorer(admin: Page, opts: ExploreOpts): Promise<void>
       item: `트리거 ${scored.length} (Risk 내림차순)`, value: scored.map((x) => `${x.t}=${x.rs.score}${x.rs.jiraKeys.length ? `[${x.rs.jiraKeys.join(',')}]` : ''}`).join(' · ') });
     const triggers = scored.map((x) => x.t);
     const riskOf = new Map(scored.map((x) => [x.t, x.rs]));
+    const screenJira = [...new Set(scored.flatMap((x) => x.rs.jiraKeys))].slice(0, 5);   // 화면 hotspot 연관 Jira(netfault 귀속)
     let expanded = 0;
     let lastTrigger = '';   // 직전 트리거(하드내비 필요 시 그 모달의 소유자)
     for (const trg of triggers) {
@@ -109,12 +114,15 @@ export async function runExplorer(admin: Page, opts: ExploreOpts): Promise<void>
         sink.add(f);
         review({ lang: '-', screen: scr, kind: '이상: NEEDS_REVIEW', zone: 'anomaly', item: `[${lastTrigger}] ${f.reason}`, value: f.evidence });
       }
+      // B1: 뷰형 트리거는 행 선택 선행조건 충족(무선택 무동작/미처리 예외 판별).
+      let preRow = '';
+      if (VIEW_TRIGGER.test(trg)) { const s = await selectFirstRow(admin); preRow = ` · 선행 행선택=${s.selected ? s.how : 'X(' + s.how + ')'}`; }
       obs.clear();   // 이 트리거 구간의 런타임 신호 관측 시작
       const res = await openTrigger(admin, opts.context, trg);
       actions++;
       if (res.kind === 'noop') {
         const sig = obs.drain();
-        review({ lang: '-', screen: scr, kind: '무동작 관찰', zone: 'transition', item: `[${trg}] 클릭 후 전환 없음(게이트/선행조건 의심)`, value: `런타임 ${fmtSignals(sig)}` });
+        review({ lang: '-', screen: scr, kind: '무동작 관찰', zone: 'transition', item: `[${trg}] 클릭 후 전환 없음(게이트/선행조건 의심)${preRow}`, value: `런타임 ${fmtSignals(sig)}` });
         if (hasErrorSignal(sig)) review({ lang: '-', screen: scr, kind: '런타임 이상', zone: 'runtime', item: `[${trg}] 무동작이나 에러 신호 — ${fmtSignals(sig)}`, value: detailSignals(sig) });
         continue;
       }
@@ -132,7 +140,7 @@ export async function runExplorer(admin: Page, opts: ExploreOpts): Promise<void>
       record(meta(`${seed.sub}·${trg}`, '전이'), 'PASS',
         { actual: `${res.kind}: ${seedState.businessState}→${target.businessState} · 대상 액션 ${target.actions.length} · Risk ${rs.score}${jira}`, detail: `전이 런타임: ${fmtSignals(sig)} | Risk 근거: ${rs.reasons.join('; ')}` });
       review({ lang: '-', screen: `${scr} · ${trg}(${res.kind})`, kind: '서브상태 관측', zone: 'transition',
-        item: `Risk ${rs.score}${jira} · businessState=${target.businessState} · 액션 ${target.actions.length} · 런타임 ${fmtSignals(sig)}`,
+        item: `Risk ${rs.score}${jira} · businessState=${target.businessState} · 액션 ${target.actions.length} · 런타임 ${fmtSignals(sig)}${preRow}`,
         value: `[${target.actions.map((a) => a.label).slice(0, 16).join(', ')}]` });
       // ── Anomaly 평가(비파괴 규칙): 런타임 이상·예상외 nav → Finding.
       const fnds = evalTransition({ screen: scr, feature: seed.feature, sub: seed.sub, trigger: trg, kind: res.kind, fromBs: seedState.businessState, toBs: target.businessState,
@@ -166,6 +174,39 @@ export async function runExplorer(admin: Page, opts: ExploreOpts): Promise<void>
       // 다음 트리거의 ensureCleanBase 가 잔존 모달(취소 확인)까지 정리 → 여기선 별도 recover 불필요.
     }
     review({ lang: '-', screen: scr, kind: '전이 요약', zone: 'transition', item: `열기형 트리거 ${triggers.length} · 전이 확장 ${expanded}`, value: `[${triggers.join(', ')}]` });
+
+    // ── netfault 패스(비파괴 · opt-in EXPLORE_NETFAULT=1): API 장애(4xx/5xx) 주입 → refetch → 복원력 관찰.
+    if (netfaultEnabled() && !overBudget() && !isCourseLoggedOut(admin)) {
+      await ensureCleanBase(admin, seed);
+      const status = netfaultStatus();
+      const reaction = await observeFaultReaction(admin, obs, status);
+      actions++;
+      if (reaction.anomaly) {
+        const f = findingNetfault(seed.feature, seed.sub, reaction.rule, status, reaction.note, screenJira);
+        sink.add(f);
+        review({ lang: '-', screen: scr, kind: `이상: ${f.status}`, zone: 'netfault', item: `[${reaction.rule}] ${f.reason}${screenJira.length ? ` · 연관 ${screenJira.join(',')}` : ''}`, value: reaction.note });
+      } else {
+        review({ lang: '-', screen: scr, kind: '네트워크 장애 관찰', zone: 'netfault', item: `[${reaction.rule}]`, value: reaction.note });
+      }
+    }
+
+    // ── 파괴 커밋 패스(opt-in ALLOW_DESTRUCTIVE=1 + 3중 가드): 등록 모달 마커 커밋 → 목록 검증 → teardown(잔여0).
+    const regTrg = triggers.find((t) => /신규|등록/.test(t) && !/조회|다운로드|불러오기/.test(t));
+    if (process.env.ALLOW_DESTRUCTIVE === '1' && regTrg && commitsDone < commitMax && !overBudget() && !isCourseLoggedOut(admin)) {
+      if ((await ensureCleanBase(admin, seed)).clean) {
+        const cr = await runCommitSequence(admin, opts.context, obs, regTrg);
+        actions++;
+        if (cr.status !== 'SKIP') commitsDone++;
+        const jkeys = riskOf.get(regTrg)?.jiraKeys || [];
+        if (cr.status === 'ANOMALY' || cr.status === 'NEEDS_REVIEW') {
+          sink.add(findingCommit(seed.feature, seed.sub, regTrg, cr.status, cr.rule, cr.note, jkeys));
+          review({ lang: '-', screen: scr, kind: `이상: ${cr.status}`, zone: 'commit', item: `[${cr.rule}] ${cr.note}${jkeys.length ? ` · 연관 ${jkeys.join(',')}` : ''}`, value: `[${regTrg}] 파괴 커밋` });
+        } else {
+          record(meta(`${seed.sub}·${regTrg}`, '파괴 커밋'), cr.status === 'PASS' ? 'PASS' : 'SKIP', { actual: `${cr.rule}: ${cr.note}` });
+          review({ lang: '-', screen: scr, kind: '파괴 커밋', zone: 'commit', item: `[${regTrg}] ${cr.status} — ${cr.rule}`, value: cr.note });
+        }
+      }
+    }
   }
 
   graph.persist(RESULTS);   // 그래프는 재현 전에 먼저 영속(재현이 상태를 흔들어도 탐색 결과 보존)

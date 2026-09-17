@@ -1,7 +1,7 @@
 # 결함 후보: 장비 관리 > 장비 총괄 — 모달 표준 닫기 불가(하드내비 필요)
 
 > ⚠️ **자동 생성 후보(사람 검토 필요)** · Course/ 스펙에 자동 merge 금지 · 세션 내 2회 재현 확인분.
-> 원천: AI Exploratory Agent 탐색(비파괴). Finding `F002` · 생성 2026-09-16T06:58:07.136Z
+> 원천: AI Exploratory Agent 탐색(비파괴). Finding `F001` · 생성 2026-09-17T00:40:12.228Z
 
 | 항목 | 내용 |
 |---|---|
@@ -35,7 +35,7 @@
 (런타임 이상 규칙 아님 — 콘솔 로그 N/A)
 
 ## Screenshot
-(미수집)
+`Course/exploration/candidates/F001.png`
 
 ## 추천 Regression Test
 장비 관리 > 장비 총괄 진입 → [장비등록] 모달 열기 → 취소/Escape → expect(모달 미노출) & 하드내비 불필요 assert.

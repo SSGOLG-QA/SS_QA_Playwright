@@ -9,8 +9,27 @@ export const DESTRUCTIVE = /저장|삭제|변경|사용\s*중지|관제\s*적용
 // 열기형(전환 유발 가능) 트리거 — 상세/등록폼/설정/편집 등(비파괴 오픈).
 export const OPENISH = /보기|상세|신규\s*등록|등록$|설정|관리$|편집|미리보기|웹뷰|추가$|조회|열기|선택|바로가기|링크/;
 
+// 뷰형 트리거(선행조건: 행 선택이 필요할 수 있음) — 보기/상세/수정/미리보기 등.
+export const VIEW_TRIGGER = /보기|상세|수정|미리보기|현황|내역/;
+
 export type TargetKind = 'modal' | 'newtab' | 'pagenav' | 'noop';
 export interface OpenResult { kind: TargetKind; page?: Page; url?: string; }
+
+// 리스트 첫 행 선택(선행조건) — **행 내 체크박스/라디오만** 클릭(행 자체 클릭에 의한 우발 전이 방지). 비파괴.
+//   뷰형 트리거([보기]/[상세]) 실행 전에 호출해 "행 미선택 무동작/미처리 예외"를 선행조건 충족으로 판별.
+export async function selectFirstRow(admin: Page): Promise<{ selected: boolean; how: string }> {
+  const r = await admin.evaluate(() => {
+    const vis = (e: Element): boolean => { const b = e.getBoundingClientRect(); return b.width > 1 && b.height > 1; };
+    const root = document.querySelector('.contents, main') || document.body;
+    const rows = Array.from(root.querySelectorAll('tbody tr')).filter(vis);
+    if (!rows.length) return { selected: false, how: 'no-rows' };
+    const box = Array.from(rows[0].querySelectorAll('input[type=checkbox], input[type=radio]')).find(vis) as HTMLInputElement | undefined;
+    if (box) { if (!box.checked) box.click(); return { selected: true, how: box.type }; }
+    return { selected: false, how: 'no-checkbox' };
+  }).catch(() => ({ selected: false, how: 'err' }));
+  await settle(admin, 400); await killAlarms(admin);
+  return r;
+}
 
 // 비-알림 모달 노출 여부(차단 모달 감지).
 export async function isBlockingModalOpen(admin: Page): Promise<boolean> {

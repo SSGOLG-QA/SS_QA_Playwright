@@ -400,12 +400,17 @@ async function crawlSubButtons(page: Page, lang: CourseLang, tab: string, parent
       if (/button|btn|cursor-pointer|clickable/.test(cls)) return true;
       return getComputedStyle(el as HTMLElement).cursor === 'pointer';
     };
+    // own-text 리프성(직접 텍스트 보유) — 부모 컨테이너 중복 방지 + "일자별/개인별 상세 작업시간" 박스 포착.
+    const ownLeaf = (el: Element): boolean => Array.from(el.childNodes).some((n) => n.nodeType === 3 && (n.textContent || '').trim().length > 0);
     for (const el of Array.from(document.querySelectorAll('button, .button-common, [role="button"], a, div, li, span'))) {
       const t = ((el as HTMLElement).innerText || '').replace(/\s+/g, ' ').trim();
       if (!t || t.length > 24 || nav.test(t)) continue;
-      // 파괴모드: 뷰형+파괴형 모두 / 기본: 뷰형만.
-      if (!(view.test(t) || (destructive && dest.test(t)))) continue;
-      if (!clickable(el)) continue;                       // 클릭 가능한 요소만(정적 라벨 제외)
+      const isView = view.test(t), isDest = destructive && dest.test(t);
+      if (!(isView || isDest)) continue;
+      // ⚠ 뷰형(VIEW_BTN=제한적 정규식)은 own-text 블록도 후보(클릭은 getByText로 어떤 요소든 동작, 무동작이면 크롤이 skip
+      //   기록). 파괴형은 오클릭 위험 커 clickable 요소로 한정. (2026-09-23: "일자별/개인별 상세 작업시간" div 미포착 해소)
+      if (isDest && !isView && !clickable(el)) continue;
+      if (isView && !clickable(el) && !ownLeaf(el)) continue;
       const r = (el as HTMLElement).getBoundingClientRect(); if (r.width <= 1 || r.height <= 1) continue;
       out.push(t);
     }
@@ -470,13 +475,36 @@ async function scanNavScreen(
   if (!moved) { skip(meta('진입'), `${subName} 화면 전환 없음`); return; }
   let ko = await captureMobileSlots(page);
   if (landingTexts.size) ko = ko.filter((s) => !landingTexts.has(s.text));   // 상주 랜딩 메뉴 제외
-  // ▶ 상세 라벨 캡처 자가진단(2026-09-23, 사용자: 상단 라벨-값 형태 전 상세 일반화 확인) — 이 상세에서 캡처된
-  //   라벨/제목 zone 텍스트를 남겨, 작업명/종류/상태/분류/월간계획 등 상단 라벨이 실제 캡처됐는지(=dedup 문제인지 캡처
-  //   문제인지) 다음 런에서 확정. 캡처됐는데 시트에 없으면 dedup(ownSeen로 해소), 여기에도 없으면 캡처 규칙 보강 필요.
+  // ▶ 상세 라벨 캡처 자가진단(2026-09-23) — 캡처된 라벨 + **누락 라벨의 실 DOM 구조**(병합/CSS ::before/조상)를 덤프.
+  //   자가진단으로 확정: 나의작업보기 상세 53슬롯에 작업명/종류/상태/분류/월간계획 부재 = **캡처 문제**(dedup 아님).
+  //   누락 라벨이 leaf 텍스트가 아니라 병합/pseudo인지 구조를 노출 → 캡처 규칙 정밀 보강.
   {
-    const lbls = ko.filter((s) => s.zone === '입력라벨' || s.zone === '제목' || (s.zone === '텍스트' && s.text.length <= 8)).map((s) => s.text);
+    const koSet = new Set(ko.map((s) => s.text));
+    const CAND = ['작업명', '종류', '상태', '분류', '월간계획', '작업번호', '투입 시간', '브랜드', '점검번호', '위치', '중요도'];
+    const missing = CAND.filter((w) => !koSet.has(w));
+    const struct = await page.evaluate((want) => {
+      const out: string[] = [];
+      for (const w of want) {
+        // textContent 포함(병합 케이스) or ::before/::after content 매칭 요소 탐색.
+        const hits = (Array.from(document.querySelectorAll('*')) as HTMLElement[]).filter((el) => {
+          const own = Array.from(el.childNodes).filter((n) => n.nodeType === 3).map((n) => n.textContent || '').join('').trim();
+          if (own === w || own.includes(w)) return true;
+          const bef = getComputedStyle(el, '::before').content || ''; const aft = getComputedStyle(el, '::after').content || '';
+          return bef.includes(w) || aft.includes(w);
+        });
+        if (!hits.length) { out.push(`"${w}"=DOM부재(렌더전/데이터)`); continue; }
+        const el = hits[0];
+        const own = Array.from(el.childNodes).filter((n) => n.nodeType === 3).map((n) => n.textContent || '').join('').replace(/\s+/g, ' ').trim();
+        const bef = (getComputedStyle(el, '::before').content || '').replace(/^"|"$/g, '');
+        const cls = (el.className || '').toString().replace(/\s+/g, '.').slice(0, 40);
+        const par = el.parentElement; const pcls = par ? (par.className || '').toString().replace(/\s+/g, '.').slice(0, 34) : '';
+        const kids = el.children.length;
+        out.push(`"${w}"=${el.tagName.toLowerCase()}.${cls}[kids=${kids} own="${own.slice(0, 24)}" before="${bef.slice(0, 16)}"] < ${par?.tagName.toLowerCase()}.${pcls}`);
+      }
+      return out;
+    }, missing).catch(() => [] as string[]);
     review({ lang: lang.ko, screen: `${tab} > ${subName}`, kind: '상세 라벨 캡처 진단', zone: 'capture',
-      item: `KO 슬롯 ${ko.length}·라벨후보 ${lbls.length}`, value: [...new Set(lbls)].slice(0, 40).join(' · '), screenshot: '' });
+      item: `KO ${ko.length}·누락 ${missing.join('/') || '없음'}`, value: struct.join('  ||  ') || '전 후보 캡처됨', screenshot: '' });
   }
   if (!ko.length) { skip(meta('캡처'), '고유 시스템 슬롯 0(데이터 화면)'); await mobileBack(page); return; }
   const sw = await switchMobileLangRuntime(page, lang);

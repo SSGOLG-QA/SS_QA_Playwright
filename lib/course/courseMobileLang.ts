@@ -392,11 +392,20 @@ async function crawlSubButtons(page: Page, lang: CourseLang, tab: string, parent
   const cand: string[] = await page.evaluate(({ viewSrc, destSrc, navSrc, destructive }) => {
     const view = new RegExp(viewSrc), dest = new RegExp(destSrc), nav = new RegExp(navSrc);
     const out: string[] = [];
-    for (const el of Array.from(document.querySelectorAll('button, .button-common, [role="button"]'))) {
+    // ⚠ 후보 = 버튼류 + **클릭 가능한 div/컨테이너**(2026-09-23 사용자: "일자별/개인별 상세 작업시간"이 <div>로 렌더돼
+    //   button 셀렉터에서 누락됨). cursor:pointer 또는 button/a/role 인 요소만 → 정적 텍스트 과다매칭 방지.
+    const clickable = (el: Element): boolean => {
+      if (el.matches('button, .button-common, [role="button"], a')) return true;
+      const cls = (el.className || '').toString();
+      if (/button|btn|cursor-pointer|clickable/.test(cls)) return true;
+      return getComputedStyle(el as HTMLElement).cursor === 'pointer';
+    };
+    for (const el of Array.from(document.querySelectorAll('button, .button-common, [role="button"], a, div, li, span'))) {
       const t = ((el as HTMLElement).innerText || '').replace(/\s+/g, ' ').trim();
       if (!t || t.length > 24 || nav.test(t)) continue;
       // 파괴모드: 뷰형+파괴형 모두 / 기본: 뷰형만.
       if (!(view.test(t) || (destructive && dest.test(t)))) continue;
+      if (!clickable(el)) continue;                       // 클릭 가능한 요소만(정적 라벨 제외)
       const r = (el as HTMLElement).getBoundingClientRect(); if (r.width <= 1 || r.height <= 1) continue;
       out.push(t);
     }
@@ -1080,7 +1089,7 @@ export async function runCourseMobileLang(page: Page, lang: CourseLang): Promise
         const b = page.getByText('나의 작업 보기', { exact: true }).first();
         if (!(await b.count().catch(() => 0))) return false;
         await b.click({ timeout: 3_000 }).catch(() => {}); return true;
-      }, landingTexts, gSeen, true, destructiveOk);   // crawl+파괴가드(공유 gSeen: 화면 내 enum 중복 1건화)
+      }, landingTexts, gSeen, true, destructiveOk, true);   // crawl+파괴가드+ownSeen(2026-09-23 사용자: 상단 라벨 작업명/종류/상태/분류/월간계획이 앞 화면 dedup에 눌려 누락 → 나의작업보기는 전용 Set으로 완결 커버)
     } else {   // 리스트형 화면: 항목→상세 진입(카드 우측 chevron → 없으면 **작업 카드**(날짜 포함) 본문 클릭 폴백)
       await scanNavScreen(page, lang, scr.label, '상세', tcRef, async () => {
         const chev = page.locator('i[class*="ico-arrow-next"], [class*="arrow-next"]').filter({ visible: true }).first();

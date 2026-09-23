@@ -198,7 +198,7 @@ async function clickFormBack(page: Page): Promise<boolean> {
 // 프론트(최상위) 레이어 헤더행의 최좌측 back만 좌표 클릭.
 //   baseTitles(진입 전 헤더 타이틀들)에 없던 새 타이틀 = 폼/서브 레이어 → 그 헤더의 back만 눌러 리스트 레이어 오클릭 방지.
 //   baseTitles 없으면 마지막(프론트) 헤더 타이틀 사용. clickFormBack(/등록|수정/ 한정)보다 관대(폼 헤더가 '등록' 없는 경우 대응).
-async function clickFrontLayerBack(page: Page, baseTitles: string[] = []): Promise<boolean> {
+export async function clickFrontLayerBack(page: Page, baseTitles: string[] = []): Promise<boolean> {
   const box = await page.evaluate((baseJson) => {
     const base: string[] = JSON.parse(baseJson);
     const norm = (s: string) => (s || '').replace(/\s+/g, ' ').trim();
@@ -222,7 +222,7 @@ async function clickFrontLayerBack(page: Page, baseTitles: string[] = []): Promi
   return true;
 }
 
-async function headerTitles(page: Page): Promise<string[]> {
+export async function headerTitles(page: Page): Promise<string[]> {
   return page.evaluate(() => (Array.from(document.querySelectorAll('[class*="header-title"]')) as HTMLElement[])
     .map((e) => (e.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean)).catch(() => [] as string[]);
 }

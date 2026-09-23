@@ -470,6 +470,14 @@ async function scanNavScreen(
   if (!moved) { skip(meta('진입'), `${subName} 화면 전환 없음`); return; }
   let ko = await captureMobileSlots(page);
   if (landingTexts.size) ko = ko.filter((s) => !landingTexts.has(s.text));   // 상주 랜딩 메뉴 제외
+  // ▶ 상세 라벨 캡처 자가진단(2026-09-23, 사용자: 상단 라벨-값 형태 전 상세 일반화 확인) — 이 상세에서 캡처된
+  //   라벨/제목 zone 텍스트를 남겨, 작업명/종류/상태/분류/월간계획 등 상단 라벨이 실제 캡처됐는지(=dedup 문제인지 캡처
+  //   문제인지) 다음 런에서 확정. 캡처됐는데 시트에 없으면 dedup(ownSeen로 해소), 여기에도 없으면 캡처 규칙 보강 필요.
+  {
+    const lbls = ko.filter((s) => s.zone === '입력라벨' || s.zone === '제목' || (s.zone === '텍스트' && s.text.length <= 8)).map((s) => s.text);
+    review({ lang: lang.ko, screen: `${tab} > ${subName}`, kind: '상세 라벨 캡처 진단', zone: 'capture',
+      item: `KO 슬롯 ${ko.length}·라벨후보 ${lbls.length}`, value: [...new Set(lbls)].slice(0, 40).join(' · '), screenshot: '' });
+  }
   if (!ko.length) { skip(meta('캡처'), '고유 시스템 슬롯 0(데이터 화면)'); await mobileBack(page); return; }
   const sw = await switchMobileLangRuntime(page, lang);
   if (!sw.ok) { skip(meta('대상 렌더'), sw.why); await restoreMobileKorean(page); await mobileBack(page); return; }
@@ -482,7 +490,9 @@ async function scanNavScreen(
   else skip(meta('대조'), `대상 전환 미반영(공통 ${common}·변경 ${changed})`);
   await restoreMobileKorean(page);
   // 도달 화면(상세/나의작업보기)에서 뷰형(+파괴가드 시 파괴형) 버튼→하위화면 크롤(2단계 중첩 커버). 복귀는 크롤러가 처리.
-  if (crawl) await crawlSubButtons(page, lang, tab, subName, tcRef, gSeen, destructive);
+  // ⚠ 크롤도 emitSeen 사용(2026-09-23): ownSeen 화면은 서브화면(일자별/개인별 상세 작업시간 등)도 전용 Set으로 완결 커버
+  //   (기본 화면은 emitSeen===gSeen이라 동작 불변). 서브화면 라벨이 앞 화면 dedup에 눌리지 않음.
+  if (crawl) await crawlSubButtons(page, lang, tab, subName, tcRef, emitSeen, destructive);
   await mobileBack(page); await settle(page, 500); await killMobileAlarms(page);
 }
 
@@ -1108,7 +1118,7 @@ export async function runCourseMobileLang(page: Page, lang: CourseLang): Promise
         const card = page.locator('[class*="bd-dde3ec"], [class*="bdr-12"]').filter({ visible: true }).nth(0);   // 최후 폴백
         if (!(await card.count().catch(() => 0))) return false;
         await card.click({ timeout: 3_000 }).catch(() => {}); return true;
-      }, landingTexts, gSeen, true, destructiveOk);   // crawl+파괴가드(공유 gSeen: 상세 enum은 기본과 중복 안 되게 1건화, 상세 고유 라벨만 노출)
+      }, landingTexts, gSeen, true, destructiveOk, true);   // crawl+파괴가드+ownSeen(2026-09-23 일반화: 나의작업보기와 동일한 상단 라벨-값 형태가 전 상세 화면(작업지시/작업관리/일상/이슈/장비/시설/자재)에 있음 → 각 상세도 전용 Set으로 완결 커버, 앞 화면 dedup에 눌리지 않음)
     }
   }
   await restoreMobileKorean(page);

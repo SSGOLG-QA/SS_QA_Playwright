@@ -38,6 +38,7 @@
     "course:mobile-sort": "playwright test --config=Course/playwright.config.ts --project=course Course/course-mobile-sort.spec.ts --no-deps",
     "course:mobile-facility": "playwright test --config=Course/playwright.config.ts --project=course Course/course-mobile-facility.spec.ts --no-deps",
     "course:mobile-deep": "playwright test --config=Course/playwright.config.ts --project=course Course/course-mobile-deep.spec.ts --no-deps",
+    "course:explore-mobile": "playwright test --config=Course/playwright.config.ts --project=course Course/course-explore-mobile.spec.ts --no-deps",
     "course:sort": "playwright test --config=Course/playwright.config.ts --project=course Course/course-sort.spec.ts --no-deps",
     "course:smoke": "playwright test --config=Course/playwright.config.ts --project=course Course/course-smoke.spec.ts",
     "course:suite": "playwright test --config=Course/playwright.config.ts --project=course Course/course-suite.spec.ts",

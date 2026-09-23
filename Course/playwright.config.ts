@@ -50,6 +50,13 @@ export default defineConfig({
       testMatch: /auth[\\/]course\.setup\.ts/,
       use: { headless: false },
     },
+    // 1-M) 모바일 웹 인증 세션 생성 (headed 수동 로그인) — 별도 앱(/mobile/Login), 데스크톱과 세션 분리.
+    //   viewport 는 스펙 test.use(devices) 로 지정 → 여기선 headless 만 해제(폼 직접 로그인).
+    {
+      name: 'course-mobile-setup',
+      testMatch: /auth[\\/]course-mobile\.setup\.ts/,
+      use: { headless: false, viewport: { width: 390, height: 844 }, launchOptions: { args: [] } },
+    },
     // 2) 코스관리 테스트 — 저장된 세션 재사용
     {
       name: 'course',

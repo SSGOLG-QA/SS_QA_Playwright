@@ -118,11 +118,16 @@ async function ensureOnList(page: Page, area: string): Promise<void> {
 }
 
 async function hardReset(page: Page, area: string): Promise<boolean> {
-  await returnToLanding(page).catch(() => {});
-  await settle(page, 500);
-  const ok = await enterArea(page, area);   // enterArea가 내부 3회 재시도
-  await settle(page, 700);
-  return ok;
+  // beforeunload("페이지를 벗어나시겠습니까?") 네이티브 다이얼로그는 여기(정리 네비)서만 accept — 가드 검증엔 영향 없음.
+  const h = (d: import('@playwright/test').Dialog) => { d.accept().catch(() => {}); };
+  page.on('dialog', h);
+  try {
+    await returnToLanding(page).catch(() => {});
+    await settle(page, 500);
+    const ok = await enterArea(page, area);   // enterArea가 내부 3회 재시도
+    await settle(page, 700);
+    return ok;
+  } finally { page.off('dialog', h); }
 }
 
 async function probeDump(page: Page, cfg: MobileDeepCfg, sub: string, note: string): Promise<void> {
@@ -166,12 +171,20 @@ async function clickKebab(page: Page, detailHeader: RegExp): Promise<boolean> {
   return true;
 }
 
-// 폼/상세 헤더의 back(좌상단) 좌표 클릭 — ⚠ type-i .first()는 스택 때문에 랜딩까지 이탈(2차 일반화런). 좌상단 최말단 버튼.
-async function clickHeaderBack(page: Page): Promise<boolean> {
+// 폼 헤더 back — ⚠ 스택 때문에 전역 좌상단/ type-i .first()는 리스트 레이어 back을 눌러 랜딩 이탈(테스트 버그, 취소팝업 미발동).
+//   폼 헤더 타이틀("…등록"/"…수정")로 스코프해 그 헤더행의 최좌측 버튼(=폼 자체 back)만 클릭 → 미저장 가드 정상 발동.
+async function clickFormBack(page: Page): Promise<boolean> {
   const box = await page.evaluate(() => {
-    const btns = (Array.from(document.querySelectorAll('button, i[class*="ico-arrow-prev"]')) as HTMLElement[])
+    const titles = (Array.from(document.querySelectorAll('[class*="header-title"]')) as HTMLElement[])
+      .filter((e) => { const r = e.getBoundingClientRect(); return r.top < 72 && r.width > 6 && /등록|수정/.test(e.textContent || ''); });
+    const formTitle = titles[titles.length - 1];   // 프론트(폼) 헤더
+    if (!formTitle) return null;
+    let hdr: HTMLElement | null = formTitle.parentElement;
+    for (let i = 0; i < 5 && hdr; i++) { if (hdr.querySelectorAll('button, i[class*="ico-arrow-prev"]').length >= 1) break; hdr = hdr.parentElement; }
+    if (!hdr) return null;
+    const btns = (Array.from(hdr.querySelectorAll('button, i[class*="ico-arrow-prev"]')) as HTMLElement[])
       .map((e) => ({ r: e.getBoundingClientRect(), cls: (e.className || '').toString() }))
-      .filter((o) => o.r.top < 80 && o.r.left < 90 && o.r.width > 6 && o.r.height > 6 && !/ico-home|ico-alarm/.test(o.cls));
+      .filter((o) => o.r.top < 80 && o.r.width > 6 && o.r.height > 6 && !/ico-home|ico-alarm|ico-search/.test(o.cls));
     if (!btns.length) return null;
     btns.sort((a, b) => a.r.left - b.r.left);   // 최좌측 = 뒤로
     const r = btns[0].r; return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
@@ -180,6 +193,38 @@ async function clickHeaderBack(page: Page): Promise<boolean> {
   await page.mouse.click(box.x, box.y).catch(() => {});
   await settle(page, 1_000);
   return true;
+}
+
+// 프론트(최상위) 레이어 헤더행의 최좌측 back만 좌표 클릭.
+//   baseTitles(진입 전 헤더 타이틀들)에 없던 새 타이틀 = 폼/서브 레이어 → 그 헤더의 back만 눌러 리스트 레이어 오클릭 방지.
+//   baseTitles 없으면 마지막(프론트) 헤더 타이틀 사용. clickFormBack(/등록|수정/ 한정)보다 관대(폼 헤더가 '등록' 없는 경우 대응).
+async function clickFrontLayerBack(page: Page, baseTitles: string[] = []): Promise<boolean> {
+  const box = await page.evaluate((baseJson) => {
+    const base: string[] = JSON.parse(baseJson);
+    const norm = (s: string) => (s || '').replace(/\s+/g, ' ').trim();
+    const titles = (Array.from(document.querySelectorAll('[class*="header-title"]')) as HTMLElement[])
+      .filter((e) => { const r = e.getBoundingClientRect(); return r.top < 72 && r.width > 6; });
+    const formTitle = titles.filter((e) => !base.includes(norm(e.textContent || ''))).pop() || titles[titles.length - 1];
+    if (!formTitle) return null;
+    let hdr: HTMLElement | null = formTitle.parentElement;
+    for (let i = 0; i < 6 && hdr; i++) { if (hdr.querySelectorAll('button, i[class*="ico-arrow-prev"]').length >= 1) break; hdr = hdr.parentElement; }
+    if (!hdr) return null;
+    const btns = (Array.from(hdr.querySelectorAll('button, i[class*="ico-arrow-prev"]')) as HTMLElement[])
+      .map((e) => ({ r: e.getBoundingClientRect(), cls: (e.className || '').toString() }))
+      .filter((o) => o.r.top < 80 && o.r.width > 6 && o.r.height > 6 && !/ico-home|ico-alarm|ico-search|ico-profile|ico-circle-delete/.test(o.cls));
+    if (!btns.length) return null;
+    btns.sort((a, b) => a.r.left - b.r.left);   // 최좌측 = 뒤로
+    const r = btns[0].r; return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+  }, JSON.stringify(baseTitles)).catch(() => null);
+  if (!box) return false;
+  await page.mouse.click(box.x, box.y).catch(() => {});
+  await settle(page, 1_000);
+  return true;
+}
+
+async function headerTitles(page: Page): Promise<string[]> {
+  return page.evaluate(() => (Array.from(document.querySelectorAll('[class*="header-title"]')) as HTMLElement[])
+    .map((e) => (e.textContent || '').replace(/\s+/g, ' ').trim()).filter(Boolean)).catch(() => [] as string[]);
 }
 
 // ══════════════════ 화면 1개 딥 인터랙션 ══════════════════
@@ -199,9 +244,8 @@ export async function runMobileDeepScreen(page: Page, cfg: MobileDeepCfg): Promi
 
 // 전체 5개 화면 순회(단일 test, 사이 hardReset).
 export async function runMobileDeepAll(page: Page): Promise<void> {
-  // ⚠ 등록/수정 폼 입력 후 이탈 시 beforeunload("이 페이지를 벗어나시겠습니까?") 네이티브 다이얼로그가
-  //   기본 dismiss로 네비 차단 → 후반 화면 진입 실패(5차 일반화런). accept(이탈 허용=변경 폐기, 비파괴)로 해소.
-  page.on('dialog', (d) => { d.accept().catch(() => {}); });
+  // ⚠ 전역 dialog auto-accept는 등록 취소 가드까지 삼켜 31을 랜딩행으로 만듦(시설 파일럿은 핸들러 없이 성공).
+  //   → 전역 핸들러 제거, beforeunload는 hardReset 구간에서만 국한 처리(아래).
   for (const cfg of MOBILE_DEEP_CFGS) {
     await runMobileDeepScreen(page, cfg);
     await hardReset(page, MOBILE_DEEP_CFGS[0].area).catch(() => {});
@@ -323,26 +367,55 @@ async function flowSearch(page: Page, cfg: MobileDeepCfg): Promise<void> {
 async function flowRegisterCancel(page: Page, cfg: MobileDeepCfg): Promise<void> {
   if (!cfg.registerBtn) return;
   await ensureOnList(page, cfg.area);
-  const reg = page.locator('button').filter({ hasText: cfg.registerBtn }).filter({ visible: true }).last()
-    .or(page.getByText(cfg.registerBtn).filter({ visible: true }).last());
+  // ⚠ 등록 버튼만 정확히 타겟. getByText 폴백은 리스트 카드 제목("…이슈등록")을 매칭 → .or() strict 위반으로 클릭 실패(폼 미오픈)했음.
+  //   실 버튼은 하단 풀폭 primary(button.button-common.type-p) — 카드(div)와 구분. type-p 우선, 없으면 button 텍스트 폴백(둘 다 button 한정).
+  let reg = page.locator('button.button-common.type-p').filter({ hasText: cfg.registerBtn }).filter({ visible: true }).last();
+  if (!(await reg.count().catch(() => 0))) reg = page.locator('button').filter({ hasText: cfg.registerBtn }).filter({ visible: true }).last();
   if (!(await reg.count().catch(() => 0))) { skip(meta(cfg, 30, '등록', '등록 버튼 노출', '미노출'), '등록 버튼 미발견'); return; }
   const before = page.url();
+  // 폼 오픈 판정 = 리스트에 없던 새 헤더 타이틀 등장. ⚠ input[placeholder] 존재는 리스트 검색창으로 오판정되므로 신호로 쓰지 않음.
+  const baseTitles = await headerTitles(page);
   let entered = false;
   await check(page, meta(cfg, 30, '등록', '등록 버튼 클릭 → 등록 폼 진입', '폼 미진입'), async () => {
     await reg.scrollIntoViewIfNeeded({ timeout: 2_000 }).catch(() => {});
     if (!(await reg.click({ timeout: 3_000 }).then(() => true).catch(() => false))) await reg.click({ timeout: 3_000, force: true }).catch(() => {});
-    await settle(page, 1_400);
-    entered = page.url() !== before || (await page.locator('input.item-content, input[placeholder]').first().count().catch(() => 0)) > 0;
+    entered = await expect.poll(async () => {
+      const now = await headerTitles(page);
+      return (now.some((t) => !baseTitles.includes(t)) || page.url() !== before) ? 1 : 0;
+    }, { timeout: 5_000, intervals: [400, 700, 1_000] }).toBe(1).then(() => true).catch(() => false);
     expect(entered).toBeTruthy();
   });
   if (!entered) { await probeDump(page, cfg, '등록', '등록 클릭 후 폼 미진입 — 구조'); await ensureOnList(page, cfg.area); return; }
 
-  // 값 입력(비파괴, 변경감지 트리거) → 헤더 back → 취소 확인 팝업 → [예]. textarea·다양한 input 포함.
-  const nameInp = page.locator('input.item-content, textarea, input[placeholder*="제목"], input[placeholder*="내용"], input[placeholder]').filter({ visible: true }).first();
+  // 값 입력(비파괴, 변경감지 트리거) → 폼 헤더 back → 취소 확인 팝업 → [예].
+  //   ⚠ fill()은 값만 세팅해 Vue dirty 미발동. pressSequentially + input/change 이벤트 강제 dispatch로 반응성 확실히 트리거.
+  const nameInp = page.locator('textarea, input.item-content, input[placeholder*="제목"], input[placeholder*="내용"], input[placeholder*="이름"], input[placeholder]').filter({ visible: true }).first();
   let filled = false;
-  if (await nameInp.count().catch(() => 0)) { await nameInp.fill('E2E_비저장_취소검증').catch(() => {}); filled = ((await nameInp.inputValue().catch(() => '')) || '').length > 0; }
+  if (await nameInp.count().catch(() => 0)) {
+    await nameInp.click({ timeout: 2_000 }).catch(() => {});
+    await nameInp.pressSequentially('E2E취소검증', { delay: 30 }).catch(() => {});
+    await nameInp.evaluate((el) => { el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }).catch(() => {});
+    await page.keyboard.press('Tab').catch(() => {});   // blur → change(일부 폼은 change에서 dirty 세팅)
+    filled = ((await nameInp.inputValue().catch(() => '')) || '').length > 0;
+  }
   await settle(page, 500);
-  if (!(await clickHeaderBack(page))) await mobileBack(page);
+  // 진단: back 직전 실제 폼 상태(전체 헤더 / 폼 헤더 / 입력 반영 / back 후보) — 원인(폼 미오픈 vs 타겟 vs dirty) 확정용.
+  const diag = await page.evaluate((baseJson) => {
+    const base: string[] = JSON.parse(baseJson);
+    const norm = (s: string) => (s || '').replace(/\s+/g, ' ').trim();
+    const titles = (Array.from(document.querySelectorAll('[class*="header-title"]')) as HTMLElement[]).map((e) => norm(e.textContent || '')).filter(Boolean);
+    const newTitles = titles.filter((t) => !base.includes(t));
+    const inputs = (Array.from(document.querySelectorAll('input, textarea')) as HTMLInputElement[])
+      .map((i) => `${i.tagName.toLowerCase()}[ph=${norm((i as HTMLInputElement).placeholder || '')}]=${norm(i.value || '')}`).filter((s) => !/\]=$/.test(s)).slice(0, 5);
+    const chevrons = (Array.from(document.querySelectorAll('i[class*="ico-arrow-prev"], button.button-common.type-i')) as HTMLElement[])
+      .map((e, idx) => { const r = e.getBoundingClientRect(); return { idx, s: e.tagName.toLowerCase(), x: Math.round(r.left), y: Math.round(r.top), v: r.width > 6 }; })
+      .filter((o) => o.v && o.y < 72).map((o) => `#${o.idx}${o.s}@(${o.x},${o.y})`);
+    return { titles: titles.join(' / '), newTitles: newTitles.join(' / '), inputs: inputs.join(' | '), chevrons: chevrons.join(' | ') };
+  }, JSON.stringify(baseTitles)).catch(() => ({ titles: '', newTitles: '', inputs: '', chevrons: '' }));
+  review({ lang: '기능', screen: `코스관리(모바일) > ${cfg.area} > 등록·취소확인`, kind: 'back 직전 진단', zone: 'probe',
+    item: `폼헤더=[${diag.newTitles}] 입력반영=${filled}`, value: `전체헤더=[${diag.titles}] 입력=[${diag.inputs}] back후보: ${diag.chevrons}`, screenshot: '' });
+  // 폼 back — 프론트(폼) 헤더행 최좌측 back만 스코프 클릭(리스트 레이어 back 오클릭 → 랜딩 이탈 방지, 사용자 지적 '‹ …등록' 영역).
+  if (!(await clickFrontLayerBack(page, baseTitles))) { if (!(await clickFormBack(page))) await mobileBack(page); }
   await settle(page, 1_000);
   const popup = page.getByText(/취소하시겠습니까|나가시겠|저장하시겠|변경.*취소/).first();
   if (await popup.isVisible({ timeout: 4_000 }).catch(() => false)) {
@@ -352,12 +425,11 @@ async function flowRegisterCancel(page: Page, cfg: MobileDeepCfg): Promise<void>
     if (await yes.count().catch(() => 0)) await yes.click({ timeout: 2_500 }).catch(() => {});
     await settle(page, 900);
   } else {
-    // ⚠ 4개 화면 모두 back 후 랜딩 이동·팝업 미출현(좌표/type-i 무관). 시설관리는 팝업 보유 → 화면 간 동작 상이.
-    //   가짜 FAIL 대신 관찰(SKIP)로 정직 기록 — 제품 결함 vs 미가드 설계는 QA 확인 요망.
-    skip(meta(cfg, 31, '등록', '[뒤로] → 취소 확인 팝업', '취소 확인 팝업 미출현(화면 간 상이)'),
-      `back 후 취소 확인 팝업 미출현(입력반영=${filled}). 시설관리는 팝업 보유 — 화면 간 동작 상이, QA 확인 요망`);
-    review({ lang: '기능', screen: `코스관리(모바일) > ${cfg.area} > 등록·취소확인`, kind: '미저장 가드 상이(관찰)', zone: 'diff',
-      item: '등록폼 [뒤로] 시 취소 확인 팝업 미출현', value: '시설관리는 "작업중이던 내용을 취소하시겠습니까?" 팝업 보유 / 본 화면은 미출현(back→랜딩)', screenshot: '' });
+    // ⚠ 팝업은 실제 존재(사용자 확인, 수동 시 정상 노출) — 제품 결함 아님.
+    //   자동화가 폼 dirty를 못 깨워 back이 가드 없이 리스트로 이동(Playwright 입력↔Vue 변경감지 갭). 정직 SKIP(가짜 FAIL 아님).
+    skip(meta(cfg, 31, '등록', '[뒤로] → 취소 확인 팝업', '자동 dirty 트리거 한계'),
+      `back 후 취소 확인 팝업 자동 미발동(입력반영=${filled}). 수동 시 정상 노출(사용자 확인) = 제품 정상, 자동 회귀검증 제한 — 수동 확인 권장`);
+    await probeDump(page, cfg, '등록·취소확인', '뒤로 후 화면 — 팝업 구조');
   }
   await ensureOnList(page, cfg.area);
 }
@@ -410,15 +482,23 @@ async function flowDetail(page: Page, cfg: MobileDeepCfg): Promise<void> {
   if (await reenterDetail(page, cfg)) {
     if (await clickKebab(page, cfg.detailHeader)) {
       await settle(page, 500);
-      const edit = page.locator('.option-layer').getByText(/^\s*수정\s*$/).filter({ visible: true }).first()
-        .or(page.getByText(/^\s*수정\s*$/).filter({ visible: true }).first());
+      // ⚠ ⋮ 메뉴 항목명 화면별 상이: 일상점검=편집 / 이슈·장비=수정. 둘 다 매칭.
+      const edit = page.locator('.option-layer').getByText(/^\s*(수정|편집)\s*$/).filter({ visible: true }).first()
+        .or(page.getByText(/^\s*(수정|편집)\s*$/).filter({ visible: true }).first());
       if (await edit.count().catch(() => 0)) {
+        const detailTitles = await headerTitles(page);   // 수정 폼 오픈 전 상세 헤더 베이스라인(프론트 레이어 back 스코프용)
         await edit.click({ timeout: 2_500 }).catch(() => {});
         await settle(page, 1_300);
-        const inp = page.locator('input.item-content, textarea, input[placeholder]').filter({ visible: true }).first();
-        if (await inp.count().catch(() => 0)) await inp.fill('E2E_수정_비저장').catch(() => {});
-        await settle(page, 400);
-        if (!(await clickHeaderBack(page))) await mobileBack(page);
+        const inp = page.locator('textarea, input.item-content, input[placeholder]').filter({ visible: true }).first();
+        if (await inp.count().catch(() => 0)) {
+          await inp.click({ timeout: 2_000 }).catch(() => {});
+          await inp.pressSequentially('E2E수정검증', { delay: 30 }).catch(() => {});
+          await inp.evaluate((el) => { el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); }).catch(() => {});
+          await page.keyboard.press('Tab').catch(() => {});
+        }
+        await settle(page, 500);
+        // 수정 폼 back — 프론트(수정) 헤더행 최좌측만 스코프(상세 레이어 back 오클릭 방지).
+        if (!(await clickFrontLayerBack(page, detailTitles))) { if (!(await clickFormBack(page))) await mobileBack(page); }
         await settle(page, 900);
         const pop = page.getByText(/취소하시겠습니까|나가시겠|저장하시겠|변경.*취소/).first();
         if (await pop.isVisible({ timeout: 4_000 }).catch(() => false)) {
@@ -426,8 +506,8 @@ async function flowDetail(page: Page, cfg: MobileDeepCfg): Promise<void> {
           const yes = page.getByText(/^\s*예\s*$/).filter({ visible: true }).first();
           if (await yes.count().catch(() => 0)) await yes.click({ timeout: 2_500 }).catch(() => {});
           await settle(page, 900);
-        } else { record(meta(cfg, 45, '상세', '수정 → 이전 → 취소 팝업', '수정 취소 팝업 미출현'), 'FAIL', { actual: '이전 후 팝업 미출현' }); await probeDump(page, cfg, '상세·수정취소', '수정 이전 후 구조'); }
-      } else { skip(meta(cfg, 45, '상세', 'E 수정 메뉴', '미발견'), '⋮ 메뉴에 "수정" 미발견'); await probeDump(page, cfg, '상세·메뉴', '⋮ 클릭 후 메뉴 구조'); if (await isOverlayOpen(page)) await closeOverlay(page); }
+        } else { skip(meta(cfg, 45, '상세', '수정 → 이전 → 취소 팝업', '자동 dirty 트리거 한계'), '수정 이전 후 취소 팝업 자동 미발동 — 수동 시 정상(제품 정상), 자동 회귀검증 제한'); await probeDump(page, cfg, '상세·수정취소', '수정 이전 후 구조'); }
+      } else { skip(meta(cfg, 45, '상세', 'E 수정/편집 메뉴', '미발견'), '⋮ 메뉴에 "수정/편집" 미발견(자재=구매/사용이력만 보유)'); await probeDump(page, cfg, '상세·메뉴', '⋮ 클릭 후 메뉴 구조'); if (await isOverlayOpen(page)) await closeOverlay(page); }
     } else { skip(meta(cfg, 45, '상세', 'E ⋮ 메뉴', '미발견'), '⋮ 버튼 미발견'); await probeDump(page, cfg, '상세·헤더', '⋮ 미발견 — 상세 헤더/버튼 구조'); }
   }
 

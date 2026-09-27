@@ -227,7 +227,10 @@ export async function captureMobileSlots(page: Page, rootSel?: string, keepDatep
     // 데이터/사용자 컨텐츠 조상 제외.
     // ⚠ `[class*="row"]` 제거(2026-09-15 프로브): 앱의 **layout-row-* 유틸 클래스**를 매칭해 설명문구·요약·서브페이지
     //   콘텐츠를 통째로 과다제외 → 타일 메뉴만 남아 전 화면 반복됐음. 데이터 행은 list-item/tbody + looksData(숫자)로 제외.
-    const EXCL = ['input', 'textarea', 'table', 'tbody', '[class*="badge"]', '.vs__selected', '.vs__dropdown-menu',
+    // ⚠ badge 제외에서 **badge-content 예외**(2026-09-27 구조진단): 상세 상단 라벨(작업명/종류/상태/분류/월간계획)이
+    //   span.fs-16 < div.badge-content(회색 칩)로 렌더 → 기존 [class*="badge"]가 라벨 칩을 값 배지로 오인해 통째 제외.
+    //   badge-content(라벨/enum 칩)는 시스템 텍스트라 유지, 그 외 값 배지만 제외.
+    const EXCL = ['input', 'textarea', 'table', 'tbody', '[class*="badge"]:not([class*="badge-content"])', '.vs__selected', '.vs__dropdown-menu',
       '[class*="list-item"]', '[class*="list__item"]', ...(keepDatepicker ? [] : ['[class*="datepicker"]'])];
     // ⚠ **데이터 카드 제외**(2026-09-15 프로브): 리스트 카드는 사용자 데이터(작업제목·이름·뱃지). bd-dde3ec/bdr-12 는
     //   랜딩 타일에도 쓰여 class로는 구분 불가 → **핵심 구분자 = 날짜(YYYY-MM-DD/YYYY.MM.DD)를 담은 카드만 데이터**

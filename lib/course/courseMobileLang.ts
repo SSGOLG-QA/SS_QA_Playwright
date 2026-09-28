@@ -325,6 +325,24 @@ export async function captureMobileSlots(page: Page, rootSel?: string, keepDatep
         slots.push({ key, zone, text: text.replace(/\d+/g, '#').slice(0, 90), clip, ell });
       }
     }
+    // ── 상세 라벨 칩(badge-content) 명시 캡처(2026-09-27 구조진단 확정) — 상단 라벨(작업명/종류/상태/분류/월간계획)이
+    //   span.fs-16 < div.badge-content(회색 칩)로, 값 배지 제외 규칙(EXCL [class*=badge])에 걸려 통째 누락됐음.
+    //   badge-content = 라벨/enum 시스템 칩 → **inExcl 우회 직접 캡처**(상위 badge 조상 유무 무관). 값·인명·데이터 concat 만 컷.
+    for (const root of roots) {
+      for (const el of Array.from(root.querySelectorAll('[class*="badge-content"] *, [class*="badge-content"]'))) {
+        const he = el as HTMLElement;
+        if (he.children.length) continue;                 // leaf만(칩 텍스트)
+        if (!isVisible(el)) continue;
+        const text = (he.innerText || '').replace(/\s+/g, ' ').trim();
+        if (!text || text.length > 40 || looksData(text)) continue;   // 라벨/짧은 enum만(긴 값·데이터 제외)
+        if (nearPersonLabel(el)) continue;
+        if (inDataCard(el) && /[:：]|\//.test(text)) continue;
+        const zone = zoneOf(el);
+        const key = zone + '|' + domPath(el);
+        if (seen.has(key)) continue; seen.add(key);
+        slots.push({ key, zone, text: text.replace(/\d+/g, '#').slice(0, 40), clip: false, ell: false });
+      }
+    }
     // ── placeholder(입력 안내문구) 캡처: input/textarea 는 EXCL이지만 placeholder 는 **시스템 텍스트**(검색창·폼 안내).
     //   값(value)이 아닌 placeholder 속성만 → 데이터 아님. 폼/검색 커버리지 확장.
     for (const root of roots) {

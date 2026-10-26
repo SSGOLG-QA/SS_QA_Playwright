@@ -4,6 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import { navigateMenu, settle } from './adminHelpers';
 import { appendRun } from './historyDb';
+import { addMenuRenderSample, flushMenuRender } from './perfSignals';
+import { summarizeFails, FAIL_CLASS_LABEL, FAIL_CLASS_ACTION, type FailClass } from './failTriage';
 import { renderStandardReportHtml, ReportHtmlOpts } from './reportHtml';
 
 // ──────────────────────────────────────────────────────────────
@@ -246,8 +248,10 @@ export async function checkRowCountVsTotal(page: Page, meta: CheckMeta, tableSel
 //  ⚠ 진입 성공 화면마다 미가공 코드/오타 자동 스캔(checkRawCode) → 전 메뉴 일괄 적용.
 //    opts.scanRawCode=false 로 끌 수 있음.
 export async function gotoMenu(page: Page, parent: string, child: string, meta: CheckMeta, opts: { scanRawCode?: boolean } = {}): Promise<boolean> {
+  const _t0 = Date.now();   // 성능 신호(관찰): 메뉴 렌더 = 클릭→정착 벽시계 시간
   const ok = await navigateMenu(page, parent, child).catch(() => false);
   await settle(page);
+  if (ok) addMenuRenderSample(child, Date.now() - _t0);   // 진입 성공분만 집계(실패는 렌더 아님)
   if (!ok) {
     const screenshot = await capture(page, meta);
     results.push({ ...meta, status: 'FAIL', error: meta.failMsg || '메뉴 진입 불가', detail: `SNB '${parent} > ${child}' 클릭 실패`, screenshot, time: new Date().toLocaleString('ko-KR') });
@@ -259,11 +263,14 @@ export async function gotoMenu(page: Page, parent: string, child: string, meta: 
   return true;
 }
 
-// 대메뉴 IA/SNB 순서 (결과 시트 정렬 기준)
+// 대메뉴 IA/SNB 순서 (결과 시트 정렬 기준). norm2(공백제거) 비교라 시트명과 공백 달라도 매칭.
 const MENU_ORDER = [
   '홈', 'HOME', 'Home', '라운드관리', '대회', '관제관리', '태블릿 운영 관리',
   '홀맵 관리', '코스 운영 관리', '경기진행관리', '캐디관리', '배토 관리',
   '캐디피 관리', '식음 관리', '고객 평가 관리', '계정 관리',
+  // 코스관리 모바일(다국어) — 앱 IA 순서(랜딩 → 타일). 하위모듈은 '코스 정보 입력' 시트 안에 화면으로 편입.
+  '모바일-랜딩', '모바일-나의 작업 보기', '모바일-작업 지시', '모바일-작업 관리', '모바일-코스 뷰',
+  '모바일-일상 점검', '모바일-코스 정보 입력', '모바일-이슈/예측', '모바일-장비관리', '모바일-시설관리', '모바일-자재관리',
 ];
 const COLOR: Record<string, string> = { PASS: 'FF008000', FAIL: 'FFCC0000', SKIP: 'FF888888' };
 const norm2 = (s: string) => (s || '').replace(/\s+/g, '');
@@ -555,6 +562,48 @@ export async function writeReport(title = 'report'): Promise<string> {
     }
   }
 
+  // ── FAIL 자동 분류(triage) 시트 — 오프라인 규칙 분류(A~E/OTHER). FAIL 있을 때만 ──
+  //   매주 수동 triage 대체: 다음 run부터 즉시 클래스별 현황표. 외부 호출 0(결정론).
+  try {
+    const tri = summarizeFails(results, (p) => canonMenu(topMenu(p)));
+    if (tri.total > 0) {
+      const ft = wb.addWorksheet('FAIL 분류');
+      ft.columns = [
+        { header: '클래스', key: 'cls', width: 26 },
+        { header: '건수', key: 'n', width: 7 },
+        { header: '권장 조치', key: 'act', width: 54 },
+      ];
+      ft.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      ft.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFB03A2E' } };
+      const order: FailClass[] = ['A', 'B', 'C', 'D', 'E', 'OTHER'];
+      for (const c of order) {
+        if (!tri.counts[c]) continue;
+        const row = ft.addRow({ cls: FAIL_CLASS_LABEL[c], n: tri.counts[c], act: FAIL_CLASS_ACTION[c] });
+        row.alignment = { vertical: 'top', wrapText: true };
+        if (c === 'OTHER' && tri.counts[c]) row.getCell('cls').font = { bold: true, color: { argb: 'FFCC6600' } };
+      }
+      ft.addRow({ cls: '합계', n: tri.total, act: '' }).font = { bold: true };
+      // 상세: 분류된 FAIL 행 전수
+      ft.addRow({});
+      const hdr = ft.addRow({ cls: '— 상세(행별) —', n: '', act: '' });
+      hdr.font = { bold: true };
+      const detailHdr = ft.addRow(['클래스', 'TC', '대메뉴 / 항목 · 현상 · 상세']);
+      detailHdr.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+      for (let c = 1; c <= 3; c++) detailHdr.getCell(c).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF888888' } };
+      for (const r of tri.rows) {
+        const row = ft.addRow([
+          r.cls,
+          r.tcId,
+          `[${r.menu}] ${r.desc}${r.error ? ` · ${r.error}` : ''}${r.detail ? ` · ${r.detail}` : ''}`,
+        ]);
+        row.alignment = { vertical: 'top', wrapText: true };
+        if (r.cls === 'OTHER') row.getCell(1).font = { color: { argb: 'FFCC6600' } };
+      }
+      console.log(`[report] FAIL 분류 시트 포함 (총 ${tri.total}건: ` +
+        order.filter((c) => tri.counts[c]).map((c) => `${c}=${tri.counts[c]}`).join(' ') + ')');
+    }
+  } catch (e: any) { console.warn(`[report] FAIL 분류 시트 생략 (무시): ${e?.message || e}`); }
+
   // ── 대메뉴별 결과 시트 (IA 순서: 홈 → 라운드관리 …) ────
   for (const m of menus) {
     const ws = wb.addWorksheet(sheetSafe(m));
@@ -675,6 +724,9 @@ export async function writeReport(title = 'report'): Promise<string> {
   try { appendRun(title, results, groups); } catch (e: any) {
     console.warn(`[history] DB 기록 실패 (무시): ${e?.message || e}`);
   }
+
+  // 성능 신호(관찰 전용): 이번 런의 메뉴 렌더 샘플 집계(p50/max/건수) → history.db. title 을 sub 키로 사용.
+  try { flushMenuRender(title); } catch { /* 무시 */ }
 
   return out;
 }

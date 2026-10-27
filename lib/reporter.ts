@@ -253,8 +253,21 @@ export async function gotoMenu(page: Page, parent: string, child: string, meta: 
   await settle(page);
   if (ok) addMenuRenderSample(child, Date.now() - _t0);   // 진입 성공분만 집계(실패는 렌더 아님)
   if (!ok) {
+    // 미구현(SNB 하위 링크 부재) vs 진입 결함(링크 有·네비 실패) 구분 → 가짜 FAIL 방지.
+    //   navigateMenu의 false는 사실상 '.depth-2 a 중 하위 텍스트 미발견' = 미구현이므로,
+    //   동일 스캔으로 링크 존재 여부를 확인한다(langCheck.snbLinkExists와 동일 기준).
+    //   링크 없음 → 정당 SKIP(미구현) / 링크 있음 → 구현된 메뉴의 진입 실패 = 결함 FAIL.
+    const norm = (s: string) => (s || '').replace(/\s+/g, '');
+    const linkExists = await page.locator('.depth-2 a').allInnerTexts()
+      .then(ts => ts.some(t => norm(t).includes(norm(child))))
+      .catch(() => false);
+    if (!linkExists) {
+      results.push({ ...meta, status: 'SKIP', error: '미구현(SNB 링크 없음)', detail: `SNB '${parent} > ${child}' 하위 링크 부재 — 미구현`, time: new Date().toLocaleString('ko-KR') });
+      console.log(`  - [${meta.path}] — SKIP (미구현: SNB 링크 없음)`);
+      return false;
+    }
     const screenshot = await capture(page, meta);
-    results.push({ ...meta, status: 'FAIL', error: meta.failMsg || '메뉴 진입 불가', detail: `SNB '${parent} > ${child}' 클릭 실패`, screenshot, time: new Date().toLocaleString('ko-KR') });
+    results.push({ ...meta, status: 'FAIL', error: meta.failMsg || '메뉴 진입 불가', detail: `SNB '${parent} > ${child}' 클릭 실패(링크 존재·네비 실패)`, screenshot, time: new Date().toLocaleString('ko-KR') });
     console.warn(`  ✗ [${meta.path}] — 메뉴 진입 불가`);
     return false;
   }

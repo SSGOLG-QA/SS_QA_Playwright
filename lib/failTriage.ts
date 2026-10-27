@@ -47,7 +47,7 @@ const GUIDE_RE   = /안내\s*문구|문구\s*(불일치|차이)|TC\s*원문|원�
 
 /**
  * FAIL 1건을 클래스로 분류(결정론).
- * 우선순위: C(진입) > E(정합성) > B(구조·원인기준) > D(타임아웃) > B(구조·증상기준) > A > OTHER.
+ * 우선순위: C(진입) > B(구조·원인기준) > E(정합성) > D(타임아웃) > B(구조·증상기준) > A > OTHER.
  *
  * ⚠ B 우선 원칙: "컬럼/버튼/탭 미노출" 결함은 Playwright에서 `Timeout … waiting for element`로
  *   표출되는 경우가 많다. 자연어 현상(error)에 구조 키워드가 있으면 **원인=미노출**로 보아
@@ -58,8 +58,9 @@ export function classifyFail(r: TCResult): FailClass {
   const err = r.error || '';                                   // 자연어 현상(원인 라벨)
   const hay = `${r.error || ''} ${r.detail || ''} ${r.desc || ''}`;
   if (ENTRY_RE.test(hay)) return 'C';
+  if (STRUCT_RE.test(err)) return 'B';   // 현상(원인)에 구조 신호 → B 최우선. 절차명의 '합계/평균'(CONSIST)·타임아웃보다 앞.
+                                         //   예: 현상='컬럼 미노출' + 절차명='컬럼 \'작업시간 합계\' 노출' → E 오분류 방지.
   if (CONSIST_RE.test(hay)) return 'E';
-  if (STRUCT_RE.test(err)) return 'B';   // 구조 부재는 타임아웃으로 표출돼도 원인(현상) 기준 우선
   if (TIMEOUT_RE.test(hay)) return 'D';
   if (STRUCT_RE.test(hay)) return 'B';   // 현상엔 없고 상세/항목에만 구조 신호 → 증상 기준 B
   if (GUIDE_RE.test(hay)) return 'A';

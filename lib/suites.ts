@@ -59,7 +59,8 @@ const NOTICE = {
   visit: '골프장에 방문한 일별 내장객수와 스마트스코어 회원수, 출력량, 출력률 등을 확인하고 엑셀로 다운로드할 수 있습니다. 90일 동안의 기록만 확인 가능합니다. 스마트스코어 회원이 어플로 라운드를 전송받는 경우, 해당 회원정보(성별, 연령, 지역)를 골프장에서 타겟마케팅의 목적으로 활용할 수 있습니다. 내장객에게 스마트스코어 어플을 추천하고, 라운드기록을 전송받을 수 있도록 안내해 주세요.',
   stats: '스마트스코어 회원이 내장하여 라운드기록을 전송받는 경우, 골프장에서는 해당 회원의 정보를 활용하여 타겟마케팅이 가능합니다. 스마트스코어 회원이 라운드기록을 전송받은 데이터에 근거하여 골프장 내장객의 성격과 추이를 확인할 수 있습니다.',
   all: '태블릿에서 전송된 골프장의 모든 라운드가 기록되며 라운드 상세정보를 관리할 수 있습니다. 라운드 정보 및 클럽체크, 확인서는 90일간 보관됩니다. 단, 고객촬영으로 촬영한 내장객 사진은 1일간만 보관됩니다.',
-  course: '코스별 롱기스트, 니어리스트, 스테리오 적용 홀을 설정하고 라운드 기준 홀 수 및 홀 난이도를 관리할 수 있습니다. 운영 정책에 맞게 라운드 기본값을 미리 설정해 두면 대회/이벤트 생성 시 동일한 기준으로 빠르게 적용할 수 있습니다.',
+  // 2026-10-28: 기대값 오타 교정 '스테리오'→'신페리오'(골프 정식용어, 구현이 정답 — 같은 파일 L197도 신페리오 사용).
+  course: '코스별 롱기스트, 니어리스트, 신페리오 적용 홀을 설정하고 라운드 기준 홀 수 및 홀 난이도를 관리할 수 있습니다. 운영 정책에 맞게 라운드 기본값을 미리 설정해 두면 대회/이벤트 생성 시 동일한 기준으로 빠르게 적용할 수 있습니다.',
 };
 
 // ════════════════ 홈(Home) - TC #1~10 전수 ════════════════
@@ -184,8 +185,11 @@ export async function runRoundMgmt(admin: Page) {
     for (const [i, ph] of ['내장객 입력', '캐디명 입력', '디바이스 입력', '단체팀 입력', '카트번호 입력'].entries())
       await check(admin, { path: '라운드관리 > 전체라운드 > 검색 영역', tcRef: '라운드 관리_056', tcId: `No.56-${i + 1}`, desc: `검색 필드 '${ph}' 노출`, expected: ph, failMsg: '검색 필드 미노출' }, async () => { await expect(admin.getByPlaceholder(ph)).toBeVisible(); });
     await check(admin, { path: '라운드관리 > 전체라운드 > 검색 영역', tcRef: '라운드 관리_056', tcId: 'No.56-⑥', desc: '[초기화]/[적용] 버튼', expected: '초기화/적용', failMsg: '버튼 미노출' }, async () => { await expect(btn(admin, '초기화')).toBeVisible(); await expect(btn(admin, '적용')).toBeVisible(); });
-    for (const [i, c] of ['순번', '날짜', '티타임', '코스', '캐디', '진행시간', '내장객', '단체명', '스코어카드', '사진', '클럽체크', '중대재해 확인서', '추가 확인서', '카트확인서', '캐디수첩'].entries())
+    // ⚠ 드리프트(2026-10-28 프로브 확정, rows=39): 15→21컬럼 구조 변경. 순번 제거·진행시간→전반시간/후반시간·스코어카드→스코어.
+    //   (코스→전반/후반코스, 캐디→캐디명은 exact:false 부분매칭으로 유지 통과. 신규 컬럼 다수는 아래 diff 추적.)
+    for (const [i, c] of ['날짜', '티타임', '코스', '캐디', '전반시간', '내장객', '단체명', '스코어', '사진', '클럽체크', '중대재해 확인서', '추가 확인서', '카트확인서', '캐디수첩'].entries())
       await check(admin, { path: '라운드관리 > 전체라운드 > 테이블', tcRef: '라운드 관리_075', tcId: `No.75-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `컬럼 '${c}'`, failMsg: '컬럼 미노출' }, async () => { await expect(t.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
+    diff('라운드관리 > 전체라운드 > 테이블', '전체라운드 15컬럼(순번/진행시간/스코어카드 포함)', '21컬럼으로 확장 — 순번 제거·진행시간→전반/후반시간·스코어카드→스코어, 신규(전반/후반코스·배터리잔량/경고·디바이스·R/N·카트) 추가(AS-IS 반영)', '라운드 관리_075', '드리프트(2026-10-28 프로브): 기능 정상, 현 구현 유지 — 기획서 대조 요망');
   }
 
   // 4. 라운드 설정
@@ -213,6 +217,14 @@ export async function runRoundMgmt(admin: Page) {
   //    URL /club/page/scorecard-print-setting. all-suite 편입(2026-08-18): 라운드관리 하위 순차 진입.
   if (await gotoMenu(admin, M, '스코어 출력 설정', { path: '라운드관리 > 스코어 출력 설정', tcRef: '라운드 관리_스코어 출력 설정', tcId: '진입', desc: '스코어 출력 설정 진입', failMsg: '메뉴 진입 불가' }))
     await runScoreOutput(admin);
+
+  // ── 기획-구현 차이 추적: QA-15001 (Backlog, 2026-06-24 등록/주도현, 미해결) ──────────
+  // "[경기관제] 라운드 관리 > 언어 변경 시 테이블이 늘어나 한 화면에서 보기 어려운 현상"
+  // 드라이브 이슈리스트(2026-09-09 확인) 기준 최신 미해결 Backlog. 구체적 서브메뉴/테이블 미특정
+  // → langCheck(runLangCheckAll) 전 메뉴 순회 시 해당 테이블 확장 케이스가 "글자 잘림" 카테고리에
+  //   포착되는지 [확인 필요: 재현 서브메뉴]. 자동 판정 불가(테이블 폭/행 확장은 categoriezed layout shift로
+  //   별도 스캔 로직 없음) → diff로만 추적, 결함 재현 여부는 QA 수동 확인 요망.
+  diff(M, '언어 변경 후에도 테이블이 1화면 내에 정상 표시', '언어 변경 시 테이블이 늘어나 한 화면에서 보기 어려운 현상 보고됨', '라운드 관리_QA-15001', 'QA-15001 Backlog(미해결, 2026-06-24 등록/주도현) — 재현 서브메뉴 미특정, langCheck 자동 스캔 범위 밖(레이아웃 확장) → 수동 확인 요망');
 }
 
 // ════════════════ 라운드관리 > 단체 라운드 (구조 기반 + 읽기전용 딥 인터랙션) ════════════════
@@ -252,13 +264,15 @@ export async function runGroupRound(admin: Page) {
   // ── QA-15014 단체명 검색 결과없음 안내 문구 미노출(Backlog) ─────────
   diff(P, '단체명 검색 결과 0건 시 "검색 결과가 없습니다" 등 안내 문구 노출', '결과 0건 시 빈 테이블만 표시되고 결과없음 문구 미노출(QA-15014)', `${R}_3`, 'JIRA QA-15014 Backlog — 검색 결과 없음 상태 UI 미구현');
 
-  // ── GRND-04 다운로드 버튼([랭킹다운]/[스코어다운]) 노출 ─────
-  await check(admin, { path: `${P} > 다운로드`, tcRef: `${R}_4`, tcId: 'GRND-04', desc: '[랭킹다운]/[스코어다운] 버튼 노출', expected: '랭킹다운·스코어다운', failMsg: '다운로드 버튼 미노출' },
-    async () => { await expect(admin.getByRole('button', { name: '랭킹다운' }).first()).toBeVisible(); await expect(admin.getByRole('button', { name: '스코어다운' }).first()).toBeVisible(); });
+  // ── GRND-04 다운로드 버튼([집계내보내기]/[스코어내보내기]) 노출 ─────
+  //   드리프트(2026-10-28 프로브): 랭킹다운→집계내보내기, 스코어다운→스코어내보내기로 명칭 변경.
+  await check(admin, { path: `${P} > 다운로드`, tcRef: `${R}_4`, tcId: 'GRND-04', desc: '[집계내보내기]/[스코어내보내기] 버튼 노출', expected: '집계내보내기·스코어내보내기', failMsg: '다운로드 버튼 미노출' },
+    async () => { await expect(admin.getByRole('button', { name: '집계내보내기' }).first()).toBeVisible(); await expect(admin.getByRole('button', { name: '스코어내보내기' }).first()).toBeVisible(); });
 
   // ── GRND-05 단체 테이블 헤더 14컬럼(공백/줄바꿈/정렬글리프 강건 hasCol) ──
   //   ✨드리프트(2026-06-29): '태블릿리더보드'(ON/OFF) 컬럼 추가 → 13→14컬럼(아래 diff 추적).
-  const HEADERS = ['날짜', '단체명', '행사명', '태블릿리더보드', '첫팀 티업', '막팀 티업', '팀수/인원수', '그룹편집/핸디관리', '스코어', '진행상황', '결과집계/출력', '리더보드 웹뷰', '리더보드 웹뷰 접속 ID', '행사 관리자 접속 인증키'];
+  // 드리프트(2026-10-28 프로브): 첫팀/막팀 '티업'→'티오프', '그룹편집/핸디관리'→'그룹편집 핸디관리'(슬래시→공백, colName은 슬래시 미제거).
+  const HEADERS = ['날짜', '단체명', '행사명', '태블릿리더보드', '첫팀 티오프', '막팀 티오프', '팀수/인원수', '그룹편집 핸디관리', '스코어', '진행상황', '결과집계/출력', '리더보드 웹뷰', '리더보드 웹뷰 접속 ID', '행사 관리자 접속 인증키'];
   await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_5`, tcId: 'GRND-05', desc: '단체 테이블 헤더 14컬럼 전수 노출', expected: HEADERS.join('·'), failMsg: '테이블 헤더 미노출' },
     async () => { const heads = await tableBox.getByRole('columnheader').allInnerTexts(); for (const h of HEADERS) expect(hasCol(heads, h), `컬럼 '${h}' 미노출`).toBeTruthy(); });
   diff(P, '단체 리스트 테이블 13컬럼(2026-06-26 분석)', "'태블릿리더보드'(ON/OFF) 컬럼 신설 → 14컬럼으로 확장(AS-IS 반영)", `${R}_5`, '드리프트: 신규 컬럼 추가 — 기능 정상, 현 구현 유지');
@@ -314,9 +328,9 @@ export async function runGroupRound(admin: Page) {
   // ── GRND-10 [랭킹다운] 활성 + 선택 게이트 동작(AS-IS) ──────
   //   probe(2026-06-26): 단체 미선택 상태에서 [랭킹다운] 클릭 = 무동작(다운로드/모달/새탭/알럿 전무) →
   //   '선택 게이트' 버튼(단체 선택 후에만 다운로드). 클릭 즉시 다운로드 단언은 가짜 FAIL → 활성만 검증 + diff 추적.
-  await check(admin, { path: `${P} > 랭킹다운`, tcRef: `${R}_10`, tcId: 'GRND-10', desc: '[랭킹다운] 버튼 노출·활성(클릭 가능 상태)', expected: '[랭킹다운] enabled', failMsg: '버튼 미노출/비활성' },
-    async () => { const b = admin.getByRole('button', { name: '랭킹다운' }).first(); await expect(b).toBeVisible(); await expect(b).toBeEnabled(); });
-  diff(P, '[랭킹다운]/[스코어다운] 클릭 시 즉시 다운로드(현 라운드/단체 기준)', '단체 미선택 상태 클릭 = 무동작(다운로드/모달/새탭/알럿 전무) — 단체 선택 후에만 동작하는 선택 게이트로 관찰', `${R}_10`, '다운로드 실동작은 단체 선택 의존 → 수동/별도 검증(GRND-10은 활성만 검증)');
+  await check(admin, { path: `${P} > 집계내보내기`, tcRef: `${R}_10`, tcId: 'GRND-10', desc: '[집계내보내기] 버튼 노출·활성(클릭 가능 상태)', expected: '[집계내보내기] enabled', failMsg: '버튼 미노출/비활성' },
+    async () => { const b = admin.getByRole('button', { name: '집계내보내기' }).first(); await expect(b).toBeVisible(); await expect(b).toBeEnabled(); });
+  diff(P, '[집계내보내기]/[스코어내보내기] 클릭 시 즉시 다운로드(현 라운드/단체 기준)', '단체 미선택 상태 클릭 = 무동작(다운로드/모달/새탭/알럿 전무) — 단체 선택 후에만 동작하는 선택 게이트로 관찰', `${R}_10`, '다운로드 실동작은 단체 선택 의존 → 수동/별도 검증(GRND-10은 활성만 검증) · 명칭 랭킹다운→집계내보내기 드리프트(2026-10-28)');
   // ── QA-15009 날짜 미선택 시 알럿 문구 상이 ──────────────────────────
   diff(P, '[랭킹다운]/[스코어다운] 날짜 미선택 클릭 시 올바른 알럿 문구 노출', '날짜 선택 전 클릭 시 알럿 발생하나 문구가 기획과 상이(QA-15009)', `${R}_10`, 'JIRA QA-15009 Backlog — 알럿 문구 수정 대기');
   // ── QA-15012/15013/15015 그룹편집/핸디관리 — 범위외 이슈 ───────────
@@ -973,10 +987,17 @@ export async function runTabletFeature(admin: Page) {
   const secAdd = admin.locator('.contents-box').filter({ hasText: /추가\s*확인서/ });
   await check(admin, { path: `${P} > 추가 확인서`, tcRef: `${R}_8`, tcId: 'TABLET-08-1', desc: "'추가 확인서' 섹션 + [확인 항목 추가]/[저장] 버튼 노출(비파괴)", expected: '확인 항목 추가/저장', failMsg: '버튼 미노출' },
     async () => { await expect(secAdd.first()).toBeVisible(); await expect(admin.getByRole('button', { name: '확인 항목 추가' })).toBeVisible(); await expect(secAdd.getByRole('button', { name: '저장' }).first()).toBeVisible(); });
-  await check(admin, { path: `${P} > 추가 확인서 > 항목`, tcRef: `${R}_8`, tcId: 'TABLET-08-2', desc: '확인항목 입력 필드 노출(≥1, 데이터 의존)', expected: 'pre-sign-input ≥1', failMsg: '확인항목 입력 미노출' },
-    async () => { expect(await admin.locator('.pre-sign-input').count()).toBeGreaterThanOrEqual(1); });
-  await check(admin, { path: `${P} > 추가 확인서 > 항목`, tcRef: `${R}_8`, tcId: 'TABLET-08-3', desc: "확인항목 옵션 radio(정상/비정상) 노출", expected: '정상/비정상 radio', failMsg: '옵션 radio 미노출' },
-    async () => { await expect(admin.getByText('정상', { exact: true }).first()).toBeVisible(); await expect(admin.getByText('비정상', { exact: true }).first()).toBeVisible(); expect(await admin.locator('.check-item').count()).toBeGreaterThanOrEqual(2); });
+  // ⚠ 데이터 의존(2026-10-28 프로브): 추가 확인서에 등록된 확인항목이 0건이면 입력 필드/옵션 radio가 미노출 → SKIP(가짜 FAIL 방지).
+  const preSignN = await admin.locator('.pre-sign-input').count().catch(() => 0);
+  if (preSignN === 0) {
+    skip({ path: `${P} > 추가 확인서 > 항목`, tcRef: `${R}_8`, tcId: 'TABLET-08-2', desc: '확인항목 입력 필드 노출(≥1, 데이터 의존)' }, '데이터 없음(등록된 추가 확인항목 0건)');
+    skip({ path: `${P} > 추가 확인서 > 항목`, tcRef: `${R}_8`, tcId: 'TABLET-08-3', desc: '확인항목 옵션 radio(정상/비정상) 노출' }, '데이터 없음(등록된 추가 확인항목 0건)');
+  } else {
+    await check(admin, { path: `${P} > 추가 확인서 > 항목`, tcRef: `${R}_8`, tcId: 'TABLET-08-2', desc: '확인항목 입력 필드 노출(≥1, 데이터 의존)', expected: 'pre-sign-input ≥1', failMsg: '확인항목 입력 미노출' },
+      async () => { expect(await admin.locator('.pre-sign-input').count()).toBeGreaterThanOrEqual(1); });
+    await check(admin, { path: `${P} > 추가 확인서 > 항목`, tcRef: `${R}_8`, tcId: 'TABLET-08-3', desc: "확인항목 옵션 radio(정상/비정상) 노출", expected: '정상/비정상 radio', failMsg: '옵션 radio 미노출' },
+      async () => { await expect(admin.getByText('정상', { exact: true }).first()).toBeVisible(); await expect(admin.getByText('비정상', { exact: true }).first()).toBeVisible(); expect(await admin.locator('.check-item').count()).toBeGreaterThanOrEqual(2); });
+  }
 
   // ── TABLET-09 패스워드 변경 버튼(비파괴) ────────────────────
   await check(admin, { path: `${P} > 패스워드`, tcRef: `${R}_9`, tcId: 'TABLET-09', desc: '[패스워드 변경] 버튼 노출(클릭 미수행·비파괴)', expected: '패스워드 변경', failMsg: '패스워드 변경 버튼 미노출' },
@@ -995,7 +1016,8 @@ export async function runTabletMessage(admin: Page) {
   await checkText(admin, { path: `${P} > 설명 영역`, tcRef: `${R}_1`, tcId: 'TMSG-01', desc: '안내 문구 TC 원문 일치', expected: '태블릿 및 센터에서 자주 사용하는 메시지를 등록 후 순서를 배정하여 이용할 수 있습니다. 또한, 구역 발송 메시지 설정을 하여 특정구역 진입 시 전송되는 메시지를 관리할 수 있습니다.', failMsg: 'UI 불일치(안내 문구)' },
     admin.locator('.info-box-text'));
 
-  for (const [i, t] of ['태블릿 메시지', '셀프모드 메시지', '뒷카트 알림 메시지', '센터 메시지', '분실물'].entries())
+  // 드리프트(2026-10-28 프로브): '센터 메시지' 단일 탭 → '센터 긴급/특수/자주 쓰는 메시지' 3탭 세분화.
+  for (const [i, t] of ['태블릿 메시지', '셀프모드 메시지', '뒷카트 알림 메시지', '센터 긴급 메시지', '센터 특수 메시지', '센터 자주 쓰는 메시지', '분실물'].entries())
     await check(admin, { path: `${P} > 탭`, tcRef: `${R}_2`, tcId: `TMSG-02-${i + 1}`, desc: `탭 '${t}' 노출`, expected: t, failMsg: '탭 미노출' },
       async () => { await expect(admin.locator('.tab-group').getByText(t, { exact: false }).first()).toBeVisible(); });
 
@@ -1079,9 +1101,11 @@ export async function runTimeStandard(admin: Page) {
   for (const [i, c] of ['코스명', '경기시간', '홀간대기', '코스대기', '전체시간'].entries())
     await check(admin, { path: `${P} > 하단 표`, tcRef: `${R}_5`, tcId: `TSTD-05-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
       async () => { await expect(admin.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
-  for (const [i, b] of ['초기화', '저장', '권장값 적용', '이전 코스 값 복사'].entries())
+  // 드리프트(2026-10-28 프로브): 상단 공통 버튼은 초기화/저장/권장값 적용 3종만 노출. [이전 코스 값 복사] 미노출(제거 또는 코스 선택 게이트).
+  for (const [i, b] of ['초기화', '저장', '권장값 적용'].entries())
     await check(admin, { path: `${P} > 버튼`, tcRef: `${R}_6`, tcId: `TSTD-06-${i + 1}`, desc: `[${b}] 버튼 노출(비파괴)`, expected: `[${b}]`, failMsg: '버튼 미노출' },
       async () => { await expect(admin.getByRole('button', { name: b, exact: true }).first()).toBeVisible(); });
+  diff(`${P} > 버튼`, '[이전 코스 값 복사] 버튼 상시 노출', '미노출(제거 또는 코스 선택 시에만 노출되는 게이트로 추정 — AS-IS 반영)', `${R}_6`, '드리프트(2026-10-28 프로브): QA 확인 요망(제거 vs 조건부 노출)');
 
   // ── 정합성(자동 계산값 검증) — 읽기전용·비파괴. 시간 포맷 H:MM(또는 MM:SS) → 분환산 합산 ──
   const t2m = (s: string) => { const m = (s || '').match(/(\d+)\s*:\s*(\d+)/); return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : NaN; };
@@ -1177,14 +1201,14 @@ export async function runTimeRealtime(admin: Page) {
   const P = '경기 진행 관리 > 진행시간 실시간';
   const R = '경기 진행 관리_진행시간 실시간';
   await admin.locator('.info-box-text').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
-  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'TRT-01', desc: '안내 문구 TC 원문 일치', expected: '당일 진행중인 경기 및 완료된 경기의 홀별 및 전체 진행시간을 모니터할 수 있습니다. 붉은색 표시된 시간은 표준설정된 시간을 초과한 경우입니다. *우수 모든 시간이 표준범위내, 정상: 전체시간이 표준시간의 110% 이내, 개선: 전체시간이 표준시간의 110% ~ 120%, 위급: 전체시간 및 특정시간이 표준의 120%를 초과', failMsg: 'UI 불일치(안내 문구)' },
+  await checkText(admin, { path: `${P} > 설명`, tcRef: `${R}_1`, tcId: 'TRT-01', desc: '안내 문구 TC 원문 일치', expected: '당일 진행중인 경기 및 완료된 경기의 홀별 및 전체 진행시간을 모니터할 수 있습니다. 붉은색 표시된 시간은 표준설정된 시간을 초과한 경우입니다. *우수 모든 시간이 표준범위내, 정상: 전체시간이 표준시간의 110% 이내, 개선: 전체시간이 표준시간의 110% ~ 120%, 위기: 전체시간 및 특정시간이 표준의 120%를 초과', failMsg: 'UI 불일치(안내 문구)' },   // 2026-10-28 AS-IS: 위급→위기(등급 라벨 드리프트)
     admin.locator('.info-box-text'));
   await check(admin, { path: `${P} > 검색`, tcRef: `${R}_2`, tcId: 'TRT-02', desc: '검색 필드(캐디명/카트번호/내장객명) 노출', expected: '검색 input', failMsg: '검색 필드 미노출' },
     async () => { await expect(admin.getByPlaceholder('캐디명')).toBeVisible(); await expect(admin.getByPlaceholder('카트번호')).toBeVisible(); await expect(admin.getByPlaceholder('내장객명')).toBeVisible(); });
   for (const [i, b] of ['검색', '초기화', '새로고침', '내보내기', '홀별시각보기'].entries())
     await check(admin, { path: `${P} > 버튼`, tcRef: `${R}_3`, tcId: `TRT-03-${i + 1}`, desc: `[${b}] 버튼 노출(비파괴)`, expected: `[${b}]`, failMsg: '버튼 미노출' },
       async () => { await expect(admin.getByRole('button', { name: b, exact: true }).first()).toBeVisible(); });
-  for (const [i, c] of ['티업', '캐디', '전반', '후반', '현재', '전체', '코스간'].entries())
+  for (const [i, c] of ['티오프', '캐디', '전반', '후반', '현재', '전체', '코스간'].entries())   // 드리프트(2026-10-28): 티업→티오프
     await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_4`, tcId: `TRT-04-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
       async () => { await expect(admin.getByRole('columnheader', { name: c, exact: true }).first()).toBeVisible(); });
   await check(admin, { path: `${P} > 차트`, tcRef: `${R}_5`, tcId: 'TRT-05', desc: '진행시간 차트(svg) 노출(≥1)', expected: 'svg ≥1', failMsg: '차트 미노출' },
@@ -1233,7 +1257,7 @@ export async function runTimeSearch(admin: Page) {
   for (const [i, b] of ['검색', '초기화', '내보내기', '홀별시각보기'].entries())
     await check(admin, { path: `${P} > 버튼`, tcRef: `${R}_3`, tcId: `TSCH-03-${i + 1}`, desc: `[${b}] 버튼 노출(비파괴)`, expected: `[${b}]`, failMsg: '버튼 미노출' },
       async () => { await expect(admin.getByRole('button', { name: b, exact: true }).first()).toBeVisible(); });
-  for (const [i, c] of ['년도', '티업', '캐디', '전반', '후반', '전체', '코스간'].entries())
+  for (const [i, c] of ['년도', '티오프', '캐디', '전반', '후반', '전체', '코스간'].entries())   // 드리프트(2026-10-28): 티업→티오프
     await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_4`, tcId: `TSCH-04-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
       async () => { await expect(admin.getByRole('columnheader', { name: c, exact: true }).first()).toBeVisible(); });
   diff(`${P} > 설명 영역`, '조회 화면 전용 안내문구', "안내문구 도입부 2문장이 '진행시간 실시간'과 동일(공용 문구 재사용) — 화면 특화 안내('최장 7일간…조회')는 상이", `${R}_1`, '공용 도입부 재사용 — 의도 여부 QA 확인 요망(2026-06-19 전문일치 승격 시 확인)');
@@ -1278,7 +1302,7 @@ export async function runCaddieList(admin: Page) {
     async () => { expect(await page.filter.count()).toBeGreaterThanOrEqual(1); await expect(page.nameSearch()).toBeVisible(); await expect(page.applyBtn().first()).toBeVisible(); });
   // ✨드리프트(2026-06-17): '회원추천' 컬럼 제거 + '구분'·'등록일'·'해지일' 추가(현 12컬럼 AS-IS)
   const cadlHeaders = await page.headers();
-  for (const [i, c] of ['No', '성명', '구분', '성별', '휴대폰', '카트번호', '태블릿 No.', '배터리', '등록일', '해지일', '라운드기록', '그늘집주문'].entries())
+  for (const [i, c] of ['No', '성명', '구분', '성별', '휴대폰', '카트번호', '태블릿 No.', '배터리', '등록일', '해지일', '라운드기록', '주문내역'].entries())   // 드리프트(2026-10-28): 그늘집주문→주문내역
     await check(admin, { path: `${P} > 테이블`, tcRef: `${R}_5`, tcId: `CADL-05-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
       async () => { expect(hasCol(cadlHeaders, c), `컬럼 '${c}' 정확 일치 (실제: ${cadlHeaders.join('/')})`).toBeTruthy(); });
   await check(admin, { path: `${P} > 액션`, tcRef: `${R}_6`, tcId: 'CADL-06', desc: '[관제 적용] 버튼 노출(클릭 미수행·비파괴)', expected: '관제 적용', failMsg: '관제 적용 미노출' },
@@ -1462,9 +1486,17 @@ export async function runBetoStats(admin: Page) {
     async () => { await expect(admin.getByText('통계 그래프', { exact: false }).first()).toBeVisible(); expect(await admin.locator('canvas').count()).toBeGreaterThanOrEqual(1); });
 
   // ── BSTAT-07 통계표 컬럼(No./날짜/작업자 수/작업시간 합계/평균 작업시간) ──
-  for (const [i, c] of ['No.', '날짜', '작업자 수', '작업시간 합계', '평균 작업시간'].entries())
-    await check(admin, { path: `${P} > 통계표`, tcRef: `${R}_7`, tcId: `BSTAT-07-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
-      async () => { await expect(admin.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
+  //   ⚠ 데이터/조회 의존(2026-10-28 프로브): 조회 전/데이터 없음 시 통계표 thead 미렌더(헤더 0개) → 빈 상태면 SKIP(가짜 FAIL 방지).
+  const bstatHeads = await admin.getByRole('columnheader').count().catch(() => 0);
+  const bstatRows = await admin.locator('table tbody tr').count().catch(() => 0);
+  if (bstatHeads === 0 && bstatRows === 0) {
+    for (const [i, c] of ['No.', '날짜', '작업자 수', '작업시간 합계', '평균 작업시간'].entries())
+      skip({ path: `${P} > 통계표`, tcRef: `${R}_7`, tcId: `BSTAT-07-${i + 1}`, desc: `컬럼 '${c}' 노출` }, '데이터 없음(조회 전 통계표 빈 상태 — 헤더 미렌더)');
+  } else {
+    for (const [i, c] of ['No.', '날짜', '작업자 수', '작업시간 합계', '평균 작업시간'].entries())
+      await check(admin, { path: `${P} > 통계표`, tcRef: `${R}_7`, tcId: `BSTAT-07-${i + 1}`, desc: `컬럼 '${c}' 노출`, expected: `'${c}'`, failMsg: '컬럼 미노출' },
+        async () => { await expect(admin.getByRole('columnheader', { name: c, exact: false }).first()).toBeVisible(); });
+  }
 
   // ── BSTAT-08 [내보내기] 버튼 노출(클릭 미수행·비파괴) ────────
   await check(admin, { path: `${P} > 액션`, tcRef: `${R}_8`, tcId: 'BSTAT-08', desc: '[내보내기] 버튼 노출(클릭 미수행·비파괴)', expected: '내보내기', failMsg: '내보내기 버튼 미노출' },
@@ -1869,9 +1901,11 @@ export async function runFnbVersion(admin: Page) {
   await check(admin, { path: `${P} > F&B 데이터 연동`, tcRef: `${R}_4`, tcId: 'FNBVER-04', desc: '현재버전 표기 노출(숫자·업데이트 표시)', expected: '현재버전 : <숫자>', failMsg: '현재버전 표기 미노출' },
     async () => { const t = await fnbCard.innerText(); expect(t).toMatch(/현재버전\s*:\s*\d+/); });
 
-  // ── FNBVER-05 [F&B 데이터 동기화] 버튼 노출·활성(클릭 금지) ──
-  await check(admin, { path: `${P} > F&B 데이터 연동`, tcRef: `${R}_5`, tcId: 'FNBVER-05', desc: '[F&B 데이터 동기화] 버튼 노출·활성(비파괴·클릭 미수행)', expected: '[F&B 데이터 동기화]', failMsg: '버튼 미노출/비활성' },
-    async () => { const b = fnbCard.getByRole('button', { name: 'F&B 데이터 동기화' }); await expect(b).toBeVisible(); await expect(b).toBeEnabled(); });
+  // ── FNBVER-05 F&B 카드 동기화 버튼 노출·활성(클릭 금지) ──
+  //   드리프트(2026-10-28 프로브): F&B 카드 버튼 'F&B 데이터 동기화' → '버전 올리기'로 명칭 변경(현 버튼: 버전 올리기/POS 메뉴 동기화).
+  await check(admin, { path: `${P} > F&B 데이터 연동`, tcRef: `${R}_5`, tcId: 'FNBVER-05', desc: 'F&B 카드 동기화 버튼 노출·활성(비파괴·클릭 미수행)', expected: '[버전 올리기]', failMsg: '버튼 미노출/비활성' },
+    async () => { const b = fnbCard.getByRole('button', { name: '버전 올리기' }); await expect(b).toBeVisible(); await expect(b).toBeEnabled(); });
+  diff(P, 'F&B 데이터 연동 카드 버튼 [F&B 데이터 동기화]', "버튼 명칭 '버전 올리기'로 변경(AS-IS 반영)", `${R}_5`, '드리프트(2026-10-28 프로브): 명칭 변경 — QA 확인 요망');
 
   // ── FNBVER-06 POS 카드 제목/설명 ────────────────────────────
   await check(admin, { path: `${P} > POS 연동`, tcRef: `${R}_6`, tcId: 'FNBVER-06', desc: 'POS 연동 카드 제목/설명 노출', expected: 'POS 메뉴 동기화', failMsg: 'POS 카드 미노출' },

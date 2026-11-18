@@ -1,4 +1,4 @@
-import { test as setup, expect, Page, BrowserContext } from '@playwright/test';
+import { test as setup, expect, Page, BrowserContext, Browser } from '@playwright/test';
 import { STORAGE_STATE, ACCOUNT_COUNT, accountStorage } from '../playwright.config';
 import fs from 'fs';
 import path from 'path';
@@ -31,6 +31,24 @@ const CLUB_NAME = process.env.CLUB_NAME || '킹즈락';   // CI 자동 로그인
 //   수동 로그인으로 되돌리려면 AUTO_LOGIN=0 (또는 env 미설정). 자격증명은 .env(gitignore됨)에만 두고 커밋 금지.
 const AUTO_LOGIN = process.env.AUTO_LOGIN !== '0' && Boolean(process.env.SS_USERNAME && process.env.SS_PASSWORD);
 
+// 세션 유효성 선검사(2026-11-18): 기존 storageState로 대시보드가 로그인 상태면 재인증 스킵.
+//   "테스트 실행 직전, 만료 시에만" 재인증 정책 — 공유 QA 계정에서 유효 세션을 불필요하게 재로그인
+//   (→ 중복 로그인으로 현업 테스터 강제 로그아웃)하지 않도록. 비파괴(기존 쿠키로 읽기 전용 접속, 새 로그인 없음).
+//   ⚠ ACCOUNT_COUNT>1(계정 풀)은 계정별 수동 전제라 스킵하지 않음. FORCE_REAUTH=1 이면 강제 재인증.
+async function isSessionValid(browser: Browser): Promise<boolean> {
+  if (ACCOUNT_COUNT > 1) return false;
+  const file = accountStorage(0);
+  if (!fs.existsSync(file)) return false;
+  const ctx = await browser.newContext({ storageState: file });
+  try {
+    const p = await ctx.newPage();
+    await p.goto(DASHBOARD_URL, { waitUntil: 'domcontentloaded', timeout: 20_000 }).catch(() => {});
+    return await p.getByRole('heading', { name: /님 안녕하세요/ }).isVisible({ timeout: 8_000 }).catch(() => false);
+  } finally {
+    await ctx.close().catch(() => {});
+  }
+}
+
 async function closeNoticeIfPresent(p: Page) {
   const close = p.locator('.btn-top-close');
   if (await close.isVisible().catch(() => false)) await close.click().catch(() => {});
@@ -41,7 +59,7 @@ async function autoLogin(page: Page): Promise<void> {
   const username = process.env.SS_USERNAME!;
   const password = process.env.SS_PASSWORD!;
 
-  console.log(`\n[auth.setup] CI 자동 로그인 시작 (계정: ${username})\n`);
+  console.log(`\n[auth.setup] 자동 로그인 시작 (계정: ${username})\n`);
   await page.goto(LOGIN_URL);
   await expect(page.getByRole('button', { name: '로그인' })).toBeVisible({ timeout: 15_000 });
 
@@ -70,7 +88,7 @@ async function autoLogin(page: Page): Promise<void> {
   // 대시보드 진입 확인
   await expect(page.getByRole('heading', { name: /님 안녕하세요/ }))
     .toBeVisible({ timeout: 30_000 });
-  console.log('\n[auth.setup] CI 자동 로그인 완료\n');
+  console.log('\n[auth.setup] 자동 로그인 완료\n');
 }
 
 // 한 계정에 대해: 대시보드 로그인 → td17 → 어드민 진입 → storageState 저장
@@ -164,12 +182,18 @@ async function captureAccount(page: Page, context: BrowserContext, idx: number) 
   if (openedTab && idx < ACCOUNT_COUNT - 1) await openedTab.close().catch(() => {});
 }
 
-setup('authenticate', async ({ page, context }) => {
+setup('authenticate', async ({ page, context, browser }) => {
   // 계정당 최대 3분 수동 로그인 + 진입 여유
   setup.setTimeout(Math.max(300_000, 200_000 * ACCOUNT_COUNT));
 
   const dir = path.dirname(STORAGE_STATE);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+  // 유효 세션이면 재인증 스킵(만료 시에만 재로그인) — ensure-auth 로 테스트 실행 직전 호출됨.
+  if (process.env.FORCE_REAUTH !== '1' && (await isSessionValid(browser))) {
+    console.log('\n[auth.setup] 기존 세션 유효 — 재인증 스킵(만료 시에만 재로그인). 강제하려면 FORCE_REAUTH=1.\n');
+    return;
+  }
 
   // 중복 로그인 처리(이전 세션 종료) — 대시보드 단계에 핸들러 선등록(전 계정 공통):
   //  ① 로그인 진행 확인 프롬프트("…로그인을 진행하시겠습니까?")가 뜨면 [예] →

@@ -14,7 +14,8 @@
 
 ### npm scripts (권장 진입점, 2026-06-18 정비)
 ```bash
-npm run auth         # 0) 최초/만료 시 인증 세션 생성 (headed 수동 로그인, 최대 3분) → auth/.auth/admin.json
+npm run auth         # 0) 인증 세션 생성 (headed). SS_USERNAME/SS_PASSWORD(.env) 있으면 자동 로그인, 없으면 수동(최대 3분) → auth/.auth/admin.json
+npm run ensure-auth  # 0') 세션 유효성 선검사 → 유효하면 스킵, 만료 시에만 env 자동 로그인(headless). test* 러너가 실행 직전 자동 경유(2026-11-18 신규)
 npm run typecheck    #    tsc --noEmit -p tsconfig.typecheck.json (lib/Admin/auth/scripts 전수 타입검증, 2026-06-26 확대)
 npm run test         # = test:all (전체테스트 단일 문서)
 npm run test:all     # 전 대메뉴 순회 → reports/전체테스트_report_*.xlsx
@@ -44,6 +45,7 @@ npm run report       # 최근 HTML 리포트 열기
 ### ⚠️ 세션 만료/중복 로그인 (가장 흔한 실행 실패)
 - **증상 A — 중복 로그인 강제 로그아웃**: `openAdmin`이 명확히 fail-fast(`[openAdmin] 세션 무효 — 중복 로그인 강제 로그아웃 감지`). 다른 브라우저/탭의 클라우드(td17·sv1td4) 로그인·동시 실행을 모두 종료 → `npm run auth`.
 - **증상 B — 세션 만료**: 대시보드 인사말(`님 안녕하세요`) 미노출(로그아웃). 마찬가지로 `npm run auth` 재인증. (세션은 수일 내 만료)
+- ✨ **env 자동 로그인 + 실행 직전 재인증(2026-11-18)**: `.env`에 `SS_USERNAME`/`SS_PASSWORD`(gitignore됨, `env.sample` 참조)를 두면 로그인 폼(클럽검색+ID+PW, 2FA/CAPTCHA 없음)을 자동 입력해 무인 재인증(~22초). `auth.setup`은 `isSessionValid()`로 **유효하면 재인증 스킵, 만료 시에만 재로그인**(`FORCE_REAUTH=1`로 강제). `test`/`test:all`/`test:admin`/`test:ia`/`test:l4`/`test:lang`/`test:full`은 실행 직전 `npm run ensure-auth`를 자동 경유 → 별도 재인증 명령 불필요. ⚠ td17 세션은 "1런당 1런만 생존"이라 스킵 경로는 드물게만 작동(실무상 매 실행 재인증, 의도대로). ⚠ env 계정이 본인 계정이면 재인증 시 본인의 다른 td17 로그인이 끊길 수 있음. 자격증명은 `.env`에만(커밋 금지). CI는 환경변수 직접 주입(과거 `process.env.CI` 게이트는 제거됨).
 - **진입 플레이크**: 개별 스펙 첫 `gotoMenu`가 간헐 실패 → retries로 자동 재시도(이번 정비). all-suite는 시퀀스 중간이라 안정적.
 
 ### 드리프트 검출 워크플로 (구현 변경 추적)

@@ -26,8 +26,10 @@ const LOGIN_URL = 'https://sv1td4.smartscore.kr/ko/login';
 const SUBDOMAIN = process.env.SUBDOMAIN || 'td17';   // env 전환(대회모드=td18)
 const CLUB_NAME = process.env.CLUB_NAME || '킹즈락';   // CI 자동 로그인 클럽(수동 로그인은 사용자 선택)
 
-// CI 자동 로그인 모드: SS_USERNAME / SS_PASSWORD 환경변수가 모두 있을 때 활성화
-const CI_AUTO_LOGIN = Boolean(process.env.CI && process.env.SS_USERNAME && process.env.SS_PASSWORD);
+// 자동 로그인 모드: SS_USERNAME / SS_PASSWORD 환경변수(.env 또는 셸)가 모두 있으면 활성화(로컬·CI 공통).
+//   2026-11-18: 기존엔 process.env.CI 동시 필요 → 로컬 미적용이었음. CI 조건 제거해 로컬에서도 env만으로 자동 로그인.
+//   수동 로그인으로 되돌리려면 AUTO_LOGIN=0 (또는 env 미설정). 자격증명은 .env(gitignore됨)에만 두고 커밋 금지.
+const AUTO_LOGIN = process.env.AUTO_LOGIN !== '0' && Boolean(process.env.SS_USERNAME && process.env.SS_PASSWORD);
 
 async function closeNoticeIfPresent(p: Page) {
   const close = p.locator('.btn-top-close');
@@ -77,7 +79,7 @@ async function captureAccount(page: Page, context: BrowserContext, idx: number) 
   const label = ACCOUNT_COUNT > 1 ? `계정 ${idx + 1}/${ACCOUNT_COUNT}` : '계정';
 
   // ── STEP 1. 대시보드 진입 + 로그인 ──────────────
-  if (CI_AUTO_LOGIN) {
+  if (AUTO_LOGIN) {
     // CI: 자동 로그인
     await autoLogin(page);
   } else {
@@ -105,7 +107,7 @@ async function captureAccount(page: Page, context: BrowserContext, idx: number) 
   let adminPage: Page;
   // 어드민이 새 탭으로 열린 경우 추적(계정 사이 정리용). 같은 탭 진입(goto)이면 null 유지.
   let openedTab: Page | null = null;
-  if (CI_AUTO_LOGIN) {
+  if (AUTO_LOGIN) {
     // window.open → location.href 리다이렉트로 강제 (헤드리스 팝업 차단 우회)
     adminPage = page;
 
